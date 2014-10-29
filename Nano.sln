@@ -1,0 +1,53 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2013
+VisualStudioVersion = 12.0.30501.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nano.Core", "Nano.Core\Nano.Core.csproj", "{2DB87178-4E8A-4A5D-A40D-FD53A259DAFE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nano.Tests", "Nano.Tests\Nano.Tests.csproj", "{0AE6CFC8-7BBE-4000-9B06-CD7229FDF883}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nano.Example.Console", "Nano.Example.Console\Nano.Example.Console.csproj", "{9EB24368-DD8F-4379-958E-826B38EA7BE7}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nano.Example.Api", "Nano.Example.Api\Nano.Example.Api.csproj", "{4363AD3F-ADCD-4DD3-B643-5873230A66DE}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".nuget", ".nuget", "{C521A9C1-AB6D-46EF-BB65-DFC3B955736C}"
+	ProjectSection(SolutionItems) = preProject
+		.nuget\NuGet.Config = .nuget\NuGet.Config
+		.nuget\NuGet.exe = .nuget\NuGet.exe
+		.nuget\NuGet.targets = .nuget\NuGet.targets
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nano.Host", "Nano.Host\Nano.Host.csproj", "{4D28528D-96F6-44B8-B0E6-59B53A26BD43}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{2DB87178-4E8A-4A5D-A40D-FD53A259DAFE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2DB87178-4E8A-4A5D-A40D-FD53A259DAFE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2DB87178-4E8A-4A5D-A40D-FD53A259DAFE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2DB87178-4E8A-4A5D-A40D-FD53A259DAFE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0AE6CFC8-7BBE-4000-9B06-CD7229FDF883}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0AE6CFC8-7BBE-4000-9B06-CD7229FDF883}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0AE6CFC8-7BBE-4000-9B06-CD7229FDF883}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0AE6CFC8-7BBE-4000-9B06-CD7229FDF883}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9EB24368-DD8F-4379-958E-826B38EA7BE7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9EB24368-DD8F-4379-958E-826B38EA7BE7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9EB24368-DD8F-4379-958E-826B38EA7BE7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9EB24368-DD8F-4379-958E-826B38EA7BE7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4363AD3F-ADCD-4DD3-B643-5873230A66DE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4363AD3F-ADCD-4DD3-B643-5873230A66DE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4363AD3F-ADCD-4DD3-B643-5873230A66DE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4363AD3F-ADCD-4DD3-B643-5873230A66DE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4D28528D-96F6-44B8-B0E6-59B53A26BD43}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4D28528D-96F6-44B8-B0E6-59B53A26BD43}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4D28528D-96F6-44B8-B0E6-59B53A26BD43}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4D28528D-96F6-44B8-B0E6-59B53A26BD43}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
