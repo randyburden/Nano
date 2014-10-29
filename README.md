@@ -36,5 +36,3 @@ License
 ----
 
 MIT
-
-http://owin.org/
