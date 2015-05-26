@@ -1,6 +1,8 @@
 Nano
 ====
 
+<a href="https://www.nuget.org/packages/Nano"><img src="https://img.shields.io/nuget/v/Nano.svg" alt="NuGet Version" /></a> <a href="https://www.nuget.org/packages/Nano"><img src="https://img.shields.io/nuget/dt/Nano.svg" alt="NuGet Download Count" /></a>
+
 Nano is a micro web framework for building web-based HTTP services for .NET.
 
  - Rapidly create web apis by writing static methods
