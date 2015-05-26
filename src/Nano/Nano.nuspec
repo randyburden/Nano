@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<package>
+  <metadata>
+    <id>Nano</id>
+    <version>$version$</version>
+    <title>Nano</title>
+    <authors>Randy Burden, David Whitlark and contributors</authors>
+    <owners>Randy Burden, David Whitlark and contributors</owners>
+    <licenseUrl>https://github.com/AmbitEnergyLabs/Nano/blob/master/LICENSE</licenseUrl>
+    <projectUrl>https://github.com/AmbitEnergyLabs/Nano</projectUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>Nano is a micro web framework for building web-based HTTP services for .NET.</description>
+	<summary>Nano is a micro web framework for building web-based HTTP services for .NET.</summary>
+    <releaseNotes>
+* 0.1.0 - Initial pre-release.	
+	</releaseNotes>
+    <copyright>Copyright 2015</copyright>
+    <language>en-US</language>
+    <tags>Nano micro web framework api web service</tags>
+  </metadata>
+</package>
