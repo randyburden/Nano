@@ -1,6 +1,8 @@
 The MIT License (MIT)
 
-Copyright (c) 2014 Ambit Energy
+Nano is a micro web framework for building web-based HTTP services for .NET. 
+
+Copyright (c) 2015 Ambit Energy. All rights reserved.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

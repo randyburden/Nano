@@ -1,0 +1,350 @@
+<html>
+  <head>
+	<title>Api Explorer</title>
+	<link rel="stylesheet" type="text/css" href="css/jquery.dataTables.min.css">
+	<script type="text/javascript" charset="utf8" src="js/jquery-1.11.3.min.js"></script>
+	<script type="text/javascript" charset="utf8" src="js/jquery.dataTables.min.js"></script>
+	<script type="text/javascript" charset="utf8" src="js/autosize.min.js"></script>
+	<style>
+		body {
+			font-family: "Helvetica Neue",Helvetica,Arial,sans-serif;
+			font-size: 14px;
+			line-height: 1.428571429;
+			color: #333;
+			background-color: #fff;
+		}
+		.btn-primary {
+		  color: #fff;
+		  background-color: #428bca;
+		  border-color: #428bca;
+		}
+		.btn-default {
+		  color: #fff;
+		  background-color: #474949;
+		  border-color: #474949;
+		}
+		.btn {
+		  display: inline-block;
+		  padding: 8px 12px;
+		  margin-bottom: 0;
+		  font-size: 14px;
+		  font-weight: 500;
+		  line-height: 1.428571429;
+		  text-align: center;
+		  white-space: nowrap;
+		  vertical-align: middle;
+		  cursor: pointer;
+		  border: 1px solid transparent;
+		  border-radius: 4px;
+		}
+		label {
+		  display: inline-block;
+		  margin-bottom: 5px;
+		  font-weight: bold;
+		}
+		.operationItem { 
+			cursor:pointer;
+			margin: 5px;
+		}
+		.inputParameter {
+		}
+		.childRow {
+			background-color: #fff;
+		}
+		#operationTable > thead {
+			text-align: left;
+		}
+		#operationTable > tfoot {
+			text-align: left;
+		}		 
+		div.slider {
+			display: none;
+		}		 
+		table.dataTable tbody td.no-padding {
+			padding: 0;
+		}
+	</style>
+  </head>
+  <body>
+	
+	<h3 style="font-size: 24px;">Api Explorer v.0.0.1</h3>
+	
+	<div id="operations">
+		<div id="loadingOperations">Loading, please wait...</div>
+		<table id="operationTable" class="display" cellspacing="0" width="100%">
+			<thead>
+				<tr>
+					<th>Operation</th>
+					<th>Path</th>					
+					<th>Description</th>
+				</tr>
+			</thead>
+			<tbody>	
+			</tbody>
+		</table>
+	</div>
+	
+	<br />
+	<br />
+		
+	<div id="operationInputParametersTableTemplate" style="display:none;">
+		<div class="slider">
+			<form id="{{FormId}}" method="POST" action="{{FullUrl}}" style="margin: 20px;">
+			
+				<table id="{{ParametersTableId}}" cellpadding="5" cellspacing="0" border="0" style="padding-left:50px;">
+					<thead>
+						<tr>
+							<th>Parameter</th>
+							<th>Value</th>
+							<th>Type</th>
+							<th>Description</th>
+						</tr>
+					</thead>
+					<tbody>
+					</tbody>
+				</table>
+			
+				<div style="padding-left:50px; margin-top:10px;">
+					<button type="submit" id="{{Name}}-SubmitButton" class="btn btn-primary">Submit</button>
+					&nbsp;&nbsp;
+					<button type="button" id="{{Name}}-ClearButton" class="btn btn-default btn-clear">Clear</button>
+				</div>
+				
+				<br />
+				
+				<div id="{{ResultsId}}" style="padding-left:50px; display:none;">
+					<p>Results:</p>
+					<pre id="{{SuccessResultsId}}">				
+					</pre>
+					<div id="{{FailureResultsId}}">
+					</div>
+				</div>
+			</form>
+		</div>
+	</div>
+		
+	<div>
+		<img src="images/lego_explorer.jpg" alt="Lego Explorer" title="Lego Explorer" style="float:right;" />
+	</div>
+	
+	<script>
+		
+		function replaceAllOccurrences ( originalString, searchString, replacementString ) {
+			return originalString.split(searchString).join(replacementString);
+		}
+		
+		function getChildRowHtml ( data ) {
+						
+			var html = $('#operationInputParametersTableTemplate').html();
+			
+			var tbody = '';
+			
+			for( var i = 0; i < data.InputParameters.length; i++ ) {
+				
+				var param = data.InputParameters[i];
+				
+				tbody +=	'<tr>';
+				tbody +=		'<td><label for="' + param.Name + '">' + param.Name + '</label></td>';
+				tbody +=		'<td><textarea id="' + param.Name + '" name="' + param.Name + '" class="inputParameter" rows="1"></textarea></td>';
+				tbody +=		'<td>' + param.Type + '</td>';
+				tbody +=		'<td>' + ( param.Description || '' ) + '</td>';
+				tbody +=	'</tr>';
+			}
+			
+			html = html.replace( '<tbody>', '<tbody>' + tbody );
+			html = replaceAllOccurrences( html, '{{Name}}', data.Name );
+			html = replaceAllOccurrences( html, '{{FullUrl}}', data.FullUrl );
+			html = replaceAllOccurrences( html, '{{FormId}}', getFormId( data ) );
+			html = replaceAllOccurrences( html, '{{SuccessResultsId}}', getSuccessResultsId( data ) );
+			html = replaceAllOccurrences( html, '{{FailureResultsId}}', getFailureResultsId( data ) );
+			html = replaceAllOccurrences( html, '{{ResultsId}}', getResultsId( data ) );
+			html = replaceAllOccurrences( html, '{{ParametersTableId}}', getParametersTableId( data ) );
+															
+			return html;
+		}
+
+		function getApiMetadata() {
+		
+			$.ajax({
+			  method: 'POST',
+			  url: location.origin + '/metadata/nanoMetadata.json'
+			})
+			.done(function( data ) {
+				getApiMetadataCallback( data );
+			});
+		};
+		
+		function getApiMetadataCallback( metadata ) {
+			console.log( metadata );
+			
+			var rowData = [];
+						
+			$('#loadingOperations').hide();
+			
+			var table = $('#operationTable').DataTable({
+				"paging":   false,
+				"ordering": true,
+				"info":     true,
+				columns: [
+					{data: "Name"},
+					{data: "Path"},					
+					{data: "Description"}
+				]
+			} );
+			
+			for( var i = 0; i < metadata.Operations.length; i++ ) {
+				
+				table.rows.add( [{				
+					Name : metadata.Operations[i].Name,
+					Path : metadata.Operations[i].UrlPath,
+					Description : metadata.Operations[i].Description,
+					InputParameters: metadata.Operations[i].InputParameters || [],
+					FullUrl: metadata.Operations[i].FullUrl,
+					ReturnType: metadata.Operations[i].ReturnParameterType
+				}]);
+			}
+						
+			// Re-draw the table now that we've added new rows
+			// and add a class to each row
+			table.draw().rows().nodes().to$().addClass( 'operationItem' ); 
+			
+			// Add event listener for opening and closing details
+			$('#operationTable tbody').on('click', 'td', function () {
+				var tr = $(this).closest('tr');
+				var row = table.row( tr );
+				
+				if ( !row.data() )
+					return;
+		 
+				if ( row.child.isShown() ) {
+					// This row is already open - close it
+					$('div.slider', row.child()).slideUp( function () {
+						row.child.hide();
+						tr.removeClass('shown');
+					} );
+				}
+				else {
+					// Open this row
+					var rowData = row.data();
+					row.child( getChildRowHtml(rowData), 'no-padding childRow' ).show();
+					
+					tr.addClass('shown');
+					
+					if ( rowData.InputParameters.length === 0 ) {
+						var parametersTableId = getParametersTableId( rowData );
+						$('#' + parametersTableId ).hide();
+					}
+					
+					$('div.slider', row.child()).slideDown( 'slow', function() {
+						attachChildRowBehavior(rowData);
+					});
+				}
+			} );
+		};
+		
+		function getFormId( rowData ) {
+			return rowData.Name + 'Form';
+		};
+		
+		function getResultsId( rowData ) {
+			return rowData.Name + 'Results';
+		};
+		
+		function getSuccessResultsId( rowData ) {
+			return rowData.Name + 'SuccessResults';
+		};
+		
+		function getFailureResultsId( rowData ) {
+			return rowData.Name + 'FailureResults';
+		};
+		
+		function getParametersTableId( rowData ) {
+			return rowData.Name + 'ParametersTable';
+		};
+		
+		function clearSuccessAndFailureResults( rowData ) {
+			var successResultsId = getSuccessResultsId( rowData );
+			$('#' + successResultsId ).text( '' );
+			
+			var failureResultsId = getFailureResultsId( rowData );
+			$('#' + failureResultsId ).html( '' );
+		};
+		
+		function attachChildRowBehavior(rowData) {
+			
+			// Enable textArea's to auto-resize
+			autosize($('.inputParameter'));
+						
+			$('.btn-clear').click(function() {
+				$('.inputParameter').val('');
+				clearSuccessAndFailureResults( rowData );
+				var resultsId = getResultsId( rowData );
+				$('#' + resultsId ).hide();
+			});
+			
+			var formId = getFormId( rowData );
+			
+			$(".inputParameter").on("keydown", function(e) {
+				if (e.keyCode == 13 && e.ctrlKey) 
+					$(this).closest("form").submit();
+			});
+			
+			$('#' + formId).submit(function(event){
+				
+				if (rowData.ReturnType == "Stream") {
+
+					$(this).submit(event);
+					return true;
+				}
+				
+				// Prevent standard form submission
+				event.preventDefault();
+				
+				clearSuccessAndFailureResults( rowData );
+				
+				var url = this.action;
+				var data = $(this).serialize();
+								
+				$.ajax({
+					url: url,
+					type: "POST",				  
+					data: data,
+					dataType: 'json'
+				})
+				.done(function(data, textStatus, jqXHR) {
+					console.log( data );
+					
+					var resultString = JSON.stringify( data, null, 4);
+					
+					var successResultsId = getSuccessResultsId( rowData );
+					$('#' + successResultsId ).text( resultString )
+					
+					var resultsId = getResultsId( rowData );
+					$('#' + resultsId ).slideDown( 'slow', function() {						
+					});
+				})
+				.fail(function(jqXHR, textStatus, errorThrown) {
+					console.log( jqXHR );
+					console.log( textStatus );
+					console.log( errorThrown );
+					
+					var failureResultsId = getFailureResultsId( rowData );
+					$('#' + failureResultsId ).html( jqXHR.responseText );
+					
+					var resultsId = getResultsId( rowData );
+					$('#' + resultsId ).slideDown( 'slow', function() {						
+					});
+				});
+								
+				return false; 
+			});
+		};
+				
+		$(document).ready(function() {
+		
+			getApiMetadata();
+		});
+		
+	</script>
+  </body>
+</html>
