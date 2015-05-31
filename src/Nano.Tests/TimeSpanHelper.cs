@@ -30,7 +30,7 @@ namespace Nano.Tests
             else if( timeSpan.Seconds > 0 )
                 elapsedTime = string.Format( "{0:%s} sec {0:%fff} ms", timeSpan );
             else if( timeSpan.TotalMilliseconds > 0.9999999 )
-                elapsedTime = string.Format( "{0:%fff} ms", timeSpan );
+                elapsedTime = string.Format( "{0} ms", timeSpan.TotalMilliseconds );
             else
                 elapsedTime = string.Format( "{0} µs", timeSpan.TotalMilliseconds * 1000.0 );
 

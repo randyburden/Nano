@@ -6,6 +6,19 @@
     public class Customer
     {
         /// <summary>
+        /// Adds the specified number1.
+        /// </summary>
+        /// <param name="number1">The number1.</param>
+        /// <param name="number2">The number2.</param>
+        /// <returns></returns>
+        public static int Add( int number1, int? number2 )
+        {
+            var num = number2 ?? 1;
+
+            return number1 + num;
+        }
+
+        /// <summary>
         /// Creates the customer.
         /// </summary>
         /// <param name="firstName">The first name.</param>
@@ -85,6 +98,16 @@
         }
 
         /// <summary>
+        /// Adds the user.
+        /// </summary>
+        /// <param name="user">The user.</param>
+        /// <returns><see cref="UserModel"/></returns>
+        public static UserModel AddUser( UserModel user )
+        {
+            return user;
+        }
+
+        /// <summary>
         /// Customer.
         /// </summary>
         public class CustomerModel
@@ -103,6 +126,12 @@
             /// Last name.
             /// </summary>
             public string LastName;
+        }
+
+        public class UserModel
+        {
+            public int UserId { get; set; }
+            public string UserName { get; set; }
         }
     }
 }

@@ -67,7 +67,21 @@
   </head>
   <body>
 	
-	<h3 style="font-size: 24px;">Api Explorer v.0.0.1</h3>
+      <table style="width: 100%;">
+          <tr>
+              <td><h3 style="font-size: 24px;">Api Explorer v.0.1.0</h3></td>
+              <td style="text-align: right;">
+                  <select id="DropdownFeatures">
+                      <option>Api Explorer Features</option>
+                      <optgroup label="Proxy Generators">
+                          <option value="GenerateCSharpProxy">C#</option>
+                          <option value="GenerateJavascriptProxy">JavaScript ( coming soon )</option>
+                      </optgroup>
+                  </select>
+              </td>
+          </tr>
+      </table>
+      
 	
 	<div id="operations">
 		<div id="loadingOperations">Loading, please wait...</div>
@@ -123,11 +137,54 @@
 		</div>
 	</div>
 		
-	<div>
-		<img src="images/lego_explorer.jpg" alt="Lego Explorer" title="Lego Explorer" style="float:right;" />
-	</div>
-	
-	<script>
+      <div>
+          <img src="images/lego_explorer.jpg" alt="Lego Explorer" title="Lego Explorer" style="float:right;" />
+      </div>
+      
+        <div id="CSharpProxyTemplate" style="display:none;">
+            <pre id="CSharpApiClassTemplate">
+public class {{ClassName}}
+{
+    /*** Nano-generated web api proxy. Edit at your own discretion. ***/
+    /*** This is an auto-generated web api proxy generated from the following url: {{GeneratedFromUrl}} ***/
+    public static string BaseApiUrl = "{{BaseUrl}}";
+    {{MethodList}}
+    private static T PostJson<{{T}}>( string url, System.Collections.Specialized.NameValueCollection parameters )
+    {
+        using( var client = new System.Net.WebClient() )
+        {
+            byte[] responsebytes = client.UploadValues( url, "POST", parameters );
+            string responsebody = Encoding.UTF8.GetString( responsebytes );
+            var obj = Newtonsoft.Json.JsonConvert.DeserializeObject<{{T}}>( responsebody );
+            return obj;
+        }
+    }
+    #region Nested Types
+{{NestedClassList}}
+    #endregion Nested Types
+}
+            </pre>
+            <pre id="CSharpMethodTemplate">
+    public static {{ReturnType}} {{MethodName}}({{InputParameterList}})
+    {
+        var parameters = new System.Collections.Specialized.NameValueCollection { {{NameValueCollectionParameterList}} };
+        return PostJson<{{ReturnType}}>( BaseApiUrl + "{{UrlPath}}", parameters );
+    }
+            </pre>
+            <pre id="CSharpClassTemplate">
+    public class {{ClassName}}
+    {
+        {{PropertyList}}
+    }
+            </pre>
+            
+        </div>
+	    
+        <pre id="CSharpProxyTemplateOutput">
+
+        </pre>
+
+      <script>
 		
 		function replaceAllOccurrences ( originalString, searchString, replacementString ) {
 			return originalString.split(searchString).join(replacementString);
@@ -163,22 +220,20 @@
 			return html;
 		}
 
-		function getApiMetadata() {
+		function getApiMetadata( callback ) {
 		
 			$.ajax({
 			  method: 'POST',
 			  url: location.origin + '/metadata/nanoMetadata.json'
 			})
 			.done(function( data ) {
-				getApiMetadataCallback( data );
+			    callback(data);
 			});
 		};
 		
 		function getApiMetadataCallback( metadata ) {
 			console.log( metadata );
 			
-			var rowData = [];
-						
 			$('#loadingOperations').hide();
 			
 			var table = $('#operationTable').DataTable({
@@ -339,10 +394,90 @@
 				return false; 
 			});
 		};
+
+        function generateCSharpProxy(metadata) {
+
+            var methodTemplate = $('#CSharpMethodTemplate').text();
+            
+            var methodList = "";
+
+            var baseUrl = "";
+
+            for (var i = 0; i < metadata.Operations.length; i++) {
+
+                var operation = metadata.Operations[i];
+
+                if (i == 0) {
+                    baseUrl = operation.FullUrl.replace(operation.UrlPath, "");
+                }
+
+                var method = methodTemplate;
+                method = replaceAllOccurrences(method, "{{ReturnType}}", operation.ReturnParameterType);
+                method = replaceAllOccurrences(method, "{{MethodName}}", operation.Name);
+                method = replaceAllOccurrences(method, "{{UrlPath}}", operation.UrlPath);
+
+                var inputParameterList = "";
+                var nameValueCollectionParameterList = "";
+
+                for (var j = 0; j < operation.InputParameters.length; j++) {
+                    var inputParameter = operation.InputParameters[j];
+                    inputParameterList += inputParameter.Type + " " + inputParameter.Name + ", ";
+                    nameValueCollectionParameterList += '{"' + inputParameter.Name + '", Newtonsoft.Json.JsonConvert.SerializeObject(' + inputParameter.Name + ')}, ';
+                }
+
+                inputParameterList = inputParameterList == "" ? "" : inputParameterList.slice(0, -2); // Remove trailing comma 
+                nameValueCollectionParameterList = nameValueCollectionParameterList == "" ? "" : nameValueCollectionParameterList.slice(0, -2); // Remove trailing comma
+
+                method = replaceAllOccurrences(method, "{{InputParameterList}}", inputParameterList);
+                method = replaceAllOccurrences(method, "{{NameValueCollectionParameterList}}", nameValueCollectionParameterList);
+                methodList += "\n" + method;
+            }
+
+            var nestedClassList = "";
+
+            var cSharpClassTemplate = $('#CSharpClassTemplate').text();
+
+            for (var m = 0; m < metadata.Models.length; m++) {
+
+                var model = metadata.Models[m];
+                var classTemplate = cSharpClassTemplate;
+                var properties = "";
+
+                for (var p = 0; p < model.Properties.length; p++) {
+                    var property = model.Properties[p];
+                    properties += "public " + property.Type + " " + property.Name + ";\n        ";
+                }
+
+                properties = properties == "" ? properties : properties.slice(0, -9); // Remove trailing line break and whitespace
+                
+                classTemplate = replaceAllOccurrences(classTemplate, "{{ClassName}}", model.Type);
+                classTemplate = replaceAllOccurrences(classTemplate, "{{PropertyList}}", properties);
+                nestedClassList += classTemplate + "\n";
+            }
+
+            nestedClassList = nestedClassList == "" ? nestedClassList : nestedClassList.slice(0, -1); // Remove trailing line break
+
+            var apiClassTemplate = $('#CSharpApiClassTemplate').text();
+            apiClassTemplate = replaceAllOccurrences(apiClassTemplate, "{{ClassName}}", "ApiProxy");
+            apiClassTemplate = replaceAllOccurrences(apiClassTemplate, "{{GeneratedFromUrl}}", window.location.href);
+            apiClassTemplate = replaceAllOccurrences(apiClassTemplate, "{{BaseUrl}}", baseUrl);
+            apiClassTemplate = replaceAllOccurrences(apiClassTemplate, "{{MethodList}}", methodList);
+            apiClassTemplate = replaceAllOccurrences(apiClassTemplate, "{{NestedClassList}}", nestedClassList);
+            apiClassTemplate = replaceAllOccurrences(apiClassTemplate, "{{T}}", "T");
+            
+            $('#CSharpProxyTemplateOutput').text(apiClassTemplate);
+        };
 				
 		$(document).ready(function() {
 		
-			getApiMetadata();
+		    getApiMetadata(getApiMetadataCallback);
+            
+		    $('#DropdownFeatures').change(function() {
+		        var option = $(this).val();
+		        if (option == "GenerateCSharpProxy") {
+		            getApiMetadata(generateCSharpProxy);
+		        }
+		    });
 		});
 		
 	</script>

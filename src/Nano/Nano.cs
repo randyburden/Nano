@@ -44,6 +44,8 @@ using System.Net;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Xml;
 using Nano.Web.Core.Internal;
 using Nano.Web.Core.Metadata;
@@ -73,6 +75,9 @@ namespace Nano.Web.Core
         /// <summary>The default metadata provider for <see cref="MethodRequestHandler" />s.</summary>
         public MethodRequestHandlerMetadataProvider DefaultMethodRequestHandlerMetadataProvider = new MethodRequestHandlerMetadataProvider();
 
+        /// <summary>The default background task event handler to apply to all tasks if one is not specified.</summary>
+        public BackgroundTaskEventHandler DefaultBackgroundTaskEventHandler = new BackgroundTaskEventHandler();
+
         /// <summary>The global event handlers that will be invoked for all <see cref="IRequestHandler" />s.</summary>
         public EventHandler GlobalEventHandler = new EventHandler();
 
@@ -81,6 +86,9 @@ namespace Nano.Web.Core
 
         /// <summary>The request handlers.</summary>
         public IList<IRequestHandler> RequestHandlers = new List<IRequestHandler>();
+
+        /// <summary>The background tasks</summary>
+        public IList<BackgroundTask> BackgroundTasks = new List<BackgroundTask>();
 
         /// <summary>The serialization service used to serialize/deserialize requests and responses.</summary>
         public ISerializationService SerializationService;
@@ -172,6 +180,22 @@ namespace Nano.Web.Core
             var handler = new DirectoryRequestHandler( urlPath, eventHandler ?? DefaultEventHandler, directoryPath, returnHttp404WhenFileWasNoFound, defaultDocuments );
             RequestHandlers.Add( handler );
             return handler;
+        }
+
+        /// <summary>
+        /// Adds the background task.
+        /// </summary>
+        /// <param name="taskName">The task name.</param>
+        /// <param name="millisecondInterval">The millisecond interval.</param>
+        /// <param name="task">The task which takes no parameters and returns a result of type <see cref="object"/>.</param>
+        /// <param name="allowOverlappingRuns">If set to <c>true</c> [allow overlapping runs].</param>
+        /// <param name="backgroundTaskEventHandler">The background task event handler.</param>
+        /// <returns></returns>
+        public BackgroundTask AddBackgroundTask( string taskName, int millisecondInterval, Func<object> task, bool allowOverlappingRuns = false, BackgroundTaskEventHandler backgroundTaskEventHandler = null )
+        {
+            var backgroundTask = new BackgroundTask { Name = taskName, MillisecondInterval = millisecondInterval, Task = task, AllowOverlappingRuns = allowOverlappingRuns, BackgroundTaskEventHandler = backgroundTaskEventHandler ?? DefaultBackgroundTaskEventHandler };
+            BackgroundTasks.Add( backgroundTask);
+            return backgroundTask;
         }
     }
 
@@ -503,7 +527,7 @@ namespace Nano.Web.Core
             }
             else
             {
-                Version = "0.1.0.0";
+                Version = "0.2.0.0";
             }
         }
 
@@ -571,6 +595,175 @@ namespace Nano.Web.Core
             foreach( PostInvokeHandler postInvokeHandler in PostInvokeHandlers )
             {
                 postInvokeHandler.Invoke( nanoContext );
+            }
+        }
+    }
+
+    /// <summary>Background task.</summary>
+    public class BackgroundTask
+    {
+        /// <summary>Background task name.</summary>
+        public string Name;
+
+        /// <summary>Background task.</summary>
+        public Func<object> Task;
+
+        /// <summary>The millisecond interval to wait between each background task run.</summary>
+        public int MillisecondInterval;
+
+        /// <summary>Indicates whether to allow overlapping runs between each background task run. Default is false.</summary>
+        public bool AllowOverlappingRuns;
+
+        /// <summary>The background task event handler.</summary>
+        public BackgroundTaskEventHandler BackgroundTaskEventHandler;
+
+        /// <summary>The background task context history for the last n number of runs.</summary>
+        public BackgroundTaskContext[] BackgroundTaskRunHistory = new BackgroundTaskContext[10];
+
+        /// <summary>The current background task history position.</summary>
+        public int CurrentBackgroundTaskHistoryPosition;
+    }
+
+    /// <summary>Background task context.</summary>
+    public class BackgroundTaskContext
+    {
+        /// <summary>The current background task.</summary>
+        public BackgroundTask BackgroundTask;
+
+        /// <summary>The nano configuration.</summary>
+        public NanoConfiguration NanoConfiguration;
+
+        /// <summary>The start date time.</summary>
+        public DateTime StartDateTime;
+
+        /// <summary>The end date time</summary>
+        public DateTime EndDateTime;
+
+        /// <summary>The task result.</summary>
+        public object TaskResult;
+
+        /// <summary>The task exception if one occurred.</summary>
+        public Exception TaskException;
+    }
+
+    /// <summary>Background task event handler configuration.</summary>
+    public class BackgroundTaskEventHandler
+    {
+        /// <summary>Event handler triggered when an unhandled exception occurs.</summary>
+        /// <param name="exception">Unhandled exception.</param>
+        /// <param name="backgroundTaskContext">Current <see cref="BackgroundTaskContext" />.</param>
+        public delegate void ErrorHandler( Exception exception, BackgroundTaskContext backgroundTaskContext );
+
+        /// <summary>Event handler triggered after the background task has been invoked and returned a response.</summary>
+        /// <param name="backgroundTaskContext">Current <see cref="BackgroundTaskContext" />.</param>
+        public delegate void PostInvokeHandler( BackgroundTaskContext backgroundTaskContext );
+
+        /// <summary>Event handler triggered before the background task is invoked.</summary>
+        /// <param name="backgroundTaskContext">Current <see cref="BackgroundTaskContext" />.</param>
+        public delegate void PreInvokeHandler( BackgroundTaskContext backgroundTaskContext );
+
+        /// <summary>Handlers triggered after the background task has been invoked and returned a response.</summary>
+        public IList<PostInvokeHandler> PostInvokeHandlers = new List<PostInvokeHandler>();
+
+        /// <summary>Handlers triggered before the background task is invoked.</summary>
+        public IList<PreInvokeHandler> PreInvokeHandlers = new List<PreInvokeHandler>();
+
+        /// <summary>Handlers triggered when an unhandled exception occurs.</summary>
+        public IList<ErrorHandler> UnhandledExceptionHandlers = new List<ErrorHandler>();
+
+        /// <summary>Invokes the unhandled exception handlers.</summary>
+        /// <param name="exception">Unhandled exception.</param>
+        /// <param name="backgroundTaskContext">Current <see cref="BackgroundTaskContext" />.</param>
+        public void InvokeUnhandledExceptionHandlers( Exception exception, BackgroundTaskContext backgroundTaskContext )
+        {
+            foreach ( ErrorHandler unhandledExceptionHandler in UnhandledExceptionHandlers )
+            {
+                unhandledExceptionHandler.Invoke( exception, backgroundTaskContext );
+            }
+        }
+
+        /// <summary>Invokes the pre-invoke handlers.</summary>
+        /// <param name="backgroundTaskContext">Current <see cref="BackgroundTaskContext" />.</param>
+        public void InvokePreInvokeHandlers( BackgroundTaskContext backgroundTaskContext )
+        {
+            foreach ( PreInvokeHandler preInvokeHandler in PreInvokeHandlers )
+            {
+                preInvokeHandler.Invoke( backgroundTaskContext );
+            }
+        }
+
+        /// <summary>Invokes the post-invoke handlers.</summary>
+        /// <param name="backgroundTaskContext">Current <see cref="BackgroundTaskContext" />.</param>
+        public void InvokePostInvokeHandlers( BackgroundTaskContext backgroundTaskContext )
+        {
+            foreach ( PostInvokeHandler postInvokeHandler in PostInvokeHandlers )
+            {
+                postInvokeHandler.Invoke( backgroundTaskContext );
+            }
+        }
+    }
+
+    /// <summary>Background task runner.</summary>
+    public static class BackgroundTaskRunner
+    {
+        /// <summary>Starts the background tasks defined in the Nano configuration.</summary>
+        /// <param name="nanoConfiguration">The nano configuration.</param>
+        public static void Start( NanoConfiguration nanoConfiguration )
+        {
+            foreach ( BackgroundTask backgroundTask in nanoConfiguration.BackgroundTasks )
+            {
+                BackgroundTask task = backgroundTask;
+                Task.Factory.StartNew( () =>
+                {
+                    while ( true )
+                    {
+                        var backgroundTaskContext = new BackgroundTaskContext { BackgroundTask = task, NanoConfiguration = nanoConfiguration };
+
+                        try
+                        {
+                            if( backgroundTaskContext.BackgroundTask.AllowOverlappingRuns )
+                            {
+                                // Run async
+                                Task.Factory.StartNew( () => Run( backgroundTaskContext ) );
+                            }
+                            else
+                            {
+                                // Run sync
+                                Run( backgroundTaskContext );
+                            }
+                        }
+                        catch ( Exception )
+                        {
+                            // Big gulp
+                        }
+
+                        Thread.Sleep( backgroundTaskContext.BackgroundTask.MillisecondInterval );
+                    }
+                } );
+            }
+        }
+
+        /// <summary>Runs the specified background task context.</summary>
+        /// <param name="backgroundTaskContext">The background task context.</param>
+        public static void Run( BackgroundTaskContext backgroundTaskContext )
+        {
+            try
+            {
+                backgroundTaskContext.StartDateTime = DateTime.Now;
+                backgroundTaskContext.BackgroundTask.BackgroundTaskRunHistory[ backgroundTaskContext.BackgroundTask.CurrentBackgroundTaskHistoryPosition ] = backgroundTaskContext;
+                backgroundTaskContext.BackgroundTask.CurrentBackgroundTaskHistoryPosition = ( backgroundTaskContext.BackgroundTask.CurrentBackgroundTaskHistoryPosition + 1 ) % backgroundTaskContext.BackgroundTask.BackgroundTaskRunHistory.Length;
+                backgroundTaskContext.BackgroundTask.BackgroundTaskEventHandler.InvokePreInvokeHandlers( backgroundTaskContext );
+                backgroundTaskContext.TaskResult = backgroundTaskContext.BackgroundTask.Task.Invoke();
+            }
+            catch ( Exception e )
+            {
+                backgroundTaskContext.TaskException = e;
+                backgroundTaskContext.BackgroundTask.BackgroundTaskEventHandler.InvokeUnhandledExceptionHandlers( e, backgroundTaskContext );
+            }
+            finally
+            {
+                backgroundTaskContext.BackgroundTask.BackgroundTaskEventHandler.InvokePostInvokeHandlers( backgroundTaskContext );
+                backgroundTaskContext.EndDateTime = DateTime.Now;
             }
         }
     }
@@ -837,6 +1030,7 @@ namespace Nano.Web.Core
                 var server = new SystemWebNanoServer { NanoConfiguration = nanoConfiguration };
                 Delegate eventHandlerDelegate = Delegate.CreateDelegate( eventInfo.EventHandlerType, server, methodInfo );
                 eventInfo.AddEventHandler( httpApplication, eventHandlerDelegate );
+                BackgroundTaskRunner.Start( nanoConfiguration );
             }
 
             /// <summary>BeginRequest event for the HttpApplication.</summary>
@@ -931,6 +1125,7 @@ namespace Nano.Web.Core
             {
                 nanoConfiguration.ApplicationRootFolderPath = GetRootPath();
                 httpListenerConfiguration.HttpListener.Start();
+                BackgroundTaskRunner.Start( nanoConfiguration );
                 var server = new HttpListenerNanoServer( nanoConfiguration, httpListenerConfiguration );
                 httpListenerConfiguration.HttpListener.BeginGetContext( server.BeginGetContextCallback, server );
                 return server;
@@ -957,9 +1152,9 @@ namespace Nano.Web.Core
                     HttpListenerConfiguration.HttpListener.BeginGetContext( BeginGetContextCallback, this );
                     HandleRequest( httpListenerContext, this );
                 }
-                catch( Exception )
+                catch( Exception e )
                 {
-                    // TODO: Log these types of exceptions probably to a Action<string> on the HttpListenerConfiguration
+                    HttpListenerConfiguration.UnhandledExceptionHandler( e );
                 }
             }
 
@@ -1052,7 +1247,7 @@ namespace Nano.Web.Core
             }
 
             /// <summary>Gets the root path of the host application.</summary>
-            /// <returns></returns>
+            /// <returns>The root path of the host application.</returns>
             public static string GetRootPath()
             {
                 Assembly assembly = Assembly.GetEntryAssembly();
@@ -1206,8 +1401,19 @@ namespace Nano.Web.Core
             public int MaximumFormParameters = 10000;
 
             /// <summary>
+            /// Invoked on unhandled exceptions that occur during the HttpListenerContext to NanoContext mapping. Note: These will
+            /// *not* be called for normal Nano exceptions which are handled by the Nano event handlers. Defaults to writing to Trace
+            /// output.
+            /// </summary>
+            public Action<Exception> UnhandledExceptionHandler = exception =>
+            {
+                string message = string.Format( "---\n{0}\n---\n", exception );
+                Trace.Write( message );
+            };
+
+            /// <summary>
             /// Gets or sets a property that determines if localhost uris are rewritten to htp://+:port/ style uris to allow for
-            /// listening on all ports, but requiring either a url reservation, or admin access Defaults to true.
+            /// listening on all ports, but requiring either a url reservation, or admin access Defaults to false.
             /// </summary>
             public bool RewriteLocalhost;
 
@@ -1592,7 +1798,7 @@ namespace Nano.Web.Core
                         if( methodParameter.Name.ToLower() == "nanocontext" || methodParameter.Type == typeof( NanoContext ) )
                             continue;
 
-                        var inputParameter = new OperationParameter { Name = methodParameter.Name, Description = methodParameter.Description, Type = methodParameter.Type.Name, TypeFormat = null, IsOptional = methodParameter.IsOptional };
+                        var inputParameter = new OperationParameter { Name = methodParameter.Name, Description = methodParameter.Description, Type = GetTypeName( methodParameter.Type ), IsOptional = methodParameter.IsOptional };
 
                         metadata.InputParameters.Add( inputParameter );
 
@@ -1600,7 +1806,9 @@ namespace Nano.Web.Core
                         AddModels( apiMetadata, methodParameter.Type );
                     }
 
-                    metadata.ReturnParameterType = metadataProvider.GetOperationReturnParameterType( nanoContext, methodRequestHandler );
+                    var returnParameterType = metadataProvider.GetOperationReturnParameterType( nanoContext, methodRequestHandler );
+                    metadata.ReturnParameterType = returnParameterType.Name;
+                    AddModels( apiMetadata, returnParameterType );
                     apiMetadata.Operations.Add( metadata );
                 }
 
@@ -1620,15 +1828,15 @@ namespace Nano.Web.Core
                 var nestedUserTypes = new List<Type>();
 
                 // Adding all user types as "Models"
-                if( IsUserType( type ) && apiMetadata.Models.Any( x => x.ModelType == type.Name ) == false )
+                if( IsUserType( type ) && apiMetadata.Models.Any( x => x.Type == type.Name ) == false )
                 {
-                    var modelMetadata = new ModelMetadata { ModelType = type.Name, ModelDescription = GetDescription( type ) };
+                    var modelMetadata = new ModelMetadata { Type = type.Name, Description = GetDescription( type ) };
                     FieldInfo[] fields = type.GetFields();
 
                     foreach( FieldInfo field in fields )
                     {
                         // Add nested user types
-                        if( IsUserType( type ) && apiMetadata.Models.Any( x => x.ModelType == type.Name ) == false )
+                        if( IsUserType( type ) && apiMetadata.Models.Any( x => x.Type == type.Name ) == false )
                             nestedUserTypes.Add( field.FieldType );
 
                         var modelProperty = new ModelProperty { Name = field.Name, Type = GetTypeName( field.FieldType ), Description = GetDescription( field ) };
@@ -1640,7 +1848,7 @@ namespace Nano.Web.Core
                     foreach( PropertyInfo property in properties )
                     {
                         // Add nested user types
-                        if( IsUserType( type ) && apiMetadata.Models.Any( x => x.ModelType == type.Name ) == false )
+                        if( IsUserType( type ) && apiMetadata.Models.Any( x => x.Type == type.Name ) == false )
                             nestedUserTypes.Add( property.PropertyType );
 
                         var modelProperty = new ModelProperty { Name = property.Name, Type = GetTypeName( property.PropertyType ), Description = GetDescription( property ) };
@@ -1723,7 +1931,7 @@ namespace Nano.Web.Core
                 Type underlyingType = Nullable.GetUnderlyingType( type );
 
                 if( underlyingType != null )
-                    return underlyingType.Name;
+                    return "Nullable<" + underlyingType.Name + ">";
 
                 return type.Name;
             }
@@ -1953,7 +2161,7 @@ namespace Nano.Web.Core
             /// <param name="nanoContext">The <see cref="NanoContext" />.</param>
             /// <param name="requestHandler">The <see cref="IRequestHandler" />.</param>
             /// <returns>Operation return parameter type.</returns>
-            string GetOperationReturnParameterType( NanoContext nanoContext, IRequestHandler requestHandler );
+            Type GetOperationReturnParameterType( NanoContext nanoContext, IRequestHandler requestHandler );
         }
 
         /// <summary>Provides API metadata for a <see cref="MethodRequestHandler" />.</summary>
@@ -1993,10 +2201,10 @@ namespace Nano.Web.Core
             /// <param name="nanoContext">The <see cref="NanoContext" />.</param>
             /// <param name="requestHandler">The <see cref="IRequestHandler" />.</param>
             /// <returns>Operation return parameter type.</returns>
-            public virtual string GetOperationReturnParameterType( NanoContext nanoContext, IRequestHandler requestHandler )
+            public virtual Type GetOperationReturnParameterType( NanoContext nanoContext, IRequestHandler requestHandler )
             {
                 MethodRequestHandler handler = GetMethodRequestHandler( requestHandler );
-                return handler.Method.ReturnType.Name;
+                return handler.Method.ReturnType;
             }
 
             /// <summary>Gets the <see cref="MethodRequestHandler" />.</summary>
@@ -2024,6 +2232,9 @@ namespace Nano.Web.Core
         /// <summary>Api metadata.</summary>
         public class ApiMetadata
         {
+            /// <summary>Api metadata version.</summary>
+            public string Version = "0.1.0";
+
             /// <summary>The API models.</summary>
             public IList<ModelMetadata> Models = new List<ModelMetadata>();
 
@@ -2035,10 +2246,10 @@ namespace Nano.Web.Core
         public class ModelMetadata
         {
             /// <summary>The model description.</summary>
-            public string ModelDescription;
+            public string Description;
 
             /// <summary>The model type.</summary>
-            public string ModelType;
+            public string Type;
 
             /// <summary>The model properties.</summary>
             public IList<ModelProperty> Properties = new List<ModelProperty>();
@@ -2052,12 +2263,9 @@ namespace Nano.Web.Core
 
             /// <summary>The model name.</summary>
             public string Name;
-
+            
             /// <summary>The model type.</summary>
             public string Type;
-
-            /// <summary>The model type format.</summary>
-            public string TypeFormat;
         }
 
         /// <summary>Operation metadata.</summary>
@@ -2095,10 +2303,7 @@ namespace Nano.Web.Core
             public string Name;
 
             /// <summary>Parameter type.</summary>
-            public string Type; // TODO: map this to the list of Swagger data types: https://github.com/swagger-api/swagger-spec/blob/master/versions/2.0.md#data-types
-
-            /// <summary>Parameter type format.</summary>
-            public string TypeFormat;
+            public string Type;
         }
     }
 

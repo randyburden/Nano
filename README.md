@@ -7,7 +7,7 @@ Nano is a micro web framework for building web-based HTTP services for .NET.
 
  - Rapidly create web apis by writing static methods
  - Low ceremony so that you can focus on business logic and not infrastructure and framework hassles
- - Auto generated web interfaces for invoking your web apis
+ - Auto generated web interfaces for invoking your web apis ( Api Explorer )
  - Self-host in an executable or integrate into a new or existing ASP.NET application with ease
  - It can be used as a [C# single file drop in](https://raw.githubusercontent.com/AmbitEnergyLabs/Nano/master/src/Nano/Nano.cs) or referenced as a [NuGet Package](https://www.nuget.org/packages/Nano).
 

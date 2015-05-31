@@ -24,6 +24,13 @@ namespace Nano.Demo.SelfHost
             config.AddDirectory( "/", "www", null, true );
             config.AddMethods<Customer>( "/api/customer/" );
             config.AddFunc( "/hi", context => "Hello World!" );
+            
+            config.AddBackgroundTask( "Test", 30000, () =>
+            {
+                string result = "Hi, the time is now: " + DateTime.Now;
+                Console.WriteLine( result );
+                return result;
+            } );
 
             using ( HttpListenerNanoServer.Start( config, url ) )
             {
