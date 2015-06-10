@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Text;
 using Nano.Web.Core;
 using Nano.Web.Core.Host.HttpListener;
 using Topshelf;
@@ -22,10 +23,10 @@ namespace Nano.Demo.TopshelfSelfHost
             {
                 x.AddCommandLineDefinition( "uri", input => { uris = input; } );
                 x.ApplyCommandLine();
-
+                
                 x.Service<Startup>( settings =>
                 {
-                    settings.ConstructUsing( hostSettings => new Startup() );
+                    settings.ConstructUsing( hostSettings => new Startup( hostSettings.ServiceName ) );
                     settings.WhenStarted( nano => nano.Start( uris ) );
                     settings.WhenStopped( nano => nano.Stop() );
                 } );
@@ -36,6 +37,13 @@ namespace Nano.Demo.TopshelfSelfHost
 
         public class Startup
         {
+            private readonly string _applicationName;
+
+            public Startup( string applicationName )
+            {
+                _applicationName = applicationName;
+            }
+
             private HttpListenerNanoServer _server;
 
             public void Start( string urls )
@@ -46,6 +54,30 @@ namespace Nano.Demo.TopshelfSelfHost
                 config.AddDirectory( "/", "www", null, true );
                 config.AddMethods<Customer>( "/api/customer/" );
                 config.AddFunc( "/hi", context => "Hello World!" );
+
+                config.GlobalEventHandler.UnhandledExceptionHandlers.Add( ( exception, context ) =>
+                {
+                    try
+                    {
+                        if ( !EventLog.SourceExists( _applicationName ) )
+                            EventLog.CreateEventSource( _applicationName, "Application" );
+
+                        var msg = new StringBuilder()
+                            .AppendLine( "Nano Error:" )
+                            .AppendLine( "-----------" ).AppendLine()
+                            .AppendLine( "URL: " + context.Request.Url ).AppendLine()
+                            .AppendLine( "Message: " + exception.Message ).AppendLine()
+                            .AppendLine( "StackTrace:" )
+                            .AppendLine( exception.StackTrace )
+                            .ToString();
+
+                        EventLog.WriteEntry( _applicationName, msg, EventLogEntryType.Error );
+                    }
+                    catch ( Exception )
+                    {
+                        // Gulp: Never throw an exception in the unhandled exception handler
+                    }
+                } );
 
                 _server = HttpListenerNanoServer.Start( config, validatedUrls );
 

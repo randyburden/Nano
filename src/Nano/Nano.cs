@@ -1,5 +1,5 @@
 ﻿/*
-    Nano v0.1.0
+    Nano v0.3.0
     
     Nano is a micro web framework for building web-based HTTP services for .NET.
     To find out more, visit the project home page at: 
@@ -101,7 +101,7 @@ namespace Nano.Web.Core
         public NanoConfiguration( ISerializationService serializationService = null )
         {
             SerializationService = serializationService ?? new JsonNetSerializer();
-            RequestHandlers.Add( new MetadataRequestHandler( "/metadata/nanoMetadata.json", DefaultEventHandler ) );
+            RequestHandlers.Add( new MetadataRequestHandler( "/metadata/GetNanoMetadata", DefaultEventHandler ) );
         }
 
         /// <summary>Adds all public static methods in the given type.</summary>
@@ -236,7 +236,7 @@ namespace Nano.Web.Core
         /// <summary>The root folder path.</summary>
         /// <value>The root folder path.</value>
         public string RootFolderPath;
-
+        
         /// <summary>Initializes a new instance of the <see cref="NanoContext" /> class.</summary>
         /// <param name="nanoRequest">The nano request.</param>
         /// <param name="nanoResponse">The nano response.</param>
@@ -282,17 +282,17 @@ namespace Nano.Web.Core
         /// <summary>The HTTP query string parameters sent by the client..</summary>
         public NameValueCollection QueryStringParameters;
 
-        /// <summary>Full URI being requested.</summary>
-        public Uri Uri;
-
+        /// <summary>Full URL being requested.</summary>
+        public Url Url;
+        
         /// <summary>Initializes a new instance of the <see cref="NanoRequest" /> class.</summary>
         /// <param name="httpMethod">The HTTP method.</param>
-        /// <param name="uri">The URI.</param>
+        /// <param name="url">The URL being requested.</param>
         /// <param name="requestBodyAccessor">A function that returns the request body stream.</param>
-        public NanoRequest( string httpMethod, Uri uri, Func<Stream> requestBodyAccessor )
+        public NanoRequest( string httpMethod, Url url, Func<Stream> requestBodyAccessor )
         {
             HttpMethod = httpMethod;
-            Uri = uri;
+            Url = url;
             _requestBodyAccessor = requestBodyAccessor;
         }
 
@@ -527,7 +527,7 @@ namespace Nano.Web.Core
             }
             else
             {
-                Version = "0.2.0.0";
+                Version = "0.3.0.0";
             }
         }
 
@@ -911,7 +911,7 @@ namespace Nano.Web.Core
         /// <returns>The <see cref="NanoContext" /> for the current request.</returns>
         public static NanoContext RouteRequest( NanoContext nanoContext )
         {
-            string path = nanoContext.Request.Uri.LocalPath.ToLower();
+            string path = nanoContext.Request.Url.Path.ToLower();
             var requestHandlerMatches = new List<IRequestHandler>();
 
             foreach( IRequestHandler handler in nanoContext.NanoConfiguration.RequestHandlers )
@@ -1005,6 +1005,234 @@ namespace Nano.Web.Core
         IEnumerable<string> Claims { get; }
     }
 
+    /// <summary>
+    /// Represents a full Url of the form scheme://hostname:port/basepath/path?query
+    /// </summary>
+    public sealed class Url : ICloneable
+    {
+        private string _basePath;
+        private string _query;
+
+        /// <summary>
+        /// Creates an instance of the <see cref="Url" /> class
+        /// </summary>
+        public Url()
+        {
+            this.Scheme = Uri.UriSchemeHttp;
+            this.HostName = string.Empty;
+            this.Port = null;
+            this.BasePath = string.Empty;
+            this.Path = string.Empty;
+            this.Query = string.Empty;
+        }
+
+        /// <summary>
+        /// Creates an instance of the <see cref="Url" /> class
+        /// </summary>
+        /// <param name="url">A <see cref="string" /> containing a URL.</param>
+        public Url( string url )
+        {
+            var uri = new Uri( url );
+            this.HostName = uri.Host;
+            this.Path = uri.LocalPath;
+            this.Port = uri.Port;
+            this.Query = uri.Query;
+            this.Scheme = uri.Scheme;
+        }
+
+        /// <summary>
+        /// Gets or sets the HTTP protocol used by the client.
+        /// </summary>
+        /// <value>The protocol.</value>
+        public string Scheme { get; set; }
+
+        /// <summary>
+        /// Gets the host name of the request
+        /// </summary>
+        public string HostName { get; set; }
+
+        /// <summary>
+        /// Gets the port name of the request
+        /// </summary>
+        public int? Port { get; set; }
+
+        /// <summary>
+        /// Gets the base path of the request i.e. the application root
+        /// </summary>
+        public string BasePath
+        {
+            get { return this._basePath; }
+            set
+            {
+                if( string.IsNullOrEmpty( value ) )
+                {
+                    return;
+                }
+
+                this._basePath = value.TrimEnd( '/' );
+            }
+        }
+
+        /// <summary>
+        /// Gets the path of the request, relative to the base path.
+        /// This property drives the route matching.
+        /// </summary>
+        public string Path { get; set; }
+
+        /// <summary>
+        /// Gets the query string.
+        /// </summary>
+        public string Query
+        {
+            get { return this._query; }
+            set { this._query = GetQuery( value ); }
+        }
+
+        /// <summary>
+        /// Gets the domain part of the request.
+        /// </summary>
+        public string SiteBase
+        {
+            get
+            {
+                return new StringBuilder()
+                    .Append( this.Scheme )
+                    .Append( Uri.SchemeDelimiter )
+                    .Append( GetHostName( this.HostName ) )
+                    .Append( GetPort( this.Port ) )
+                    .ToString();
+            }
+        }
+
+        /// <summary>
+        /// Gets whether the URL is secure or not.
+        /// </summary>
+        public bool IsSecure
+        {
+            get
+            {
+                return Uri.UriSchemeHttps.Equals( this.Scheme, StringComparison.OrdinalIgnoreCase );
+            }
+        }
+
+        public override string ToString()
+        {
+            return new StringBuilder()
+                .Append( this.Scheme )
+                .Append( Uri.SchemeDelimiter )
+                .Append( GetHostName( this.HostName ) )
+                .Append( GetPort( this.Port ) )
+                .Append( GetCorrectPath( this.BasePath ) )
+                .Append( GetCorrectPath( this.Path ) )
+                .Append( this.Query )
+                .ToString();
+        }
+
+        /// <summary>
+        /// Clones the url.
+        /// </summary>
+        /// <returns>Returns a new cloned instance of the url.</returns>
+        object ICloneable.Clone()
+        {
+            return this.Clone();
+        }
+
+        /// <summary>
+        /// Clones the url.
+        /// </summary>
+        /// <returns>Returns a new cloned instance of the url.</returns>
+        public Url Clone()
+        {
+            return new Url
+            {
+                BasePath = this.BasePath,
+                HostName = this.HostName,
+                Port = this.Port,
+                Query = this.Query,
+                Path = this.Path,
+                Scheme = this.Scheme
+            };
+        }
+
+        /// <summary>
+        /// Casts the current <see cref="Url"/> instance to a <see cref="string"/> instance.
+        /// </summary>
+        /// <param name="url">The instance that should be cast.</param>
+        /// <returns>A <see cref="string"/> representation of the <paramref name="url"/>.</returns>
+        public static implicit operator string( Url url )
+        {
+            return url.ToString();
+        }
+
+        /// <summary>
+        /// Casts the current <see cref="string"/> instance to a <see cref="Url"/> instance.
+        /// </summary>
+        /// <param name="url">The instance that should be cast.</param>
+        /// <returns>An <see cref="Url"/> representation of the <paramref name="url"/>.</returns>
+        public static implicit operator Url( string url )
+        {
+            return new Uri( url );
+        }
+
+        /// <summary>
+        /// Casts the current <see cref="Url"/> instance to a <see cref="Uri"/> instance.
+        /// </summary>
+        /// <param name="url">The instance that should be cast.</param>
+        /// <returns>An <see cref="Uri"/> representation of the <paramref name="url"/>.</returns>
+        public static implicit operator Uri( Url url )
+        {
+            return new Uri( url.ToString(), UriKind.Absolute );
+        }
+
+        /// <summary>
+        /// Casts a <see cref="Uri"/> instance to a <see cref="Url"/> instance
+        /// </summary>
+        /// <param name="uri">The instance that should be cast.</param>
+        /// <returns>An <see cref="Url"/> representation of the <paramref name="uri"/>.</returns>
+        public static implicit operator Url( Uri uri )
+        {
+            return new Url
+            {
+                HostName = uri.Host,
+                Path = uri.LocalPath,
+                Port = uri.Port,
+                Query = uri.Query,
+                Scheme = uri.Scheme
+            };
+        }
+
+        private static string GetQuery( string query )
+        {
+            return string.IsNullOrEmpty( query ) ? string.Empty : ( query[0] == '?' ? query : '?' + query );
+        }
+
+        private static string GetCorrectPath( string path )
+        {
+            return ( string.IsNullOrEmpty( path ) || path.Equals( "/" ) ) ? string.Empty : path;
+        }
+
+        private static string GetPort( int? port )
+        {
+            return port.HasValue ? string.Concat( ":", port.Value ) : string.Empty;
+        }
+
+        private static string GetHostName( string hostName )
+        {
+            IPAddress address;
+
+            if( IPAddress.TryParse( hostName, out address ) )
+            {
+                var addressString = address.ToString();
+
+                return address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6
+                    ? string.Format( "[{0}]", addressString )
+                    : addressString;
+            }
+
+            return hostName;
+        }
+    }
+
     #endregion Nano.Web.Core
 
     #region Nano.Web.Core.Host.SystemWeb
@@ -1079,7 +1307,21 @@ namespace Nano.Web.Core
             public static NanoContext MapHttpContextBaseToNanoContext( dynamic httpContext, NanoConfiguration nanoConfiguration )
             {
                 dynamic httpMethod = httpContext.Request.HttpMethod;
-                dynamic url = httpContext.Request.Url;
+
+                var basePath = httpContext.Request.ApplicationPath.TrimEnd( '/' );
+                var path = httpContext.Request.Url.AbsolutePath.Substring( basePath.Length );
+                path = string.IsNullOrWhiteSpace( path ) ? "/" : path;
+
+                var url = new Url
+                {
+                    Scheme = httpContext.Request.Url.Scheme,
+                    HostName = httpContext.Request.Url.Host,
+                    Port = httpContext.Request.Url.Port,
+                    BasePath = basePath,
+                    Path = path,
+                    Query = httpContext.Request.Url.Query,
+                };
+                
                 Func<Stream> requestBodyAccessor = () => httpContext.Request.InputStream;
                 var nanoRequest = new NanoRequest( httpMethod, url, requestBodyAccessor ) { QueryStringParameters = httpContext.Request.QueryString, FormBodyParameters = httpContext.Request.Form, HeaderParameters = httpContext.Request.Headers };
                 var nanoContext = new NanoContext( nanoRequest, new NanoResponse(), nanoConfiguration ) { HostContext = httpContext, RootFolderPath = nanoConfiguration.ApplicationRootFolderPath };
@@ -1125,9 +1367,9 @@ namespace Nano.Web.Core
             {
                 nanoConfiguration.ApplicationRootFolderPath = GetRootPath();
                 httpListenerConfiguration.HttpListener.Start();
-                BackgroundTaskRunner.Start( nanoConfiguration );
                 var server = new HttpListenerNanoServer( nanoConfiguration, httpListenerConfiguration );
                 httpListenerConfiguration.HttpListener.BeginGetContext( server.BeginGetContextCallback, server );
+                BackgroundTaskRunner.Start( nanoConfiguration );
                 return server;
             }
 
@@ -1614,7 +1856,7 @@ namespace Nano.Web.Core
             public override NanoContext HandleRequest( NanoContext nanoContext )
             {
                 // Turn this: ( http://localhost:50463/dashboard/sub/helpers.js ) into this: ( C:\YourApp\www\dashboard\sub\helpers.js )
-                string partialRequestPath = ReplaceFirstOccurrence( nanoContext.Request.Uri.LocalPath.ToLower(), UrlPath.ToLower(), "" );
+                string partialRequestPath = ReplaceFirstOccurrence( nanoContext.Request.Url.Path.ToLower(), UrlPath.ToLower(), "" );
                 string encodedPartialRequestPath = partialRequestPath.Replace( "/", Constants.DirectorySeparatorString ).TrimStart( Constants.DirectorySeparatorChar );
                 string fullFileSystemPath = Path.Combine( nanoContext.RootFolderPath, FileSystemPath, encodedPartialRequestPath );
 
@@ -1628,9 +1870,9 @@ namespace Nano.Web.Core
                 {
                     // If the URL does not end with a forward slash then redirect to the same URL with a forward slash
                     // so that relative URLs will work correctly
-                    if( nanoContext.Request.Uri.LocalPath.EndsWith( "/", StringComparison.Ordinal ) == false )
+                    if( nanoContext.Request.Url.Path.EndsWith( "/", StringComparison.Ordinal ) == false )
                     {
-                        Uri uri = nanoContext.Request.Uri;
+                        Uri uri = nanoContext.Request.Url;
                         string url = string.Format( "{0}://{1}:{2}{3}/", uri.Scheme, uri.Host, uri.Port, uri.LocalPath );
                         nanoContext.Response.Redirect( url );
                         return nanoContext;
@@ -1785,9 +2027,10 @@ namespace Nano.Web.Core
                         continue;
 
                     var metadata = new OperationMetaData { UrlPath = methodRequestHandler.UrlPath };
-
-                    Uri uri = nanoContext.Request.Uri;
-                    metadata.FullUrl = string.Format( "{0}://{1}:{2}{3}", uri.Scheme, uri.Host, uri.Port, methodRequestHandler.UrlPath );
+                    
+                    var url = nanoContext.Request.Url.Clone();
+                    url.Path = methodRequestHandler.UrlPath;
+                    metadata.FullUrl = url;
 
                     metadata.Name = metadataProvider.GetOperationName( nanoContext, methodRequestHandler );
                     metadata.Description = metadataProvider.GetOperationDescription( nanoContext, methodRequestHandler );
@@ -1826,6 +2069,11 @@ namespace Nano.Web.Core
             public static void AddModels( ApiMetadata apiMetadata, Type type )
             {
                 var nestedUserTypes = new List<Type>();
+
+                if( type.IsGenericType )
+                {
+                    type = type.GetGenericArguments().FirstOrDefault();
+                }
 
                 // Adding all user types as "Models"
                 if( IsUserType( type ) && apiMetadata.Models.Any( x => x.Type == type.Name ) == false )
@@ -1918,9 +2166,22 @@ namespace Nano.Web.Core
             /// <returns>Boolean value.</returns>
             public static bool IsUserType( Type type )
             {
-                return type.Namespace != null &&
-                       type.Namespace.StartsWith( "System" ) == false &&
-                       type.Namespace.StartsWith( "Microsoft" ) == false;
+                return type != null && ( type.Namespace != null &&
+                                         type.Namespace.StartsWith( "System" ) == false &&
+                                         type.Namespace.StartsWith( "Microsoft" ) == false );
+            }
+
+            /// <summary>Determines if a type is a nested User Type meaning it is not a standard .NET type.</summary>
+            /// <param name="type">Type.</param>
+            /// <returns>Boolean value.</returns>
+            public static bool IsNestedUserType( Type type )
+            {
+                if( type.IsGenericType )
+                {
+                    type = type.GetGenericArguments().FirstOrDefault();
+                }
+
+                return IsUserType( type );
             }
 
             /// <summary>Gets the type name.</summary>
@@ -1928,6 +2189,20 @@ namespace Nano.Web.Core
             /// <returns>Type name.</returns>
             public static string GetTypeName( Type type )
             {
+                if ( type.IsGenericType )
+                {
+                    var genericArgument = type.GetGenericArguments().FirstOrDefault();
+
+                    var genericIndex = type.FullName.IndexOf( "`1", System.StringComparison.Ordinal );
+
+                    if ( genericArgument != null && genericIndex > 1 )
+                    {
+                        var typeName = type.FullName.Substring( 0, genericIndex );
+
+                        return typeName + "<" + genericArgument.Name + ">";
+                    }
+                }
+
                 Type underlyingType = Nullable.GetUnderlyingType( type );
 
                 if( underlyingType != null )
@@ -2872,7 +3147,7 @@ namespace Nano.Web.Core
         /// <summary>Maps file extensions to MIME types.</summary>
         public static class FileExtensionToContentTypeConverter
         {
-            /// <summary>Creates a new provider with a set of default mappings.</summary>
+            /// <summary>Creates a new file extension converter with a set of default mappings.</summary>
             static FileExtensionToContentTypeConverter()
             {
                 Mappings = new Dictionary<string, string>( StringComparer.OrdinalIgnoreCase )

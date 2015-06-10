@@ -52,9 +52,6 @@
             margin: 5px;
         }
 
-        .inputParameter {
-        }
-
         .childRow {
             background-color: #fff;
         }
@@ -111,86 +108,12 @@
     <br />
     <br />
 
-    <div id="operationInputParametersTableTemplate" style="display:none;">
-        <div class="slider">
-            <form id="{{FormId}}" method="POST" action="{{FullUrl}}" style="margin: 20px;">
-
-                <table id="{{ParametersTableId}}" cellpadding="5" cellspacing="0" border="0" style="padding-left:50px;">
-                    <thead>
-                        <tr>
-                            <th>Parameter</th>
-                            <th>Value</th>
-                            <th>Type</th>
-                            <th>Description</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
-
-                <div style="padding-left:50px; margin-top:10px;">
-                    <button type="submit" id="{{Name}}-SubmitButton" class="btn btn-primary">Submit</button>
-                    &nbsp;&nbsp;
-                    <button type="button" id="{{Name}}-ClearButton" class="btn btn-default btn-clear">Clear</button>
-                </div>
-
-                <br />
-
-                <div id="{{ResultsId}}" style="padding-left:50px; display:none;">
-                    <p>Results:</p>
-                    <pre id="{{SuccessResultsId}}">				
-					</pre>
-                    <div id="{{FailureResultsId}}">
-                    </div>
-                </div>
-            </form>
-        </div>
-    </div>
-
     <div>
         <img src="images/lego_explorer.jpg" alt="Lego Explorer" title="Lego Explorer" style="float:right;" />
     </div>
 
-    <div id="CSharpProxyTemplate" style="display:none;">
-        <pre id="CSharpApiClassTemplate">
-public class {{ClassName}}
-{
-    /*** Nano-generated web api proxy. Edit at your own discretion. ***/
-    /*** This is an auto-generated web api proxy generated from the following url: {{GeneratedFromUrl}} ***/
-    public static string BaseApiUrl = "{{BaseUrl}}";
-    {{MethodList}}
-    private static T PostJson<{{t}}>( string url, System.Collections.Specialized.NameValueCollection parameters )
-    {
-        using( var client = new System.Net.WebClient() )
-        {
-            byte[] responsebytes = client.UploadValues( url, "POST", parameters );
-            string responsebody = Encoding.UTF8.GetString( responsebytes );
-            var obj = Newtonsoft.Json.JsonConvert.DeserializeObject<{{t}}>( responsebody );
-            return obj;
-        }
-    }
-    #region Nested Types
-{{NestedClassList}}
-    #endregion Nested Types
-}
-            </pre>
-        <pre id="CSharpMethodTemplate">
-    public static {{ReturnType}} {{MethodName}}({{InputParameterList}})
-    {
-        var parameters = new System.Collections.Specialized.NameValueCollection { {{NameValueCollectionParameterList}} };
-        return PostJson<{{returntype}}>( BaseApiUrl + "{{UrlPath}}", parameters );
-    }
-            </pre>
-        <pre id="CSharpClassTemplate">
-    public class {{ClassName}}
-    {
-        {{PropertyList}}
-    }
-            </pre>
-
-    </div>
-
     <pre id="CSharpProxyTemplateOutput">
-        </pre>
+    </pre>
 
     <script>
 
@@ -200,7 +123,7 @@ public class {{ClassName}}
 
         function getChildRowHtml(data) {
 
-            var html = $('#operationInputParametersTableTemplate').html();
+            var html = getOperationInputParametersTableTemplate();
 
             var tbody = '';
 
@@ -232,11 +155,11 @@ public class {{ClassName}}
 
             $.ajax({
                 method: 'POST',
-                url: location.origin + '/metadata/nanoMetadata.json'
+                url: location.href.replace('ApiExplorer', '').replace('/index.html', '') + 'metadata/GetNanoMetadata'
             })
-			.done(function (data) {
-			    callback(data);
-			});
+                .done(function (data) {
+                    callback(data);
+                });
         };
 
         function getApiMetadataCallback(metadata) {
@@ -249,9 +172,9 @@ public class {{ClassName}}
                 "ordering": true,
                 "info": true,
                 columns: [
-					{ data: "Name" },
-					{ data: "Path" },
-					{ data: "Description" }
+                    { data: "Name" },
+                    { data: "Path" },
+                    { data: "Description" }
                 ]
             });
 
@@ -374,38 +297,121 @@ public class {{ClassName}}
                     data: data,
                     dataType: 'json'
                 })
-				.done(function (data, textStatus, jqXHR) {
-				    console.log(data);
+                    .done(function (data, textStatus, jqXHR) {
+                        console.log(data);
 
-				    var resultString = JSON.stringify(data, null, 4);
+                        var resultString = JSON.stringify(data, null, 4);
 
-				    var successResultsId = getSuccessResultsId(rowData);
-				    $('#' + successResultsId).text(resultString)
+                        var successResultsId = getSuccessResultsId(rowData);
+                        $('#' + successResultsId).text(resultString)
 
-				    var resultsId = getResultsId(rowData);
-				    $('#' + resultsId).slideDown('slow', function () {
-				    });
-				})
-				.fail(function (jqXHR, textStatus, errorThrown) {
-				    console.log(jqXHR);
-				    console.log(textStatus);
-				    console.log(errorThrown);
+                        var resultsId = getResultsId(rowData);
+                        $('#' + resultsId).slideDown('slow', function () {
+                        });
+                    })
+                    .fail(function (jqXHR, textStatus, errorThrown) {
+                        console.log(jqXHR);
+                        console.log(textStatus);
+                        console.log(errorThrown);
 
-				    var failureResultsId = getFailureResultsId(rowData);
-				    $('#' + failureResultsId).html(jqXHR.responseText);
+                        var failureResultsId = getFailureResultsId(rowData);
+                        $('#' + failureResultsId).html(jqXHR.responseText);
 
-				    var resultsId = getResultsId(rowData);
-				    $('#' + resultsId).slideDown('slow', function () {
-				    });
-				});
+                        var resultsId = getResultsId(rowData);
+                        $('#' + resultsId).slideDown('slow', function () {
+                        });
+                    });
 
                 return false;
             });
         };
 
+        function getOperationInputParametersTableTemplate() {
+            return [
+'<div class="slider">',
+'   <form id="{{FormId}}" method="POST" action="{{FullUrl}}" style="margin: 20px;">',
+'       <table id="{{ParametersTableId}}" cellpadding="5" cellspacing="0" border="0" style="padding-left:50px;">',
+'           <thead>',
+'               <tr>',
+'                   <th>Parameter</th>',
+'                   <th>Value</th>',
+'                   <th>Type</th>',
+'                   <th>Description</th>',
+'               </tr>',
+'           </thead>',
+'           <tbody></tbody>',
+'       </table>',
+'       <div style="padding-left:50px; margin-top:10px;">',
+'           <button type="submit" id="{{Name}}-SubmitButton" class="btn btn-primary">Submit</button>',
+'           &nbsp;&nbsp;',
+'           <button type="button" id="{{Name}}-ClearButton" class="btn btn-default btn-clear">Clear</button>',
+'       </div>',
+'       <br />',
+'       <div id="{{ResultsId}}" style="padding-left:50px; display:none;">',
+'           <p>Results:</p>',
+'           <pre id="{{SuccessResultsId}}">',
+'           </pre>',
+'           <div id="{{FailureResultsId}}">',
+'           </div>',
+'       </div>',
+'   </form>',
+'</div>'].join("\n");
+        };
+
+        function getCSharpApiClassTemplate() {
+
+            return [
+'public class {{ClassName}}',
+'{',
+'   // This is a Nano auto-generated web api proxy created from the following url: {{GeneratedFromUrl}}',
+'',
+'   public static string BaseApiUrl = "{{BaseUrl}}";',
+'   {{MethodList}}',
+'   private static T PostJson<T>( string url, System.Collections.Specialized.NameValueCollection parameters )',
+'   {',
+'       using( var client = new System.Net.WebClient() )',
+'       {',
+'           byte[] responsebytes = client.UploadValues( url, "POST", parameters );',
+'           string responsebody = Encoding.UTF8.GetString( responsebytes );',
+'           var obj = Newtonsoft.Json.JsonConvert.DeserializeObject<T>( responsebody );',
+'           return obj;',
+'       }',
+'   }',
+'',
+'   #region Nested Types',
+'',
+'{{NestedClassList}}',
+'',
+'   #endregion Nested Types'
+            ].join("\n");
+        };
+
+        function getCSharpMethodTemplate() {
+
+            return [
+'   public static {{ReturnType}} {{MethodName}}({{InputParameterList}})',
+'   {',
+'      var parameters = new System.Collections.Specialized.NameValueCollection { {{NameValueCollectionParameterList}} };',
+'      return PostJson<{{ReturnType}}>( BaseApiUrl + "{{UrlPath}}", parameters );',
+'   }',
+''
+            ].join("\n");
+        };
+
+        function getCSharpClassTemplate() {
+
+            return [
+'   public class {{ClassName}}',
+'   {',
+'       {{PropertyList}}',
+'   }',
+''
+            ].join("\n");
+        };
+
         function generateCSharpProxy(metadata) {
 
-            var methodTemplate = $('#CSharpMethodTemplate').text();
+            var methodTemplate = getCSharpMethodTemplate();
 
             var methodList = "";
 
@@ -443,7 +449,7 @@ public class {{ClassName}}
 
             var nestedClassList = "";
 
-            var cSharpClassTemplate = $('#CSharpClassTemplate').text();
+            var cSharpClassTemplate = getCSharpClassTemplate();
 
             for (var m = 0; m < metadata.Models.length; m++) {
 
@@ -453,7 +459,7 @@ public class {{ClassName}}
 
                 for (var p = 0; p < model.Properties.length; p++) {
                     var property = model.Properties[p];
-                    properties += "public " + property.Type + " " + property.Name + ";\n        ";
+                    properties += "public " + property.Type + " " + property.Name + ";\n       ";
                 }
 
                 properties = properties == "" ? properties : properties.slice(0, -9); // Remove trailing line break and whitespace
@@ -463,9 +469,9 @@ public class {{ClassName}}
                 nestedClassList += classTemplate + "\n";
             }
 
-            nestedClassList = nestedClassList == "" ? nestedClassList : nestedClassList.slice(0, -1); // Remove trailing line break
+            nestedClassList = nestedClassList == "" ? nestedClassList : nestedClassList.slice(0, -2); // Remove trailing line break
 
-            var apiClassTemplate = $('#CSharpApiClassTemplate').text();
+            var apiClassTemplate = getCSharpApiClassTemplate();
             apiClassTemplate = replaceAllOccurrences(apiClassTemplate, "{{ClassName}}", "ApiProxy");
             apiClassTemplate = replaceAllOccurrences(apiClassTemplate, "{{GeneratedFromUrl}}", window.location.href);
             apiClassTemplate = replaceAllOccurrences(apiClassTemplate, "{{BaseUrl}}", baseUrl);
@@ -489,5 +495,6 @@ public class {{ClassName}}
         });
 
     </script>
+
 </body>
 </html>

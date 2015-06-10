@@ -1,6 +1,5 @@
 using System.Linq;
 using System.Web;
-using Nano.Demo.SelfHost;
 using Nano.Web.Core;
 
 namespace Nano.Demo.Mvc4
@@ -38,7 +37,7 @@ namespace Nano.Demo.Mvc4
 
             config.AddFile( "/home", @"\www\home\index.html" );
 
-            config.AddFunc( "/hi", x => "Hello World! " + x.Request.Uri );
+            config.AddFunc( "/hi", x => "Hello World! " + x.Request.Url );
 
             config.AddFunc( "/swagger/swagger.json", x => "Hello World!" );
 
@@ -65,9 +64,29 @@ namespace Nano.Demo.Mvc4
                 } );
             } );
 
+            config.AddFunc( "/Nano.Demo.Mvc4/getbaseurl", context =>
+            {
+                var baseUrl = GetBaseUrl();
+                return baseUrl;
+            } );
+
             config.EnableCors();
 
+            
+
             Nano.Web.Core.Host.SystemWeb.SystemWebNanoServer.Start( httpApplication, config );
+        }
+
+        public static string GetBaseUrl()
+        {
+            var request = HttpContext.Current.Request;
+            var appUrl = HttpRuntime.AppDomainAppVirtualPath;
+
+            if( !string.IsNullOrWhiteSpace( appUrl ) ) appUrl += "/";
+
+            var baseUrl = string.Format( "{0}://{1}{2}", request.Url.Scheme, request.Url.Authority, appUrl );
+
+            return baseUrl;
         }
 
         public class Person
