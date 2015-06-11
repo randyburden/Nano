@@ -399,25 +399,13 @@ namespace Nano.Web.Core
 
         /// <summary>The name of the cookie</summary>
         public string Name { get; private set; }
-
-        /// <summary>Gets the encoded name of the cookie</summary>
-        public string EncodedName
-        {
-            get { return Uri.EscapeUriString( Name ); }
-        }
-
+        
         /// <summary>The path to restrict the cookie to</summary>
         public string Path { get; set; }
 
         /// <summary>The value of the cookie</summary>
         public string Value { get; private set; }
-
-        /// <summary>Gets the encoded value of the cookie</summary>
-        public string EncodedValue
-        {
-            get { return Uri.EscapeUriString( Value ); }
-        }
-
+        
         /// <summary>Whether a cookie is accessible by client-side script.</summary>
         public bool HttpOnly { get; private set; }
 
@@ -426,7 +414,7 @@ namespace Nano.Web.Core
 
         public override string ToString()
         {
-            StringBuilder sb = new StringBuilder( 50 ).AppendFormat( "{0}={1}; path={2}", EncodedName, EncodedValue, Path );
+            StringBuilder sb = new StringBuilder( 50 ).AppendFormat( "{0}={1}; path={2}", Name, Value, Path );
 
             if( Expires != null )
             {
