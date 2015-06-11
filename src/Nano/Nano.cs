@@ -1,5 +1,5 @@
 ﻿/*
-    Nano v0.3.0
+    Nano v0.5.0
     
     Nano is a micro web framework for building web-based HTTP services for .NET.
     To find out more, visit the project home page at: 
@@ -515,7 +515,7 @@ namespace Nano.Web.Core
             }
             else
             {
-                Version = "0.3.0.0";
+                Version = "0.5.0.0";
             }
         }
 
