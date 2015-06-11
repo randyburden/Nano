@@ -53,15 +53,7 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <Content Include="www\ApiExplorer\css\jquery.dataTables.min.css" />
-    <Content Include="www\ApiExplorer\images\lego_explorer.jpg" />
-    <Content Include="www\ApiExplorer\images\sort_asc.png" />
-    <Content Include="www\ApiExplorer\images\sort_both.png" />
-    <Content Include="www\ApiExplorer\images\sort_desc.png" />
     <Content Include="www\ApiExplorer\index.html" />
-    <Content Include="www\ApiExplorer\js\autosize.min.js" />
-    <Content Include="www\ApiExplorer\js\jquery-1.11.3.min.js" />
-    <Content Include="www\ApiExplorer\js\jquery.dataTables.min.js" />
     <Content Include="www\dashboard\index.html" />
     <Content Include="www\dashboard\sub\helpers.js" />
     <Content Include="www\dashboard\tags.html" />

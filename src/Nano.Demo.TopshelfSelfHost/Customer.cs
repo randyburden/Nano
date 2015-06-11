@@ -45,7 +45,7 @@
         {
             return new
             {
-                nanoContext.Request.Uri,
+                nanoContext.Request.Url,
                 HttpMethod = nanoContext.Request.HttpMethod
             };
         }
