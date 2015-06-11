@@ -2030,6 +2030,7 @@ namespace Nano.Web.Core
                     
                     var url = nanoContext.Request.Url.Clone();
                     url.Path = methodRequestHandler.UrlPath;
+                    url.Port = url.Port == 80 || url.Port == 443 ? null : url.Port;
                     metadata.FullUrl = url;
 
                     metadata.Name = metadataProvider.GetOperationName( nanoContext, methodRequestHandler );
