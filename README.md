@@ -11,19 +11,19 @@ Nano is a micro web framework for building web-based HTTP services for .NET.
  - Self-host in an executable or integrate into a new or existing ASP.NET application with ease
  - It can be used as a [C# single file drop in](https://raw.githubusercontent.com/AmbitEnergyLabs/Nano/master/src/Nano/Nano.cs) or referenced as a [NuGet Package](https://www.nuget.org/packages/Nano).
 
-*Note: This is currently an alpha level project.*
+*Note: This is currently an alpha level project and will incur many fast moving releases.*
 
 Project Background
 ---
 
 **Opinions**
 
-Nano is a framework for building web apis and is optimized for developer productivity. With any framework ever written, it comes with set of opinionated ways of building software. The first opinion is that developers shouldn't have to worry about the transport protocol of HTTP for the majority of cases. We feel that in general developers just want to invoke a method to do work or get data and be on their merry way when both writing or consuming web-based services and apis. They don't want to have to worry about ports, tcp, serialization, connection timeouts, reading api specs, etc. So Nano is built with that in mind and at it's core allows developers to just write static methods and have the framework handle all of the HTTP stuff.
+Nano is a framework for building static websites and web apis and is optimized for developer productivity. With any framework ever written, it comes with set of opinionated ways of building software. The first opinion is that developers shouldn't have to worry about the transport protocol of HTTP for the majority of cases. We feel that in general developers just want to invoke a method to do work or get data and be on their merry way when both writing or consuming web-based services and apis. They don't want to have to worry about ports, tcp, serialization, connection timeouts, reading api specs, etc. So Nano is built with that in mind and at it's core allows developers to just write static methods and have the framework handle all of the HTTP stuff.
 
 Project Features
 ---
 
-Nano brings some very valuable features that rival many other web api frameworks including:
+Nano brings some very valuable features that rival many other web frameworks including:
 
  - Extension points/events/hooks for intercepting the request, response, or errors in order to implement logging, authentication, authorization, etc.
  - Auto-generated web interface which can serve as documentation, a test playground, a "free" UI that you can give to users to invoke methods on your service, code proxy generation allowing your users to bypass NuGet and instead get proxy libraries directly from the source, etc.
