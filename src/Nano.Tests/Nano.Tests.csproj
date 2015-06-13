@@ -46,6 +46,7 @@
   <ItemGroup>
     <Compile Include="Customer.cs" />
     <Compile Include="ProxyTests.cs" />
+    <Compile Include="RequestHandlers\DirectoryRequestHandlerTests.cs" />
     <Compile Include="Tests.cs" />
     <Compile Include="TimeSpanHelper.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -61,6 +62,9 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <Content Include="www\ApiExplorer\index.html">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     <Content Include="www\index.html">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>

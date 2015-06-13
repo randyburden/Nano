@@ -1860,8 +1860,7 @@ namespace Nano.Web.Core
                     // so that relative URLs will work correctly
                     if( nanoContext.Request.Url.Path.EndsWith( "/", StringComparison.Ordinal ) == false )
                     {
-                        Uri uri = nanoContext.Request.Url;
-                        string url = string.Format( "{0}://{1}:{2}{3}/", uri.Scheme, uri.Host, uri.Port, uri.LocalPath );
+                        string url = nanoContext.Request.Url.BasePath + nanoContext.Request.Url.Path + "/" + nanoContext.Request.Url.Query;
                         nanoContext.Response.Redirect( url );
                         return nanoContext;
                     }
