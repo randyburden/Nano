@@ -159,7 +159,7 @@
 
             html = html.replace('<tbody>', '<tbody>' + tbody);
             html = replaceAllOccurrences(html, '{{Name}}', data.Name);
-            html = replaceAllOccurrences(html, '{{FullUrl}}', data.FullUrl);
+            html = replaceAllOccurrences(html, '{{Path}}', data.Path);
             html = replaceAllOccurrences(html, '{{FormId}}', getFormId(data));
             html = replaceAllOccurrences(html, '{{SuccessResultsId}}', getSuccessResultsId(data));
             html = replaceAllOccurrences(html, '{{FailureResultsId}}', getFailureResultsId(data));
@@ -169,11 +169,16 @@
             return html;
         };
 
+        function getBaseUrl() {
+            // This assumes this page is being served from a folder path named "ApiExplorer/"
+            return location.href.toLowerCase().replace('apiexplorer/', '').replace('index.html', '');
+        };
+
         function getApiMetadata(callback) {
 
             $.ajax({
                     method: 'POST',
-                    url: location.href.toLowerCase().replace('apiexplorer', '').replace('/index.html', '') + 'metadata/GetNanoMetadata'
+                    url: getBaseUrl() + 'metadata/GetNanoMetadata'
                 })
                 .done(function (data) {
                     callback(data);
@@ -203,7 +208,6 @@
                     Path: metadata.Operations[i].UrlPath,
                     Description: metadata.Operations[i].Description,
                     InputParameters: metadata.Operations[i].InputParameters || [],
-                    FullUrl: metadata.Operations[i].FullUrl,
                     ReturnType: metadata.Operations[i].ReturnParameterType
                 }]);
             }
@@ -347,7 +351,7 @@
         function getOperationInputParametersTableTemplate() {
             return [
                 '<div class="slider">',
-                '   <form id="{{FormId}}" method="POST" action="{{FullUrl}}" style="margin: 20px;">',
+                '   <form id="{{FormId}}" method="POST" action="{{Path}}" style="margin: 20px;">',
                 '       <table id="{{ParametersTableId}}" cellpadding="5" cellspacing="0" border="0" style="padding-left:50px;">',
                 '           <thead>',
                 '               <tr>',
@@ -430,19 +434,12 @@
         function generateCSharpProxy(metadata) {
 
             var methodTemplate = getCSharpMethodTemplate();
-
             var methodList = "";
-
-            var baseUrl = "";
-
+            
             for (var i = 0; i < metadata.Operations.length; i++) {
 
                 var operation = metadata.Operations[i];
-
-                if (i == 0) {
-                    baseUrl = operation.FullUrl.replace(operation.UrlPath, "");
-                }
-
+                
                 var method = methodTemplate;
                 method = replaceAllOccurrences(method, "{{ReturnType}}", operation.ReturnParameterType);
                 method = replaceAllOccurrences(method, "{{MethodName}}", operation.Name);
@@ -488,6 +485,7 @@
             }
 
             nestedClassList = nestedClassList == "" ? nestedClassList : nestedClassList.slice(0, -2); // Remove trailing line break
+            var baseUrl = getBaseUrl();
 
             var apiClassTemplate = getCSharpApiClassTemplate();
             apiClassTemplate = replaceAllOccurrences(apiClassTemplate, "{{ClassName}}", "ApiProxy");

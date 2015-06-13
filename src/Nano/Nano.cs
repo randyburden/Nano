@@ -2013,13 +2013,7 @@ namespace Nano.Web.Core
                     if( metadataProvider == null )
                         continue;
 
-                    var metadata = new OperationMetaData { UrlPath = methodRequestHandler.UrlPath };
-                    
-                    var url = nanoContext.Request.Url.Clone();
-                    url.Path = methodRequestHandler.UrlPath;
-                    url.Port = url.Port == 80 || url.Port == 443 ? null : url.Port;
-                    metadata.FullUrl = url;
-
+                    var metadata = new OperationMetaData { UrlPath = nanoContext.Request.Url.BasePath + methodRequestHandler.UrlPath };
                     metadata.Name = metadataProvider.GetOperationName( nanoContext, methodRequestHandler );
                     metadata.Description = metadataProvider.GetOperationDescription( nanoContext, methodRequestHandler );
                     IList<MethodParameter> parameters = metadataProvider.GetOperationParameters( nanoContext, methodRequestHandler );
@@ -2536,10 +2530,7 @@ namespace Nano.Web.Core
         {
             /// <summary>The description of the operation.</summary>
             public string Description;
-
-            /// <summary>The operation full URL.</summary>
-            public string FullUrl;
-
+            
             /// <summary>The input parameters for the operation.</summary>
             public IList<OperationParameter> InputParameters = new List<OperationParameter>();
 
