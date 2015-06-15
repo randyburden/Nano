@@ -12,6 +12,7 @@
     <description>Nano is a micro web framework for building web-based HTTP services for .NET.</description>
 	<summary>Nano is a micro web framework for building web-based HTTP services for .NET.</summary>
     <releaseNotes>
+* 0.6.0 - Namespace change for StreamExtensions.
 * 0.5.0 - Fixed cookie encoding problems.
 * 0.4.0 - Removing port 80 and 443 from FullUrl operation metadata parameter.
 * 0.3.0 - Added generic type support to metadata.

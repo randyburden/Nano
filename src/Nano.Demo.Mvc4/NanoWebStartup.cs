@@ -1,6 +1,7 @@
 using System.Linq;
 using System.Web;
 using Nano.Web.Core;
+using Nano.Web.Core.Host.SystemWeb;
 
 namespace Nano.Demo.Mvc4
 {
@@ -31,7 +32,7 @@ namespace Nano.Demo.Mvc4
                 context.Items.Add( "Oops", exception );
             } );
 
-            config.AddDirectory( "/", @"\www\" );
+            
 
             config.AddMethods<Customer>( "/api/customer/", eventHandler );
 
@@ -71,10 +72,13 @@ namespace Nano.Demo.Mvc4
             } );
 
             config.EnableCors();
-
             
+            config.AddFunc( "/probe", context => true );
+            config.AddFunc( "/monitoring/probe", context => true );
 
-            Nano.Web.Core.Host.SystemWeb.SystemWebNanoServer.Start( httpApplication, config );
+            config.AddDirectory( "/", @"\www\" );
+
+            SystemWebNanoServer.Start( httpApplication, config );
         }
 
         public static string GetBaseUrl()

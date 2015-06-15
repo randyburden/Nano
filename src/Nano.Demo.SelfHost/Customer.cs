@@ -1,23 +1,13 @@
-﻿namespace Nano.Demo.SelfHost
+﻿using System.Collections.Generic;
+
+// ReSharper disable once CheckNamespace
+namespace Nano.Demo
 {
     /// <summary>
     /// Customer API.
     /// </summary>
     public class Customer
     {
-        /// <summary>
-        /// Adds the specified number1.
-        /// </summary>
-        /// <param name="number1">The number1.</param>
-        /// <param name="number2">The number2.</param>
-        /// <returns></returns>
-        public static int Add( int number1, int? number2 )
-        {
-            var num = number2 ?? 1;
-
-            return number1 + num;
-        }
-
         /// <summary>
         /// Creates the customer.
         /// </summary>
@@ -31,6 +21,42 @@
                 CustomerId = 1,
                 FirstName = firstName,
                 LastName = lastName
+            };
+        }
+
+        /// <summary>
+        /// Gets a person by <see cref="personId"/>.
+        /// </summary>
+        /// <param name="personId">The person identifier.</param>
+        /// <returns>Person.</returns>
+        public static Person GetPerson( int personId )
+        {
+            return new Person
+            {
+                PersonId = personId,
+                FirstName = "Clark",
+                LastName = "Kent",
+                Addresses = new List<Address>
+                {
+                    new Address
+                    {
+                        AddressId = 1,
+                        Address1 = "100 Sweet Street",
+                        Address2 = "",
+                        City = "Metropolis",
+                        State = "NY",
+                        ZipCode = "10548"
+                    },
+                    new Address
+                    {
+                        AddressId = 1,
+                        Address1 = "200 Sweet Street",
+                        Address2 = "",
+                        City = "Metropolis",
+                        State = "NY",
+                        ZipCode = "10548"
+                    }
+                }
             };
         }
 
@@ -58,13 +84,14 @@
         {
             return new
             {
-                nanoContext.Request.Uri,
-                HttpMethod = nanoContext.Request.HttpMethod
+                nanoContext.Request.Url,
+                nanoContext.Request.HttpMethod
             };
         }
 
         /// <summary>
-        /// Creates a <span style="font-weight: bold;">customer</span>. Wiki article: <a href="https://wiki.ambitenergy.com/wiki/5378/developer-protocol-sdlc">Weston's Rant</a>
+        /// Creates a <span style="font-weight: bold;">customer</span>. 
+        /// Some cool link relevant to this operation: <a href="https://github.com/AmbitEnergyLabs/Nano">Nano Github Homepage</a>
         /// <p onclick="alert('Yo dog, I heard you like JavaScript so I put JavaScript in your HTML description in your XML method comments in your C# class!')">
         ///     Look, there's HTML in my XML comments... <i>crazy!!!</i>
         /// </p>
@@ -98,16 +125,6 @@
         }
 
         /// <summary>
-        /// Adds the user.
-        /// </summary>
-        /// <param name="user">The user.</param>
-        /// <returns><see cref="UserModel"/></returns>
-        public static UserModel AddUser( UserModel user )
-        {
-            return user;
-        }
-
-        /// <summary>
         /// Customer.
         /// </summary>
         public class CustomerModel
@@ -128,10 +145,66 @@
             public string LastName;
         }
 
-        public class UserModel
+        /// <summary>
+        /// Person.
+        /// </summary>
+        public class Person
         {
-            public int UserId { get; set; }
-            public string UserName { get; set; }
+            /// <summary>
+            /// The person identifier.
+            /// </summary>
+            public int PersonId;
+
+            /// <summary>
+            /// First name.
+            /// </summary>
+            public string FirstName;
+
+            /// <summary>
+            /// Last name.
+            /// </summary>
+            public string LastName;
+
+            /// <summary>
+            /// The persons list of addresses.
+            /// </summary>
+            public IList<Address> Addresses = new List<Address>();
+        }
+
+        /// <summary>
+        /// Address.
+        /// </summary>
+        public class Address
+        {
+            /// <summary>
+            /// The address identifier.
+            /// </summary>
+            public int AddressId;
+
+            /// <summary>
+            /// The address line 1.
+            /// </summary>
+            public string Address1;
+
+            /// <summary>
+            /// The address line 2.
+            /// </summary>
+            public string Address2;
+
+            /// <summary>
+            /// The city.
+            /// </summary>
+            public string City;
+
+            /// <summary>
+            /// The state.
+            /// </summary>
+            public string State;
+
+            /// <summary>
+            /// The zip code.
+            /// </summary>
+            public string ZipCode;
         }
     }
 }

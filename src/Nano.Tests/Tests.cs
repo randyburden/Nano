@@ -3,6 +3,7 @@ using System.Collections.Specialized;
 using System.Diagnostics;
 using System.Net;
 using System.Text;
+using Nano.Demo;
 using Nano.Web.Core;
 using Nano.Web.Core.Host.HttpListener;
 using NUnit.Framework;

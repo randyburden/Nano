@@ -1,7 +1,7 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
-namespace Nano.Demo.Mvc4
+// ReSharper disable once CheckNamespace
+namespace Nano.Demo
 {
     /// <summary>
     /// Customer API.
@@ -85,12 +85,13 @@ namespace Nano.Demo.Mvc4
             return new
             {
                 nanoContext.Request.Url,
-                HttpMethod = nanoContext.Request.HttpMethod
+                nanoContext.Request.HttpMethod
             };
         }
 
         /// <summary>
-        /// Creates a <span style="font-weight: bold;">customer</span>. Wiki article: <a href="https://wiki.ambitenergy.com/wiki/5378/developer-protocol-sdlc">Weston's Rant</a>
+        /// Creates a <span style="font-weight: bold;">customer</span>. 
+        /// Some cool link relevant to this operation: <a href="https://github.com/AmbitEnergyLabs/Nano">Nano Github Homepage</a>
         /// <p onclick="alert('Yo dog, I heard you like JavaScript so I put JavaScript in your HTML description in your XML method comments in your C# class!')">
         ///     Look, there's HTML in my XML comments... <i>crazy!!!</i>
         /// </p>
