@@ -1006,12 +1006,12 @@ namespace Nano.Web.Core
         /// </summary>
         public Url()
         {
-            this.Scheme = Uri.UriSchemeHttp;
-            this.HostName = string.Empty;
-            this.Port = null;
-            this.BasePath = string.Empty;
-            this.Path = string.Empty;
-            this.Query = string.Empty;
+            Scheme = Uri.UriSchemeHttp;
+            HostName = string.Empty;
+            Port = null;
+            BasePath = string.Empty;
+            Path = string.Empty;
+            Query = string.Empty;
         }
 
         /// <summary>
@@ -1021,11 +1021,11 @@ namespace Nano.Web.Core
         public Url( string url )
         {
             var uri = new Uri( url );
-            this.HostName = uri.Host;
-            this.Path = uri.LocalPath;
-            this.Port = uri.Port;
-            this.Query = uri.Query;
-            this.Scheme = uri.Scheme;
+            HostName = uri.Host;
+            Path = uri.LocalPath;
+            Port = uri.Port;
+            Query = uri.Query;
+            Scheme = uri.Scheme;
         }
 
         /// <summary>
@@ -1049,7 +1049,7 @@ namespace Nano.Web.Core
         /// </summary>
         public string BasePath
         {
-            get { return this._basePath; }
+            get { return _basePath; }
             set
             {
                 if( string.IsNullOrEmpty( value ) )
@@ -1057,7 +1057,7 @@ namespace Nano.Web.Core
                     return;
                 }
 
-                this._basePath = value.TrimEnd( '/' );
+                _basePath = value.TrimEnd( '/' );
             }
         }
 
@@ -1072,8 +1072,8 @@ namespace Nano.Web.Core
         /// </summary>
         public string Query
         {
-            get { return this._query; }
-            set { this._query = GetQuery( value ); }
+            get { return _query; }
+            set { _query = GetQuery( value ); }
         }
 
         /// <summary>
@@ -1084,10 +1084,10 @@ namespace Nano.Web.Core
             get
             {
                 return new StringBuilder()
-                    .Append( this.Scheme )
+                    .Append( Scheme )
                     .Append( Uri.SchemeDelimiter )
-                    .Append( GetHostName( this.HostName ) )
-                    .Append( GetPort( this.Port ) )
+                    .Append( GetHostName( HostName ) )
+                    .Append( GetPort( Port ) )
                     .ToString();
             }
         }
@@ -1099,20 +1099,20 @@ namespace Nano.Web.Core
         {
             get
             {
-                return Uri.UriSchemeHttps.Equals( this.Scheme, StringComparison.OrdinalIgnoreCase );
+                return Uri.UriSchemeHttps.Equals( Scheme, StringComparison.OrdinalIgnoreCase );
             }
         }
 
         public override string ToString()
         {
             return new StringBuilder()
-                .Append( this.Scheme )
+                .Append( Scheme )
                 .Append( Uri.SchemeDelimiter )
-                .Append( GetHostName( this.HostName ) )
-                .Append( GetPort( this.Port ) )
-                .Append( GetCorrectPath( this.BasePath ) )
-                .Append( GetCorrectPath( this.Path ) )
-                .Append( this.Query )
+                .Append( GetHostName( HostName ) )
+                .Append( GetPort( Port ) )
+                .Append( GetCorrectPath( BasePath ) )
+                .Append( GetCorrectPath( Path ) )
+                .Append( Query )
                 .ToString();
         }
 
@@ -1122,7 +1122,7 @@ namespace Nano.Web.Core
         /// <returns>Returns a new cloned instance of the url.</returns>
         object ICloneable.Clone()
         {
-            return this.Clone();
+            return Clone();
         }
 
         /// <summary>
@@ -1133,12 +1133,12 @@ namespace Nano.Web.Core
         {
             return new Url
             {
-                BasePath = this.BasePath,
-                HostName = this.HostName,
-                Port = this.Port,
-                Query = this.Query,
-                Path = this.Path,
-                Scheme = this.Scheme
+                BasePath = BasePath,
+                HostName = HostName,
+                Port = Port,
+                Query = Query,
+                Path = Path,
+                Scheme = Scheme
             };
         }
 
@@ -1218,6 +1218,21 @@ namespace Nano.Web.Core
             }
 
             return hostName;
+        }
+    }
+
+    /// <summary>
+    /// <see cref="Stream" /> extensions.
+    /// </summary>
+    public static class StreamExtensions
+    {
+        /// <summary>Writes the given text to the stream using UTF-8.</summary>
+        /// <param name="stream">Stream to write the text to.</param>
+        /// <param name="text">The text to write.</param>
+        public static void Write( this Stream stream, string text )
+        {
+            byte[] bytes = Encoding.UTF8.GetBytes( text );
+            stream.Write( bytes, 0, bytes.Length );
         }
     }
 
@@ -1981,7 +1996,9 @@ namespace Nano.Web.Core
                 if( nanoContext.Response.ResponseObject == null )
                     return nanoContext;
 
-                nanoContext.Response.ContentType = "application/json";
+                if ( string.IsNullOrWhiteSpace( nanoContext.Response.ContentType ) )
+                    nanoContext.Response.ContentType =  "application/json";
+
                 nanoContext.Response.ResponseStreamWriter = nanoContext.Response.ResponseStreamWriter ?? nanoContext.WriteResponseObjectToStream;
                 return nanoContext;
             }
@@ -2175,7 +2192,7 @@ namespace Nano.Web.Core
                 {
                     var genericArgument = type.GetGenericArguments().FirstOrDefault();
 
-                    var genericIndex = type.FullName.IndexOf( "`1", System.StringComparison.Ordinal );
+                    var genericIndex = type.FullName.IndexOf( "`1", StringComparison.Ordinal );
 
                     if ( genericArgument != null && genericIndex > 1 )
                     {
@@ -3112,7 +3129,7 @@ namespace Nano.Web.Core
             {
                 if( _dictionary.ContainsKey( binder.Name ) && _dictionary[binder.Name] is Delegate )
                 {
-                    var delegateValue = _dictionary[binder.Name] as Delegate;
+                    var delegateValue = ( Delegate ) _dictionary[binder.Name];
                     result = delegateValue.DynamicInvoke( args );
                     return true;
                 }
@@ -3236,7 +3253,7 @@ namespace Nano.Web.Core
             public static XmlDocument GetXmlDocumentation( this Assembly assembly )
             {
                 if( assembly == null )
-                    throw new ArgumentNullException( "assembly", "The parameter 'assembly' must not be null." );
+                    throw new ArgumentNullException( "assembly", @"The parameter 'assembly' must not be null." );
 
                 if( XmlDocumentCache.ContainsKey( assembly ) )
                     return XmlDocumentCache[assembly];
@@ -3258,7 +3275,7 @@ namespace Nano.Web.Core
                             return xmlDocument;
                         }
                     }
-                    catch( Exception ex )
+                    catch( Exception )
                     {
                     }
                 }
@@ -3275,7 +3292,7 @@ namespace Nano.Web.Core
             public static XmlElement GetXmlDocumentation( this Type type )
             {
                 if( type == null )
-                    throw new ArgumentNullException( "type", "The parameter 'type' must not be null." );
+                    throw new ArgumentNullException( "type", @"The parameter 'type' must not be null." );
 
                 XmlDocument xmlDocument = type.Assembly.GetXmlDocumentation();
 
@@ -3296,7 +3313,7 @@ namespace Nano.Web.Core
             public static XmlElement GetXmlDocumentation( this MethodInfo methodInfo )
             {
                 if( methodInfo == null )
-                    throw new ArgumentNullException( "methodInfo", "The parameter 'methodInfo' must not be null." );
+                    throw new ArgumentNullException( "methodInfo", @"The parameter 'methodInfo' must not be null." );
 
                 Type declaryingType = methodInfo.DeclaringType;
 
@@ -3335,7 +3352,7 @@ namespace Nano.Web.Core
             public static XmlElement GetXmlDocumentation( this FieldInfo fieldInfo )
             {
                 if( fieldInfo == null )
-                    throw new ArgumentNullException( "fieldInfo", "The parameter 'fieldInfo' must not be null." );
+                    throw new ArgumentNullException( "fieldInfo", @"The parameter 'fieldInfo' must not be null." );
 
                 Type declaryingType = fieldInfo.DeclaringType;
 
@@ -3361,7 +3378,7 @@ namespace Nano.Web.Core
             public static XmlElement GetXmlDocumentation( this PropertyInfo propertyInfo )
             {
                 if( propertyInfo == null )
-                    throw new ArgumentNullException( "propertyInfo", "The parameter 'propertyInfo' must not be null." );
+                    throw new ArgumentNullException( "propertyInfo", @"The parameter 'propertyInfo' must not be null." );
 
                 Type declaryingType = propertyInfo.DeclaringType;
 
@@ -3392,7 +3409,7 @@ namespace Nano.Web.Core
             public static XmlElement GetXmlDocumentation( this MemberInfo memberInfo )
             {
                 if( memberInfo == null )
-                    throw new ArgumentNullException( "memberInfo", "The parameter 'memberInfo' must not be null." );
+                    throw new ArgumentNullException( "memberInfo", @"The parameter 'memberInfo' must not be null." );
 
                 Type declaryingType = memberInfo.DeclaringType;
 
@@ -3466,7 +3483,7 @@ namespace Nano.Web.Core
                     return null;
 
                 if( string.IsNullOrWhiteSpace( memberName ) )
-                    throw new ArgumentNullException( "memberName", "The parameter 'memberName' must not be null." );
+                    throw new ArgumentNullException( "memberName", @"The parameter 'memberName' must not be null." );
 
                 XmlElement docElement = xmlDocument["doc"];
 
@@ -3656,21 +3673,6 @@ namespace Nano.Web.Core
                     : base( message, innerException )
                 {
                 }
-            }
-        }
-
-        /// <summary>
-        /// <see cref="Stream" /> extensions.
-        /// </summary>
-        public static class StreamExtensions
-        {
-            /// <summary>Writes the given text to the stream using UTF-8.</summary>
-            /// <param name="stream">Stream to write the text to.</param>
-            /// <param name="text">The text to write.</param>
-            public static void Write( this Stream stream, string text )
-            {
-                byte[] bytes = Encoding.UTF8.GetBytes( text );
-                stream.Write( bytes, 0, bytes.Length );
             }
         }
     }
