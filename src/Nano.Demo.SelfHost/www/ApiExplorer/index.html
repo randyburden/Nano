@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html>
 <head>
     <title>Api Explorer</title>
@@ -83,7 +84,7 @@
                     <option>Api Explorer Features</option>
                     <optgroup label="Proxy Generators">
                         <option value="GenerateCSharpProxy">C#</option>
-                        <option value="GenerateJavascriptProxy">JavaScript ( coming soon )</option>
+                        <option value="GenerateJavascriptProxy">JavaScript</option>
                     </optgroup>
                 </select>
             </td>
@@ -499,6 +500,147 @@
             $("body").html(preElement);
         };
 
+        function doesStringContainHtml(string) {
+            return /<[a-z][\s\S]*>/i.test(string);
+        };
+
+        function getJavascriptApiClassTemplate() {
+
+            return [
+                'var {{ClassName}} = {',
+                '   /* This is a Nano auto-generated javascript client proxy created from the following url: {{GeneratedFromUrl}} */',
+                '',
+                '   baseApiUrl : "{{BaseUrl}}"',
+                '',
+                '   , postJson: function (url, data, callback) {',
+                '',
+                '       var xhr = new XMLHttpRequest();',
+                '',
+                '       xhr.onreadystatechange = function () {',
+                '       var readyState = xhr.readyState;',
+                '',
+                '           if (readyState == 4) {',
+                '               if (xhr.status == 200) {',
+                '                   callback(JSON.parse(xhr.response));',
+                '               } else {',
+                '                   console.log(url + "POST error: " + xhr.statusText);',
+                '               }',
+                '           }',
+                '       };',
+                '',
+                '       var queryString = "";',
+                '',
+                '       if (typeof data === "object") {',
+                '           for (var propertyName in data) {',
+                '               queryString += (queryString.length === 0 ? "" : "&") + propertyName + "=" + encodeURIComponent(data[propertyName]); ',
+                '           }',
+                '       }',
+                '',
+                '       xhr.open("POST", url, true);',
+                '       xhr.setRequestHeader("content-type", "application/x-www-form-urlencoded");',
+                '       xhr.send(queryString);',
+                '   }',
+                '   {{MethodList}}',
+                '}'
+            ].join("\n");
+        };
+
+        function getJavascriptMethodTemplate() {
+
+            return [
+                '   , {{MethodName}} : function ({{InputParameterList}} callback) {',
+                '',
+                '       var requestObject = {{{ObjectParameters}}}',
+                '       {{ClassName}}.postJson({{ClassName}}.baseApiUrl + "{{UrlPath}}", requestObject, callback);',
+                '   }',
+                ''
+            ].join("\n");
+        };
+
+        function getJavascriptIntellisenseMethodTemplate() {
+
+            return [
+                '   , {{MethodName}} : function ({{InputParameterList}} callback) {',
+                '       /// <summary>{{Description}}.</summary>{{CommentParameterList}}',
+                '       /// <param name="callback" type="Function">The callback function to receive your data.</param>',
+                '',
+                '       var requestObject = {{{ObjectParameters}}}',
+                '       {{ClassName}}.postJson({{ClassName}}.baseApiUrl + "{{UrlPath}}", requestObject, callback);',
+                '   }',
+                ''
+            ].join("\n");
+        };
+
+        function generateJavascriptProxy(metadata) {
+
+            var className = "ApiProxy";
+
+            var methodTemplate = getJavascriptMethodTemplate();
+            var intellisenseMethodTemplate = getJavascriptIntellisenseMethodTemplate();
+
+            var methodList = "";
+
+            for (var i = 0; i < metadata.Operations.length; i++) {
+
+                var operation = metadata.Operations[i];
+
+                var method = methodTemplate;
+                var includeCommentParameterList = false;
+
+                if (!doesStringContainHtml(operation.Description)) {
+                    method = intellisenseMethodTemplate;
+                    includeCommentParameterList = true;
+                    method = replaceAllOccurrences(method, "{{Description}}", operation.Description);
+                }             
+                
+                method = replaceAllOccurrences(method, "{{MethodName}}", operation.Name.substr(0, 1).toLowerCase() + operation.Name.substr(1));
+                method = replaceAllOccurrences(method, "{{UrlPath}}", operation.UrlPath);
+
+                var inputParameterList = "";
+                var commentParameterList = "";
+                var objectParameterList = "";
+
+                for (var j = 0; j < operation.InputParameters.length; j++) {
+                    var inputParameter = operation.InputParameters[j];
+                    inputParameterList += "_" + inputParameter.Name.substr(0, 1).toLowerCase() + inputParameter.Name.substr(1) + ", ";
+
+                    objectParameterList += inputParameter.Name + ": _" + inputParameter.Name + ", ";
+
+                    if (!doesStringContainHtml(inputParameter.Description) && includeCommentParameterList) {
+                        commentParameterList += '\n       /// <param name="_' + inputParameter.Name + '" type="' + inputParameter.Type + '">' + inputParameter.Description + '</param>   ';
+                    }                    
+                }
+
+                objectParameterList = objectParameterList === "" ? "" : objectParameterList.slice(0, -2); //remove comma
+
+                method = replaceAllOccurrences(method, "{{ObjectParameters}}", objectParameterList);
+                method = replaceAllOccurrences(method, "{{InputParameterList}}", inputParameterList);
+                method = replaceAllOccurrences(method, "{{ClassName}}", className);
+
+                if (includeCommentParameterList) {
+                    method = replaceAllOccurrences(method, "{{CommentParameterList}}", commentParameterList);
+                }
+                
+                methodList += "\n" + method;
+            }
+
+            var nestedClassList = "";
+
+            var baseUrl = getBaseUrl();
+
+            var apiClassTemplate = getJavascriptApiClassTemplate();
+            apiClassTemplate = replaceAllOccurrences(apiClassTemplate, "{{ClassName}}", className);
+            apiClassTemplate = replaceAllOccurrences(apiClassTemplate, "{{GeneratedFromUrl}}", window.location.href);
+            apiClassTemplate = replaceAllOccurrences(apiClassTemplate, "{{BaseUrl}}", baseUrl);
+            apiClassTemplate = replaceAllOccurrences(apiClassTemplate, "{{MethodList}}", methodList);
+
+            var preElement = $('<pre/>', {
+                'id': 'JavascriptProxy',
+                'text': apiClassTemplate
+            });
+            $("body").html(preElement);
+        };
+       
         $(document).ready(function () {
 
             var queryStringParameters = getQueryStringParameters();
@@ -509,6 +651,10 @@
                     getApiMetadata(generateCSharpProxy);
                     return;
                 }
+                if (p.Key.toLowerCase() === 'generatejavascriptproxy' && p.Value.toLowerCase() === 'true') {
+                    getApiMetadata(generateJavascriptProxy);
+                    return;
+                }
             }
 
             getApiMetadata(getApiMetadataCallback);
@@ -517,6 +663,10 @@
                 var option = $(this).val();
                 if (option === "GenerateCSharpProxy") {
                     var url = window.location.href.replace(window.location.search, "") + '?GenerateCSharpProxy=True';
+                    window.open(url, '_blank');
+                }
+                if (option === "GenerateJavascriptProxy") {
+                    var url = window.location.href.replace(window.location.search, "") + '?GenerateJavascriptProxy=True';
                     window.open(url, '_blank');
                 }
             });
