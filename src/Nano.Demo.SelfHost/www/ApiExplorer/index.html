@@ -570,7 +570,7 @@
             return [
                 '       {{MethodName}} : function ({{InputParameterList}} onSuccessCallback, onErrorCallback) {',
                 '',
-                '           var requestObject = {{{ObjectParameters}}}',
+                '           var requestObject = {{{ObjectParameters}}};',
                 '           {{ClassName}}.postJson({{ClassName}}.baseApiUrl + "{{UrlPath}}", requestObject, onSuccessCallback, onErrorCallback);',
                 '       } ,',
                 ''
@@ -582,9 +582,10 @@
             return [
                 '       {{MethodName}} : function ({{InputParameterList}} onSuccessCallback, onErrorCallback) {',
                 '           /// <summary>{{Description}}.</summary>{{CommentParameterList}}',
-                '           /// <param name="callback" type="Function">The callback function to receive your data.</param>',
+                '           /// <param name="onSuccessCallback" type="Function">The callback function to receive your data.</param>',
+                '           /// <param name="onErrorCallback" type="Function">The callback function to handle an error. </param>',
                 '',
-                '           var requestObject = {{{ObjectParameters}}}',
+                '           var requestObject = {{{ObjectParameters}}};',
                 '           {{ClassName}}.postJson({{ClassName}}.baseApiUrl + "{{UrlPath}}", requestObject, onSuccessCallback, onErrorCallback);',
                 '       } ,',
                 ''
@@ -649,7 +650,7 @@
                             objectParameterList += inputParameter.Name + ": " + inputParameter.Name + ", ";
 
                             if (!doesStringContainHtml(inputParameter.Description) && includeCommentParameterList) {
-                                commentParameterList += '\n         /// <param name="' + inputParameter.Name + '" type="' + inputParameter.Type + '">' + inputParameter.Description + '</param>   ';
+                                commentParameterList += '\n           /// <param name="' + inputParameter.Name + '" type="' + inputParameter.Type + '">' + inputParameter.Description + '</param>   ';
                             }
                         }
 
