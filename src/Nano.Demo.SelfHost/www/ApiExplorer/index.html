@@ -510,9 +510,9 @@
                 'var {{ClassName}} = {',
                 '   /* This is a Nano auto-generated javascript client proxy created from the following url: {{GeneratedFromUrl}} */',
                 '',
-                '   baseApiUrl : "{{BaseUrl}}"',
+                '   baseApiUrl : "{{BaseUrl}}",',
                 '',
-                '   , postJson: function (url, data, callback) {',
+                '   postJson: function (url, data, onSuccessCallback, onErrorCallback) {',
                 '',
                 '       var xhr = new XMLHttpRequest();',
                 '',
@@ -521,9 +521,13 @@
                 '',
                 '           if (readyState == 4) {',
                 '               if (xhr.status == 200) {',
-                '                   callback(JSON.parse(xhr.response));',
+                '                   onSuccessCallback(JSON.parse(xhr.response));',
                 '               } else {',
-                '                   console.log(url + "POST error: " + xhr.statusText);',
+                '                   if (onErrorCallback != null) {',
+				'                       onErrorCallback (xhr); ',
+                '                   } else {',
+				'	                    defaultErrorHandler(xhr);   ',
+                '                   }',
                 '               }',
                 '           }',
                 '       };',
@@ -539,20 +543,36 @@
                 '       xhr.open("POST", url, true);',
                 '       xhr.setRequestHeader("content-type", "application/x-www-form-urlencoded");',
                 '       xhr.send(queryString);',
-                '   }',
-                '   {{MethodList}}',
+                '   },',
+                '',
+                '   defaultErrorHandler (xhr){',
+                '       console.log(url + ". POST error: " + xhr.statusText);',
+                '   },',
+                '',
+                '{{SubClassList}}',
                 '}'
+            ].join("\n");
+        };
+
+        function getJavascriptClassTemplate() {
+
+            return [
+                '   {{SubClassName}} : {',
+                '',
+                '       {{MethodList}}',
+                '   } ,',
+                ''
             ].join("\n");
         };
 
         function getJavascriptMethodTemplate() {
 
             return [
-                '   , {{MethodName}} : function ({{InputParameterList}} callback) {',
+                '       {{MethodName}} : function ({{InputParameterList}} onSuccessCallback, onErrorCallback) {',
                 '',
-                '       var requestObject = {{{ObjectParameters}}}',
-                '       {{ClassName}}.postJson({{ClassName}}.baseApiUrl + "{{UrlPath}}", requestObject, callback);',
-                '   }',
+                '           var requestObject = {{{ObjectParameters}}}',
+                '           {{ClassName}}.postJson({{ClassName}}.baseApiUrl + "{{UrlPath}}", requestObject, onSuccessCallback, onErrorCallback);',
+                '       } ,',
                 ''
             ].join("\n");
         };
@@ -560,13 +580,13 @@
         function getJavascriptIntellisenseMethodTemplate() {
 
             return [
-                '   , {{MethodName}} : function ({{InputParameterList}} callback) {',
-                '       /// <summary>{{Description}}.</summary>{{CommentParameterList}}',
-                '       /// <param name="callback" type="Function">The callback function to receive your data.</param>',
+                '       {{MethodName}} : function ({{InputParameterList}} onSuccessCallback, onErrorCallback) {',
+                '           /// <summary>{{Description}}.</summary>{{CommentParameterList}}',
+                '           /// <param name="callback" type="Function">The callback function to receive your data.</param>',
                 '',
-                '       var requestObject = {{{ObjectParameters}}}',
-                '       {{ClassName}}.postJson({{ClassName}}.baseApiUrl + "{{UrlPath}}", requestObject, callback);',
-                '   }',
+                '           var requestObject = {{{ObjectParameters}}}',
+                '           {{ClassName}}.postJson({{ClassName}}.baseApiUrl + "{{UrlPath}}", requestObject, onSuccessCallback, onErrorCallback);',
+                '       } ,',
                 ''
             ].join("\n");
         };
@@ -575,54 +595,88 @@
 
             var className = "ApiProxy";
 
+            var subclassTemplate = getJavascriptClassTemplate();
             var methodTemplate = getJavascriptMethodTemplate();
             var intellisenseMethodTemplate = getJavascriptIntellisenseMethodTemplate();
 
             var methodList = "";
+            var subclassDic = {};
+            var subclassList = "";
 
             for (var i = 0; i < metadata.Operations.length; i++) {
 
-                var operation = metadata.Operations[i];
-
-                var method = methodTemplate;
-                var includeCommentParameterList = false;
-
-                if (!doesStringContainHtml(operation.Description)) {
-                    method = intellisenseMethodTemplate;
-                    includeCommentParameterList = true;
-                    method = replaceAllOccurrences(method, "{{Description}}", operation.Description);
-                }             
-                
-                method = replaceAllOccurrences(method, "{{MethodName}}", operation.Name.substr(0, 1).toLowerCase() + operation.Name.substr(1));
-                method = replaceAllOccurrences(method, "{{UrlPath}}", operation.UrlPath);
-
-                var inputParameterList = "";
-                var commentParameterList = "";
-                var objectParameterList = "";
-
-                for (var j = 0; j < operation.InputParameters.length; j++) {
-                    var inputParameter = operation.InputParameters[j];
-                    inputParameterList += "_" + inputParameter.Name.substr(0, 1).toLowerCase() + inputParameter.Name.substr(1) + ", ";
-
-                    objectParameterList += inputParameter.Name + ": _" + inputParameter.Name + ", ";
-
-                    if (!doesStringContainHtml(inputParameter.Description) && includeCommentParameterList) {
-                        commentParameterList += '\n       /// <param name="_' + inputParameter.Name + '" type="' + inputParameter.Type + '">' + inputParameter.Description + '</param>   ';
-                    }                    
+                var op = metadata.Operations[i];
+                var pathArray = op.UrlPath.split('/');
+                var subclassName = pathArray[pathArray.length - 2];
+                if (subclassDic[subclassName] == null) {
+                    subclassDic[subclassName] = [];
+                    subclassDic[subclassName].push(op);
+                } else {
+                    subclassDic[subclassName].push(op);
                 }
 
-                objectParameterList = objectParameterList === "" ? "" : objectParameterList.slice(0, -2); //remove comma
-
-                method = replaceAllOccurrences(method, "{{ObjectParameters}}", objectParameterList);
-                method = replaceAllOccurrences(method, "{{InputParameterList}}", inputParameterList);
-                method = replaceAllOccurrences(method, "{{ClassName}}", className);
-
-                if (includeCommentParameterList) {
-                    method = replaceAllOccurrences(method, "{{CommentParameterList}}", commentParameterList);
-                }
-                
-                methodList += "\n" + method;
             }
+
+            for (var key in subclassDic) {
+                if (subclassDic.hasOwnProperty(key)) {
+                    console.log(key);
+                    var subclass = subclassTemplate;
+
+                    for (var i = 0; i < subclassDic[key].length; i++) {
+
+                        var operation = subclassDic[key][i];
+
+                        var method = methodTemplate;
+                        var includeCommentParameterList = false;
+
+                        if (!doesStringContainHtml(operation.Description)) {
+                            method = intellisenseMethodTemplate;
+                            includeCommentParameterList = true;
+                            method = replaceAllOccurrences(method, "{{Description}}", operation.Description);
+                        }
+
+                        method = replaceAllOccurrences(method, "{{MethodName}}", operation.Name.substr(0, 1).toLowerCase() + operation.Name.substr(1));
+                        method = replaceAllOccurrences(method, "{{UrlPath}}", operation.UrlPath);
+
+                        var inputParameterList = "";
+                        var commentParameterList = "";
+                        var objectParameterList = "";
+
+                        for (var j = 0; j < operation.InputParameters.length; j++) {
+                            var inputParameter = operation.InputParameters[j];
+                            inputParameterList += inputParameter.Name.substr(0, 1).toLowerCase() + inputParameter.Name.substr(1) + ", ";
+
+                            objectParameterList += inputParameter.Name + ": " + inputParameter.Name + ", ";
+
+                            if (!doesStringContainHtml(inputParameter.Description) && includeCommentParameterList) {
+                                commentParameterList += '\n         /// <param name="' + inputParameter.Name + '" type="' + inputParameter.Type + '">' + inputParameter.Description + '</param>   ';
+                            }
+                        }
+
+                        objectParameterList = objectParameterList === "" ? "" : objectParameterList.slice(0, -2); //remove comma
+
+                        method = replaceAllOccurrences(method, "{{ObjectParameters}}", objectParameterList);
+                        method = replaceAllOccurrences(method, "{{InputParameterList}}", inputParameterList);
+                        method = replaceAllOccurrences(method, "{{ClassName}}", className);
+
+                        if (includeCommentParameterList) {
+                            method = replaceAllOccurrences(method, "{{CommentParameterList}}", commentParameterList);
+                        }
+
+                        methodList += "\n" + method;
+                    }
+
+                    methodList = methodList === "" ? "" : methodList.slice(0, -3);
+
+                    subclass = replaceAllOccurrences(subclass, "{{SubClassName}}", key);
+                    subclass = replaceAllOccurrences(subclass, "{{MethodList}}", methodList);
+                    
+                    methodList = "";
+                    subclassList += subclass + "\n";
+                }
+            }
+
+            subclassList = subclassList === "" ? "" : subclassList.slice(0, -3);
 
             var nestedClassList = "";
 
@@ -632,7 +686,7 @@
             apiClassTemplate = replaceAllOccurrences(apiClassTemplate, "{{ClassName}}", className);
             apiClassTemplate = replaceAllOccurrences(apiClassTemplate, "{{GeneratedFromUrl}}", window.location.href);
             apiClassTemplate = replaceAllOccurrences(apiClassTemplate, "{{BaseUrl}}", baseUrl);
-            apiClassTemplate = replaceAllOccurrences(apiClassTemplate, "{{MethodList}}", methodList);
+            apiClassTemplate = replaceAllOccurrences(apiClassTemplate, "{{SubClassList}}", subclassList);
 
             var preElement = $('<pre/>', {
                 'id': 'JavascriptProxy',
