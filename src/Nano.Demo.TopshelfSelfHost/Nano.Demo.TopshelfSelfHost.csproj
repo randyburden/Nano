@@ -54,6 +54,7 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <Content Include="www\JavaScriptProxyTester\index.html" />
     <Content Include="www\ApiExplorer\index.html" />
     <Content Include="www\dashboard\index.html" />
     <Content Include="www\dashboard\sub\helpers.js" />
