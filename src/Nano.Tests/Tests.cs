@@ -25,7 +25,7 @@ namespace Nano.Tests
 
                 using( var client = new WebClient() )
                 {
-                    byte[] responsebytes = client.UploadValues( "http://localhost:4545/Customer/GetCustomer", "POST", parameters );
+                    byte[] responsebytes = client.UploadValues( "http://localhost:4545/api/Customer/GetCustomer", "POST", parameters );
                     string responsebody = Encoding.UTF8.GetString( responsebytes );
                     Trace.WriteLine( responsebody );
                 }
