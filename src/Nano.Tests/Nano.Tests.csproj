@@ -62,12 +62,8 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <Content Include="www\ApiExplorer\index.html">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\index.html">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
+    <Content Include="www\ApiExplorer\index.html" />
+    <Content Include="www\index.html" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
@@ -81,6 +77,9 @@
     </PropertyGroup>
     <Error Condition="!Exists('$(SolutionDir)\.nuget\NuGet.targets')" Text="$([System.String]::Format('$(ErrorText)', '$(SolutionDir)\.nuget\NuGet.targets'))" />
   </Target>
+  <PropertyGroup>
+    <PostBuildEvent>xcopy "$(ProjectDir)www\*.*" "$(TargetDir)www" /Y /I /E</PostBuildEvent>
+  </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
   <Target Name="BeforeBuild">
