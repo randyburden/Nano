@@ -1,5 +1,5 @@
 ﻿/*
-    Nano v0.6.0
+    Nano v0.7.0
     
     Nano is a micro web framework for building web-based HTTP services for .NET.
     To find out more, visit the project home page at: 
@@ -93,6 +93,9 @@ namespace Nano.Web.Core
         /// <summary>The serialization service used to serialize/deserialize requests and responses.</summary>
         public ISerializationService SerializationService;
 
+        /// <summary>Gets the default method url path. Defaulted to: '/api/' + type.Name</summary>
+        public Func<Type, string> GetDefaultMethodUrlPath = type => "/api/" + type.Name;
+
         /// <summary>Initializes a new instance of the <see cref="NanoConfiguration" /> class.</summary>
         /// <param name="serializationService">
         /// The optional serialization service used to serialize/deserialize requests and
@@ -102,6 +105,7 @@ namespace Nano.Web.Core
         {
             SerializationService = serializationService ?? new JsonNetSerializer();
             RequestHandlers.Add( new MetadataRequestHandler( "/metadata/GetNanoMetadata", DefaultEventHandler ) );
+            this.EnableCorrelationId();
         }
 
         /// <summary>Adds all public static methods in the given type.</summary>
@@ -113,7 +117,7 @@ namespace Nano.Web.Core
         public IList<MethodRequestHandler> AddMethods( Type type, string urlPath = null, EventHandler eventHandler = null, IApiMetaDataProvider metadataProvider = null )
         {
             MethodInfo[] methods = type.GetMethods( BindingFlags.Public | BindingFlags.Static );
-            urlPath = string.IsNullOrWhiteSpace( urlPath ) == false ? urlPath.TrimStart( '/' ).TrimEnd( '/' ) : type.Name;
+            urlPath = string.IsNullOrWhiteSpace( urlPath ) == false ? urlPath.TrimStart( '/' ).TrimEnd( '/' ) : GetDefaultMethodUrlPath( type ).TrimStart( '/' ).TrimEnd( '/' );
 
             IList<MethodRequestHandler> handlers = new List<MethodRequestHandler>();
 
@@ -338,8 +342,6 @@ namespace Nano.Web.Core
         public NanoResponse()
         {
             HeaderParameters.Add( "X-Nano-Version", Constants.Version );
-
-            //Cookies.Add( new NanoCookie( "__NanoCookie", "testing", expires: DateTime.Now.AddMinutes( 5 )));
         }
 
         /// <summary>
@@ -446,18 +448,72 @@ namespace Nano.Web.Core
         {
             nanoConfiguration.GlobalEventHandler.EnableCors( allowedOrigin );
         }
-
+        
         /// <summary>Enables CORS ( Cross-origin resource sharing ) requests.</summary>
-        /// <param name="eventHandler">The event handler configuration.</param>
+        /// <param name="eventHandler">The event handler.</param>
         /// <param name="allowedOrigin">The allowed origin.</param>
         public static void EnableCors( this EventHandler eventHandler, string allowedOrigin = "*" )
         {
             eventHandler.PreInvokeHandlers.Add( context =>
             {
                 context.Response.HeaderParameters.Add( "Access-Control-Allow-Origin", allowedOrigin );
-                context.Response.HeaderParameters.Add( "Access-Control-Allow-Methods", "GET, PUT, POST, DELETE, HEAD, OPTIONS" );
-                context.Response.HeaderParameters.Add( "Access-Control-Max-Age", "86400" ); // cache for 1 day
+
+                if ( context.Request.HttpMethod == "OPTIONS" )
+                {
+                    context.Response.HeaderParameters.Add( "Access-Control-Allow-Methods", "GET, PUT, POST, DELETE, HEAD, OPTIONS" );
+                    context.Response.HeaderParameters.Add( "Access-Control-Max-Age", "86400" ); // cache for 1 day
+                    context.Response.HttpStatusCode = Constants.HttpStatusCode.NoContent.ToInt();
+                    context.Response.ContentType = "text/plain";
+                    context.Handled = true;
+                }
             } );
+        }
+    }
+
+    /// <summary>Enables CorrelationId support which passes through or creates new CorrelationIds per request in order to support request tracking.</summary>
+    public static class CorrelationIdHelper
+    {
+        /// <summary>Enables CorrelationId support which passes through or creates new CorrelationIds per request in order to support request tracking.</summary>
+        /// <param name="nanoConfiguration">The nano configuration.</param>
+        public static void EnableCorrelationId( this NanoConfiguration nanoConfiguration )
+        {
+            nanoConfiguration.GlobalEventHandler.EnableCorrelationId();
+        }
+
+        /// <summary>Disables CorrelationId support which passes through or creates new CorrelationIds per request in order to support request tracking.</summary>
+        /// <param name="nanoConfiguration">The nano configuration.</param>
+        public static void DisableCorrelationId( this NanoConfiguration nanoConfiguration )
+        {
+            nanoConfiguration.GlobalEventHandler.DisableCorrelationId();
+        }
+
+        /// <summary>Enables CorrelationId support which passes through or creates new CorrelationIds per request in order to support request tracking.</summary>
+        /// <param name="eventHandler">The event handler.</param>
+        public static void EnableCorrelationId( this EventHandler eventHandler )
+        {
+            if ( eventHandler.PreInvokeHandlers.Contains( EnableCorrelationIdPreInvokeHandler ) == false )
+                eventHandler.PreInvokeHandlers.Add( EnableCorrelationIdPreInvokeHandler );
+        }
+
+        /// <summary>Disables CorrelationId support which passes through or creates new CorrelationIds per request in order to support request tracking.</summary>
+        /// <param name="eventHandler">The event handler.</param>
+        public static void DisableCorrelationId( this EventHandler eventHandler )
+        {
+            eventHandler.PreInvokeHandlers.Remove( EnableCorrelationIdPreInvokeHandler );
+        }
+
+        /// <summary>Enables CorrelationId support which passes through or creates new CorrelationIds per request in order to support request tracking.</summary>
+        /// <param name="nanoContext">The nano context.</param>
+        public static void EnableCorrelationIdPreInvokeHandler( NanoContext nanoContext )
+        {
+            var correlationId = nanoContext.GetRequestParameterValue( Constants.CorrelationIdRequestParameterName );
+
+            if ( string.IsNullOrWhiteSpace( correlationId ) )
+                correlationId = Guid.NewGuid().ToString();
+
+            nanoContext.Response.HeaderParameters.Add( Constants.CorrelationIdRequestParameterName, correlationId );
+            nanoContext.Items.Add( Constants.CorrelationIdRequestParameterName, correlationId );
+            System.Runtime.Remoting.Messaging.CallContext.LogicalSetData( Constants.CorrelationIdRequestParameterName, correlationId );
         }
     }
 
@@ -469,6 +525,9 @@ namespace Nano.Web.Core
         {
             /// <summary>200 OK</summary>
             Ok = 200,
+
+            /// <summary>204 No Content</summary>
+            NoContent = 204,
 
             /// <summary>301 MovedPermanently</summary>
             MovedPermanently = 301,
@@ -504,6 +563,9 @@ namespace Nano.Web.Core
         /// <summary>Default file buffer size for returning file. Default size is 4 Megabytes.</summary>
         public static int DefaultFileBufferSize = 1024 * 1024 * 4;
 
+        /// <summary>CorrelationId request parameter name.</summary>
+        public static string CorrelationIdRequestParameterName = "X-CorrelationId";
+
         static Constants()
         {
             Assembly assembly = Assembly.GetExecutingAssembly();
@@ -515,7 +577,7 @@ namespace Nano.Web.Core
             }
             else
             {
-                Version = "0.6.0.0";
+                Version = "0.7.0.0";
             }
         }
 
@@ -2030,7 +2092,7 @@ namespace Nano.Web.Core
                     if( metadataProvider == null )
                         continue;
 
-                    var metadata = new OperationMetaData { UrlPath = nanoContext.Request.Url.BasePath + methodRequestHandler.UrlPath };
+                    var metadata = new OperationMetaData { UrlPath = methodRequestHandler.UrlPath };
                     metadata.Name = metadataProvider.GetOperationName( nanoContext, methodRequestHandler );
                     metadata.Description = metadataProvider.GetOperationDescription( nanoContext, methodRequestHandler );
                     IList<MethodParameter> parameters = metadataProvider.GetOperationParameters( nanoContext, methodRequestHandler );
@@ -2507,7 +2569,7 @@ namespace Nano.Web.Core
         public class ApiMetadata
         {
             /// <summary>Api metadata version.</summary>
-            public string Version = "0.1.0";
+            public string Version = "0.2.0";
 
             /// <summary>The API models.</summary>
             public IList<ModelMetadata> Models = new List<ModelMetadata>();

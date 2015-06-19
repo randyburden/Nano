@@ -1,8 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Collections.Specialized;
 using System.Diagnostics;
-using System.Net;
 using System.Text;
 using Nano.Demo;
 using Nano.Web.Core;
@@ -49,6 +46,13 @@ namespace Nano.Tests
 				Assert.That( getContextResponse.Url != null && getContextResponse.HttpMethod == "POST" );
 				Trace.WriteLine( "" );
 
+                Trace.WriteLine( "GetCorrelationId" );
+			    var correlationId = Guid.NewGuid().ToString();
+                string getCorrelationIdResponse = ApiProxy.GetCorrelationId( correlationId );
+                Trace.WriteLine( getCorrelationIdResponse );
+                Assert.That( correlationId == getCorrelationIdResponse );
+                Trace.WriteLine( "" );
+
 				Trace.WriteLine( "CreatePendingCustomer" );
 				var createPendingCustomerResponse = ApiProxy.CreatePendingCustomer( "Clark", "Kent" );
 				Trace.WriteLine( JsonConvert.SerializeObject( createPendingCustomerResponse ) );
@@ -65,97 +69,115 @@ namespace Nano.Tests
 		}
 	}
 
-	public class ApiProxy
-	{
-		/*** This is a Nano auto-generated C# client proxy created from the following url: http://localhost:4545/ApiExplorer/?GenerateCSharpProxy=True ***/
+    public class ApiProxy
+    {
+        /*** This is a Nano auto-generated C# client proxy created from the following url: http://localhost/Nano.Demo.Mvc4/ApiExplorer/?GenerateCSharpProxy=True ***/
 
-		/// <summary>The base API URL.</summary>
-		public static string BaseApiUrl = "http://localhost:4545/";
+        /// <summary>The base API URL.</summary>
+        public static string BaseApiUrl = "http://localhost:4545";
 
-		/// <summary>Serializes the given object to a string.</summary>
-		public static Func<object, string> Serialize = obj =>
-		{
-			if( obj is string ) return obj.ToString();
-			return JsonConvert.SerializeObject( obj );
-		};
+        /// <summary>Serializes the given object to a string.</summary>
+        public static Func<object, string> Serialize = obj =>
+        {
+            if( obj is string ) return obj.ToString();
+            return JsonConvert.SerializeObject( obj );
+        };
 
-		/// <summary>Deserializes the given string to an object of the given type.</summary>
-		public static Func<string, Type, object> Deserialize = ( str, type ) => JsonConvert.DeserializeObject( str, type );
+        /// <summary>Deserializes the given string to an object of the given type.</summary>
+        public static Func<string, Type, object> Deserialize = ( str, type ) => Newtonsoft.Json.JsonConvert.DeserializeObject( str, type );
 
-		public static CustomerModel CreateCustomer( String firstName, String lastName )
-		{
-			var parameters = new NameValueCollection { { "firstName", Serialize( firstName ) }, { "lastName", Serialize( lastName ) } };
-			return PostJson<CustomerModel>( BaseApiUrl + "/api/customer/createcustomer", parameters );
-		}
+        public static CustomerModel CreateCustomer( String firstName, String lastName, object correlationId = null )
+        {
+            var parameters = new System.Collections.Specialized.NameValueCollection { { "firstName", Serialize( firstName ) }, { "lastName", Serialize( lastName ) } };
+            return PostJson<CustomerModel>( BaseApiUrl + "/api/customer/createcustomer", parameters, correlationId );
+        }
 
-		public static Person GetPerson( Int32 personId )
-		{
-			var parameters = new NameValueCollection { { "personId", Serialize( personId ) } };
-			return PostJson<Person>( BaseApiUrl + "/api/customer/getperson", parameters );
-		}
+        public static CustomerModel UpdateCustomer( CustomerModel customerModel, object correlationId = null )
+        {
+            var parameters = new System.Collections.Specialized.NameValueCollection { { "customerModel", Serialize( customerModel ) } };
+            return PostJson<CustomerModel>( BaseApiUrl + "/api/customer/updatecustomer", parameters, correlationId );
+        }
 
-		public static Object GetCustomer( Int32 customerNbr )
-		{
-			var parameters = new NameValueCollection { { "customerNbr", Serialize( customerNbr ) } };
-			return PostJson<Object>( BaseApiUrl + "/api/customer/getcustomer", parameters );
-		}
+        public static Person GetPerson( Int32 personId, object correlationId = null )
+        {
+            var parameters = new System.Collections.Specialized.NameValueCollection { { "personId", Serialize( personId ) } };
+            return PostJson<Person>( BaseApiUrl + "/api/customer/getperson", parameters, correlationId );
+        }
 
-		public static Object GetContext()
-		{
-			var parameters = new NameValueCollection { };
-			return PostJson<Object>( BaseApiUrl + "/api/customer/getcontext", parameters );
-		}
+        public static Object GetCustomer( Int32 customerNbr, object correlationId = null )
+        {
+            var parameters = new System.Collections.Specialized.NameValueCollection { { "customerNbr", Serialize( customerNbr ) } };
+            return PostJson<Object>( BaseApiUrl + "/api/customer/getcustomer", parameters, correlationId );
+        }
 
-		public static CustomerModel CreatePendingCustomer( String firstName, String lastName )
-		{
-			var parameters = new NameValueCollection { { "firstName", Serialize( firstName ) }, { "lastName", Serialize( lastName ) } };
-			return PostJson<CustomerModel>( BaseApiUrl + "/api/customer/creatependingcustomer", parameters );
-		}
+        public static Object GetContext( object correlationId = null )
+        {
+            var parameters = new System.Collections.Specialized.NameValueCollection { };
+            return PostJson<Object>( BaseApiUrl + "/api/customer/getcontext", parameters, correlationId );
+        }
 
-		public static Object CreateDynamicCustomer( Object customer )
-		{
-			var parameters = new NameValueCollection { { "customer", Serialize( customer ) } };
-			return PostJson<Object>( BaseApiUrl + "/api/customer/createdynamiccustomer", parameters );
-		}
+        public static String GetCorrelationId( object correlationId = null )
+        {
+            var parameters = new System.Collections.Specialized.NameValueCollection { };
+            return PostJson<String>( BaseApiUrl + "/api/customer/getcorrelationid", parameters, correlationId );
+        }
 
-		private static T PostJson<T>( string url, NameValueCollection parameters )
-		{
-			using( var client = new WebClient() )
-			{
-				byte[] responsebytes = client.UploadValues( url, "POST", parameters );
-				string responsebody = Encoding.UTF8.GetString( responsebytes );
-				var obj = (T)Deserialize( responsebody, typeof( T ) );
-				return obj;
-			}
-		}
+        public static CustomerModel CreatePendingCustomer( String firstName, String lastName, object correlationId = null )
+        {
+            var parameters = new System.Collections.Specialized.NameValueCollection { { "firstName", Serialize( firstName ) }, { "lastName", Serialize( lastName ) } };
+            return PostJson<CustomerModel>( BaseApiUrl + "/api/customer/creatependingcustomer", parameters, correlationId );
+        }
 
-		#region Nested Types
+        public static Object CreateDynamicCustomer( Object customer, object correlationId = null )
+        {
+            var parameters = new System.Collections.Specialized.NameValueCollection { { "customer", Serialize( customer ) } };
+            return PostJson<Object>( BaseApiUrl + "/api/customer/createdynamiccustomer", parameters, correlationId );
+        }
 
-		public class CustomerModel
-		{
-			public Int32 CustomerId;
-			public String FirstName;
-			public String LastName;
-		}
+        private static T PostJson<T>( string url, System.Collections.Specialized.NameValueCollection parameters, object correlationId = null )
+        {
+            using( var client = new System.Net.WebClient() )
+            {
+                if( correlationId == null )
+                    correlationId = System.Runtime.Remoting.Messaging.CallContext.LogicalGetData( "X-CorrelationId" );
 
-		public class Person
-		{
-			public Int32 PersonId;
-			public String FirstName;
-			public String LastName;
-			public IList<Address> Addresses;
-		}
+                if( correlationId != null )
+                    client.Headers.Add( "X-CorrelationId", correlationId.ToString() );
 
-		public class Address
-		{
-			public Int32 AddressId;
-			public String Address1;
-			public String Address2;
-			public String City;
-			public String State;
-			public String ZipCode;
-		}
+                byte[] responsebytes = client.UploadValues( url, "POST", parameters );
+                string responsebody = Encoding.UTF8.GetString( responsebytes );
+                var obj = (T)Deserialize( responsebody, typeof( T ) );
+                return obj;
+            }
+        }
 
-		#endregion Nested Types
-	}
+        #region Nested Types
+
+        public class CustomerModel
+        {
+            public Int32 CustomerId;
+            public String FirstName;
+            public String LastName;
+        }
+
+        public class Person
+        {
+            public Int32 PersonId;
+            public String FirstName;
+            public String LastName;
+            public System.Collections.Generic.IList<Address> Addresses;
+        }
+
+        public class Address
+        {
+            public Int32 AddressId;
+            public String Address1;
+            public String Address2;
+            public String City;
+            public String State;
+            public String ZipCode;
+        }
+
+        #endregion Nested Types
+    }
 }
