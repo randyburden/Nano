@@ -1455,12 +1455,16 @@ namespace Nano.Web.Core
             {
                 try
                 {
+                    if ( HttpListenerConfiguration == null || HttpListenerConfiguration.HttpListener == null || HttpListenerConfiguration.HttpListener.IsListening == false )
+                        return;
                     HttpListenerContext httpListenerContext = HttpListenerConfiguration.HttpListener.EndGetContext( asyncResult );
                     HttpListenerConfiguration.HttpListener.BeginGetContext( BeginGetContextCallback, this );
                     HandleRequest( httpListenerContext, this );
                 }
                 catch( Exception e )
                 {
+                    if ( HttpListenerConfiguration == null || HttpListenerConfiguration.UnhandledExceptionHandler == null )
+                        return;
                     HttpListenerConfiguration.UnhandledExceptionHandler( e );
                 }
             }
