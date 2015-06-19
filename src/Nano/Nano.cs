@@ -2405,6 +2405,24 @@ namespace Nano.Web.Core
                     string requestParameterValue = nanoContext.GetRequestParameterValue( methodParameter.Name );
 
                     // If the method parameter value is null or could not be found in the request parameters
+                    // then as a last attempt try to read any value directly from the request body if one exists
+                    // Note that 'Content-Type: application/json' often just puts a JSON blob directly in the request body
+                    if ( String.IsNullOrWhiteSpace( requestParameterValue ) )
+                    {
+                        if ( nanoContext.Request.FormBodyParameters.Count == 0 )
+                        {
+                            try
+                            {
+                                var sr = new StreamReader( nanoContext.Request.RequestBody );
+                                requestParameterValue = sr.ReadToEnd();
+                            }
+                            catch ( Exception e )
+                            {
+                            }
+                        }
+                    }
+
+                    // If the method parameter value is null or could not be found in the request parameters
                     if( String.IsNullOrWhiteSpace( requestParameterValue ) )
                     {
                         // Handle optional parameters
