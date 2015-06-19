@@ -61,6 +61,7 @@
     <Content Include="www\dashboard\tags.html" />
     <Content Include="www\home\index.html" />
     <Content Include="www\index.html" />
+    <Content Include="www\JsonPostTester\index.html" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

@@ -144,6 +144,7 @@
     <Content Include="www\home\index.html" />
     <Content Include="www\index.html" />
     <Content Include="www\JavaScriptProxyTester\index.html" />
+    <Content Include="www\JsonPostTester\index.html" />
   </ItemGroup>
   <ItemGroup />
   <ItemGroup>
