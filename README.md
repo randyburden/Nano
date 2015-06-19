@@ -13,6 +13,8 @@ Nano is a micro web framework for building web-based HTTP services for .NET.
 
 *Note: This is currently an alpha level project and will incur many fast moving releases.*
 
+Live demo hosted on AppHarbor: [Nano ApiExplorer Demo](http://nano-1.apphb.com/ApiExplorer/)
+
 Project Background
 ---
 
