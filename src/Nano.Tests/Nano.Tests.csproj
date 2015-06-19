@@ -62,7 +62,9 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <Content Include="www\ApiExplorer\index.html" />
+    <Content Include="www\ApiExplorer\index.html">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     <Content Include="www\index.html">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>

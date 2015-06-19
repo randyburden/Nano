@@ -35,6 +35,7 @@ namespace Nano.Tests.RequestHandlers
                     location = response.GetResponseHeader( "Location" );
                 }
 
+                Trace.WriteLine( "Location: " + location );
                 Assert.That( location == apiExplorerUrl + "/" );
             }
         }
