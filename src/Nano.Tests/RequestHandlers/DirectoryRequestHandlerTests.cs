@@ -17,6 +17,7 @@ namespace Nano.Tests.RequestHandlers
         {
             var nanoConfiguration = new NanoConfiguration();
             nanoConfiguration.AddDirectory( "/", "www" );
+            nanoConfiguration.ApplicationRootFolderPath = AppDomain.CurrentDomain.BaseDirectory;
             var url = "http://localhost:4545";
 
             using ( HttpListenerNanoServer.Start( nanoConfiguration, url ) )
@@ -81,6 +82,7 @@ namespace Nano.Tests.RequestHandlers
         {
             var nanoConfiguration = new NanoConfiguration();
             nanoConfiguration.AddDirectory( "/", "www" );
+            nanoConfiguration.ApplicationRootFolderPath = AppDomain.CurrentDomain.BaseDirectory;
             var url = "http://localhost:4545";
 
             using( HttpListenerNanoServer.Start( nanoConfiguration, url ) )

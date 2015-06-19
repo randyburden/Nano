@@ -1430,7 +1430,8 @@ namespace Nano.Web.Core
             /// <returns>New instance of a <see cref="HttpListenerNanoServer"/>.</returns>
             public static HttpListenerNanoServer Start( NanoConfiguration nanoConfiguration, HttpListenerConfiguration httpListenerConfiguration )
             {
-                nanoConfiguration.ApplicationRootFolderPath = GetRootPath();
+                if ( string.IsNullOrWhiteSpace( nanoConfiguration.ApplicationRootFolderPath ) )
+                    nanoConfiguration.ApplicationRootFolderPath = GetRootPath();
                 httpListenerConfiguration.HttpListener.Start();
                 var server = new HttpListenerNanoServer( nanoConfiguration, httpListenerConfiguration );
                 httpListenerConfiguration.HttpListener.BeginGetContext( server.BeginGetContextCallback, server );
