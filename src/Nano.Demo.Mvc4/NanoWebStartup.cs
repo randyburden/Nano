@@ -27,7 +27,7 @@ namespace Nano.Demo.Mvc4
             {
             } );
 
-            config.AddMethods<Customer>( "/api/customer/", eventHandler );
+            config.AddMethods<Customer>(); // methods will be added under '/api/customer/'
 
             config.AddFile( "/home", @"\www\home\index.html" );
 
@@ -43,7 +43,7 @@ namespace Nano.Demo.Mvc4
             
             config.AddFunc( "/probe", context => true );
             config.AddFunc( "/monitoring/probe", context => true );
-
+            
             config.AddDirectory( "/", @"\www\" );
 
             SystemWebNanoServer.Start( httpApplication, config );
