@@ -46,7 +46,11 @@
   <ItemGroup>
     <Compile Include="Customer.cs" />
     <Compile Include="ProxyTests.cs" />
-    <Compile Include="RequestHandlers\DirectoryRequestHandlerTests.cs" />
+    <Compile Include="RequestHandlers\FileRequestHandlerShould.cs" />
+    <Compile Include="RequestHandlers\DirectoryRequestHandlerShould.cs" />
+    <Compile Include="RequestHandlers\FuncRequestHandlerShould.cs" />
+    <Compile Include="RequestHandlers\MethodRequestHandlerShould.cs" />
+    <Compile Include="TestHelpers.cs" />
     <Compile Include="Tests.cs" />
     <Compile Include="TimeSpanHelper.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

@@ -1,9 +1,13 @@
 Nano
 ====
 
-<a href="https://www.nuget.org/packages/Nano"><img src="https://img.shields.io/nuget/v/Nano.svg" alt="NuGet Version" /></a> <a href="https://www.nuget.org/packages/Nano"><img src="https://img.shields.io/nuget/dt/Nano.svg" alt="NuGet Download Count" /></a>
+<a href="https://www.nuget.org/packages/Nano"><img src="https://img.shields.io/nuget/v/Nano.svg" alt="NuGet Version" /></a> 
+<a href="https://www.nuget.org/packages/Nano"><img src="https://img.shields.io/nuget/dt/Nano.svg" alt="NuGet Download Count" /></a>
+<a href="https://ci.appveyor.com/project/AmbitEnergyLabs/nano">
+	<img src="https://ci.appveyor.com/api/projects/status/github/ambitenergylabs/nano?svg=true" alt="AppVeyor Build Status" />
+</a>
 
-Nano is a micro web framework for building web-based HTTP services for .NET.
+Nano is a micro web framework for building web-based HTTP services and websites for .NET.
 
  - Rapidly create web apis by writing static methods
  - Low ceremony so that you can focus on business logic and not infrastructure and framework hassles

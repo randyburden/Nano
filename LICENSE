@@ -1,6 +1,8 @@
 The MIT License (MIT)
 
-Nano is a micro web framework for building web-based HTTP services for .NET. 
+Nano is a micro web framework for building web-based HTTP services and websites for .NET.
+
+To find out more, visit the project home page at: https://github.com/AmbitEnergyLabs/Nano 
 
 Copyright (c) 2015 Ambit Energy. All rights reserved.
 

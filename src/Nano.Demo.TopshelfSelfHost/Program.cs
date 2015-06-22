@@ -10,7 +10,7 @@ namespace Nano.Demo.TopshelfSelfHost
 {
     /// <summary>
     /// To install as a Windows Service, run this from the command prompt as an Administrator:
-    /// Nano.Demo.TopshelfSelfHost.exe install -servicename:Your.Application.Name -uri:http://localhost:4545 --autostart start
+    /// Nano.Demo.TopshelfSelfHost.exe install -servicename:Your.Application.Name -uri:http://localhost:4545
     /// Nano.Demo.TopshelfSelfHost.exe uninstall -servicename:Your.Application.Name
     /// </summary>
     class Program

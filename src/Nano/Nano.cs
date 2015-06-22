@@ -1,9 +1,9 @@
 ﻿/*
-    Nano v0.7.0
+    Nano v0.8.0
     
-    Nano is a micro web framework for building web-based HTTP services for .NET.
-    To find out more, visit the project home page at: 
-    https://github.com/AmbitEnergyLabs/Nano
+    Nano is a micro web framework for building web-based HTTP services and websites for .NET.
+
+    To find out more, visit the project home page at: https://github.com/AmbitEnergyLabs/Nano
 
     The MIT License (MIT)
 
@@ -86,6 +86,9 @@ namespace Nano.Web.Core
 
         /// <summary>The request handlers.</summary>
         public IList<IRequestHandler> RequestHandlers = new List<IRequestHandler>();
+
+        /// <summary>The optional request handler to invoke when a request was not handled by any other request or event handler.</summary>
+        public IRequestHandler UnhandledRequestHandler;
 
         /// <summary>The background tasks</summary>
         public IList<BackgroundTask> BackgroundTasks = new List<BackgroundTask>();
@@ -173,15 +176,15 @@ namespace Nano.Web.Core
         /// <param name="urlPath">The URL path.</param>
         /// <param name="directoryPath">The directory path.</param>
         /// <param name="eventHandler">The event handlers.</param>
-        /// <param name="returnHttp404WhenFileWasNoFound">Should return an 'HTTP 404 - File Not Found' when no file was found.</param>
+        /// <param name="returnHttp404WhenFileWasNotFound">Should return an 'HTTP 404 - File Not Found' when no file was found.</param>
         /// <param name="defaultDocuments">
         /// The default documents to serve when the root of a directory is requested. Default is
         /// index.html.
         /// </param>
         /// <returns><see cref="DirectoryRequestHandler" />.</returns>
-        public DirectoryRequestHandler AddDirectory( string urlPath, string directoryPath, EventHandler eventHandler = null, bool returnHttp404WhenFileWasNoFound = false, IList<string> defaultDocuments = null )
+        public DirectoryRequestHandler AddDirectory( string urlPath, string directoryPath, EventHandler eventHandler = null, bool returnHttp404WhenFileWasNotFound = false, IList<string> defaultDocuments = null )
         {
-            var handler = new DirectoryRequestHandler( urlPath, eventHandler ?? DefaultEventHandler, directoryPath, returnHttp404WhenFileWasNoFound, defaultDocuments );
+            var handler = new DirectoryRequestHandler( urlPath, eventHandler ?? DefaultEventHandler, directoryPath, returnHttp404WhenFileWasNotFound, defaultDocuments );
             RequestHandlers.Add( handler );
             return handler;
         }
@@ -577,7 +580,7 @@ namespace Nano.Web.Core
             }
             else
             {
-                Version = "0.7.0.0";
+                Version = "0.8.0.0";
             }
         }
 
@@ -851,19 +854,20 @@ namespace Nano.Web.Core
 
         /// <summary>Returns an 'HTTP 404 - NOT FOUND' to the client using the default 'NOT FOUND' HTML.</summary>
         /// <param name="nanoContext">The nano context.</param>
-        public static void ReturnFileNotFound( this NanoContext nanoContext )
+        public static NanoContext ReturnHttp404NotFound( this NanoContext nanoContext )
         {
             nanoContext.Handled = true;
             nanoContext.Response.HttpStatusCode = Constants.HttpStatusCode.NotFound.ToInt();
             nanoContext.Response.ContentType = "text/html";
             nanoContext.Response.ResponseStreamWriter = stream => stream.Write( Constants.CustomErrorResponse.NotFound404 );
+            return nanoContext;
         }
 
         /// <summary>
         /// Returns an 'HTTP 500 - INTERNAL SERVER ERROR' to the client using the default 'INTERNAL SERVER ERROR' HTML.
         /// </summary>
         /// <param name="nanoContext">The nano context.</param>
-        public static void ReturnInternalServerError( this NanoContext nanoContext )
+        public static void ReturnHttp500InternalServerError( this NanoContext nanoContext )
         {
             nanoContext.Handled = true;
             nanoContext.Response.HttpStatusCode = Constants.HttpStatusCode.InternalServerError.ToInt();
@@ -986,6 +990,15 @@ namespace Nano.Web.Core
                 return nanoContext.RequestHandler.ProcessRequest( nanoContext );
             }
 
+            if ( nanoContext.RequestHandler == null || nanoContext.Handled == false )
+            {
+                if ( nanoContext.NanoConfiguration.UnhandledRequestHandler != null )
+                {
+                    nanoContext.RequestHandler = nanoContext.NanoConfiguration.UnhandledRequestHandler;
+                    nanoContext.NanoConfiguration.UnhandledRequestHandler.ProcessRequest( nanoContext );
+                }
+            }
+
             return nanoContext;
         }
     }
@@ -1000,8 +1013,8 @@ namespace Nano.Web.Core
         /// <returns>Instance of <typeparamref name="T" />.</returns>
         public static T Bind<T>( this NanoContext nanoContext, string parameterName )
         {
-            string requestParameterValue = nanoContext.GetRequestParameterValue( parameterName );
-            return nanoContext.NanoConfiguration.SerializationService.Deserialize<T>( requestParameterValue );
+            var type = typeof( T );
+            return (T) Bind( nanoContext, type, parameterName );
         }
 
         /// <summary>Binds a request parameter to the requested type.</summary>
@@ -1012,7 +1025,39 @@ namespace Nano.Web.Core
         public static object Bind( this NanoContext nanoContext, Type type, string parameterName )
         {
             string requestParameterValue = nanoContext.GetRequestParameterValue( parameterName );
-            return nanoContext.NanoConfiguration.SerializationService.Deserialize( requestParameterValue, type );
+
+            if ( JsonHelpers.IsJson( requestParameterValue ) == false )
+            {
+                // First try to convert the type using the TypeConverter which handles 'simple' types
+                try
+                {
+                    return TypeConverter.ConvertType( requestParameterValue, type );
+                }
+                catch( Exception )
+                {
+                    // Swallow the exception here so that we drop down to the next try/catch block
+                }
+            }
+
+            // As a last attempt use the heavy weight JSON converter to convert the type
+            try
+            {
+                Type underlyingType = Nullable.GetUnderlyingType( type ) ?? type;
+
+                object convertedValue;
+
+                // Try to convert the request parameter value to the method parameter values type
+                // Note we are currently leveraging Json.Net to handle the heavy load of type conversions
+                if( nanoContext.NanoConfiguration.SerializationService.TryParseJson( requestParameterValue, underlyingType, false, out convertedValue ) )
+                    return convertedValue;
+
+                throw new Exception( "Type conversion error" );
+            }
+            catch( Exception )
+            {
+                string errorMessage = String.Format( "An error occurred converting the parameter named '{0}' and value '{1}' to type {2}.", parameterName, requestParameterValue, type );
+                throw new Exception( errorMessage );
+            }
         }
 
         /// <summary>
@@ -1431,7 +1476,11 @@ namespace Nano.Web.Core
             public static HttpListenerNanoServer Start( NanoConfiguration nanoConfiguration, HttpListenerConfiguration httpListenerConfiguration )
             {
                 if ( string.IsNullOrWhiteSpace( nanoConfiguration.ApplicationRootFolderPath ) )
-                    nanoConfiguration.ApplicationRootFolderPath = GetRootPath();
+                    nanoConfiguration.ApplicationRootFolderPath = GetApplicationRootFolderPath();
+
+                if ( nanoConfiguration.UnhandledRequestHandler == null )
+                    nanoConfiguration.UnhandledRequestHandler = new FuncRequestHandler( "/UnhandledRequestHandler", nanoConfiguration.DefaultEventHandler, context => context.ReturnHttp404NotFound() );
+
                 httpListenerConfiguration.HttpListener.Start();
                 var server = new HttpListenerNanoServer( nanoConfiguration, httpListenerConfiguration );
                 httpListenerConfiguration.HttpListener.BeginGetContext( server.BeginGetContextCallback, server );
@@ -1481,7 +1530,7 @@ namespace Nano.Web.Core
 
                     nanoContext = RequestRouter.RouteRequest( nanoContext );
 
-                    if( nanoContext.RequestHandler == null || nanoContext.Handled == false )
+                    if ( nanoContext.RequestHandler == null || nanoContext.Handled == false )
                         return;
 
                     httpListenerContext.Response.ContentEncoding = nanoContext.Response.ContentEncoding;
@@ -1560,13 +1609,9 @@ namespace Nano.Web.Core
 
             /// <summary>Gets the root path of the host application.</summary>
             /// <returns>The root path of the host application.</returns>
-            public static string GetRootPath()
+            public static string GetApplicationRootFolderPath()
             {
-                Assembly assembly = Assembly.GetEntryAssembly();
-
-                return assembly != null ?
-                    Path.GetDirectoryName( assembly.Location ) :
-                    Path.GetDirectoryName( Assembly.GetExecutingAssembly().Location );
+                return AppDomain.CurrentDomain.BaseDirectory;
             }
 
             /// <summary>Parses the form body parameters.</summary>
@@ -1705,10 +1750,7 @@ namespace Nano.Web.Core
         {
             /// <summary>The HTTP listener.</summary>
             public System.Net.HttpListener HttpListener;
-
-            /// <summary>The maximum concurrent connections.</summary>
-            public int MaximumConcurrentConnections = 100;
-
+            
             /// <summary>The maximum form parameters.</summary>
             public int MaximumFormParameters = 10000;
 
@@ -1852,7 +1894,7 @@ namespace Nano.Web.Core
                 catch( Exception e )
                 {
                     nanoContext.Errors.Add( e );
-                    nanoContext.ReturnInternalServerError();
+                    nanoContext.ReturnHttp500InternalServerError();
 
                     if( EventHandler != null )
                         EventHandler.InvokeUnhandledExceptionHandlers( e, nanoContext );
@@ -1957,7 +1999,7 @@ namespace Nano.Web.Core
                 }
 
                 if( ReturnHttp404WhenFileWasNoFound )
-                    nanoContext.ReturnFileNotFound();
+                    return nanoContext.ReturnHttp404NotFound();
 
                 return nanoContext;
             }
@@ -2021,11 +2063,10 @@ namespace Nano.Web.Core
                 if( nanoContext.TryReturnFile( new FileInfo( fullFilePath ) ) )
                     return nanoContext;
 
-                nanoContext.ReturnFileNotFound();
-                return nanoContext;
+                return nanoContext.ReturnHttp404NotFound();
             }
         }
-
+        
         /// <summary>Handles requests to <see cref="Func" />s.</summary>
         public class FuncRequestHandler : RequestHandler
         {
@@ -2046,11 +2087,7 @@ namespace Nano.Web.Core
             /// <summary>Gets the function.</summary>
             /// <value>The function.</value>
             public Func<NanoContext, object> Func { get; private set; }
-
-            /// <summary>Gets or sets the metadata provider.</summary>
-            /// <value>The metadata provider.</value>
-            public IApiMetaDataProvider MetadataProvider { get; set; }
-
+            
             /// <summary>Handles the request.</summary>
             /// <param name="nanoContext">The <see cref="NanoContext" />.</param>
             /// <returns>Handled <see cref="NanoContext" />.</returns>
@@ -2060,7 +2097,7 @@ namespace Nano.Web.Core
                 nanoContext.Response.ResponseObject = Func( nanoContext );
 
                 // Handle null responses and void methods
-                if( nanoContext.Response.ResponseObject == null )
+                if( nanoContext.Response.ResponseObject == null || nanoContext.Response.ResponseObject == nanoContext )
                     return nanoContext;
 
                 if ( string.IsNullOrWhiteSpace( nanoContext.Response.ContentType ) )
@@ -2323,7 +2360,7 @@ namespace Nano.Web.Core
                 nanoContext.Response.ResponseObject = Method.Invoke( null, parameters );
 
                 // Handle null responses and void methods
-                if( nanoContext.Response.ResponseObject == null )
+                if( nanoContext.Response.ResponseObject == null || nanoContext.Response.ResponseObject == nanoContext )
                     return nanoContext;
 
                 nanoContext.Response.ContentType = "application/json";
@@ -2450,7 +2487,7 @@ namespace Nano.Web.Core
 
                     object methodInvokationParameterValue;
 
-                    if( methodParameter.IsDynamic == false )
+                    if ( JsonHelpers.IsJson( requestParameterValue ) == false && methodParameter.IsDynamic == false )
                     {
                         // First try to convert the type using the TypeConverter which handles 'simple' types
                         try
@@ -2459,7 +2496,7 @@ namespace Nano.Web.Core
                             methodInvokationParameters.Add( methodInvokationParameterValue );
                             continue;
                         }
-                        catch( Exception )
+                        catch ( Exception )
                         {
                             // Swallow the exception here so that we drop down to the next try/catch block
                         }
