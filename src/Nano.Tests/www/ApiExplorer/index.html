@@ -63,6 +63,8 @@ body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line
     </div>
 
     <script>
+        var existingRows = {};
+
         function replaceAllOccurrences(originalString, searchString, replacementString) {
             return originalString.split(searchString).join(replacementString);
         };
@@ -96,6 +98,7 @@ body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line
             html = replaceAllOccurrences(html, '{{ResultsId}}', getResultsId(data));
             html = replaceAllOccurrences(html, '{{ParametersTableId}}', getParametersTableId(data));
 
+            existingRows[getFormId(data)] = data.Name;
             return html;
         };
 
@@ -174,15 +177,16 @@ body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line
                 else {
                     // Open this row
                     var rowData = row.data();
-                    row.child(getChildRowHtml(rowData), 'no-padding childRow').show();
-
-                    tr.addClass('shown');
-
-                    if (rowData.InputParameters.length === 0) {
-                        var parametersTableId = getParametersTableId(rowData);
-                        $('#' + parametersTableId).hide();
+                    if (existingRows.hasOwnProperty(getFormId(rowData))) {
+                        row.child.show();
+                    } else {
+                        row.child(getChildRowHtml(rowData), 'no-padding childRow').show();
+                        tr.addClass('shown');
+                        if (rowData.InputParameters.length === 0) {
+                            var parametersTableId = getParametersTableId(rowData);
+                            $('#' + parametersTableId).hide();
+                        }
                     }
-
                     $('div.slider', row.child()).slideDown('slow', function () {
                         attachChildRowBehavior(rowData);
                     });
