@@ -10,7 +10,7 @@ namespace Nano.Demo.TopshelfSelfHost
 {
     /// <summary>
     /// To install as a Windows Service, run this from the command prompt as an Administrator:
-    /// Nano.Demo.TopshelfSelfHost.exe install -servicename:Your.Application.Name -uri:http://localhost:4545
+    /// Nano.Demo.TopshelfSelfHost.exe install -servicename:NanoDemo -uri:http://localhost:4545
     /// Nano.Demo.TopshelfSelfHost.exe uninstall -servicename:Your.Application.Name
     /// </summary>
     class Program
@@ -51,6 +51,7 @@ namespace Nano.Demo.TopshelfSelfHost
                 var validatedUrls = ValidateUrls( urls );
 
                 var config = new NanoConfiguration();
+
                 config.AddDirectory( "/", "www", null, true );
                 config.AddMethods<Customer>( "/api/customer/" );
                 config.AddFunc( "/hi", context => "Hello World!" );
@@ -80,11 +81,12 @@ namespace Nano.Demo.TopshelfSelfHost
                 } );
 
                 _server = HttpListenerNanoServer.Start( config, validatedUrls );
+                _server.HttpListenerConfiguration.ApplicationPath = "YourVirtualAppPathName";
 
                 if( Debugger.IsAttached )
-                    Process.Start( validatedUrls[0] + "ApiExplorer/" );
+                    Process.Start( _server.HttpListenerConfiguration.GetFirstUrlBeingListenedOn().TrimEnd( '/' ) + "/ApiExplorer" );
 
-                System.Console.WriteLine( "Nano Server is running on: " + validatedUrls[0] );
+                Console.WriteLine( "Nano Server is running on: " + _server.HttpListenerConfiguration.GetFirstUrlBeingListenedOn() );
             }
 
             public void Stop()

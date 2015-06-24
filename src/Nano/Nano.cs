@@ -1159,7 +1159,7 @@ namespace Nano.Web.Core
             get { return _basePath; }
             set
             {
-                if( string.IsNullOrEmpty( value ) )
+                if( string.IsNullOrWhiteSpace( value ) )
                 {
                     return;
                 }
@@ -1298,12 +1298,12 @@ namespace Nano.Web.Core
 
         private static string GetQuery( string query )
         {
-            return string.IsNullOrEmpty( query ) ? string.Empty : ( query[0] == '?' ? query : '?' + query );
+            return string.IsNullOrWhiteSpace( query ) ? string.Empty : ( query[0] == '?' ? query : '?' + query );
         }
 
         private static string GetCorrectPath( string path )
         {
-            return ( string.IsNullOrEmpty( path ) || path.Equals( "/" ) ) ? string.Empty : path;
+            return ( string.IsNullOrWhiteSpace( path ) || path.Equals( "/" ) ) ? string.Empty : path;
         }
 
         private static string GetPort( int? port )
@@ -1429,7 +1429,7 @@ namespace Nano.Web.Core
                     Port = httpContext.Request.Url.Port,
                     BasePath = basePath,
                     Path = path,
-                    Query = httpContext.Request.Url.Query,
+                    Query = httpContext.Request.Url.Query
                 };
                 
                 Func<Stream> requestBodyAccessor = () => httpContext.Request.InputStream;
@@ -1600,7 +1600,30 @@ namespace Nano.Web.Core
             public static NanoContext MapHttpListenerContextToNanoContext( HttpListenerContext httpListenerContext, HttpListenerNanoServer server )
             {
                 string httpMethod = httpListenerContext.Request.HttpMethod;
-                Uri url = httpListenerContext.Request.Url;
+
+                string basePath = String.Empty;
+                string path = httpListenerContext.Request.Url.AbsolutePath;
+
+                if ( string.IsNullOrWhiteSpace( server.HttpListenerConfiguration.ApplicationPath ) == false )
+                {
+                    basePath = "/" + server.HttpListenerConfiguration.ApplicationPath.TrimStart( '/' ).TrimEnd( '/' );
+
+                    if ( httpListenerContext.Request.Url.AbsolutePath.StartsWith( basePath ) )
+                        path = path.Substring( basePath.Length );
+                }
+                
+                path = string.IsNullOrWhiteSpace( path ) ? "/" : path;
+
+                var url = new Url
+                {
+                    Scheme = httpListenerContext.Request.Url.Scheme,
+                    HostName = httpListenerContext.Request.Url.Host,
+                    Port = httpListenerContext.Request.Url.Port,
+                    BasePath = basePath,
+                    Path = path,
+                    Query = httpListenerContext.Request.Url.Query
+                };
+
                 Func<Stream> requestBodyAccessor = () => httpListenerContext.Request.InputStream;
                 var nanoRequest = new NanoRequest( httpMethod, url, requestBodyAccessor ) { QueryStringParameters = httpListenerContext.Request.QueryString, FormBodyParameters = ParseFormBodyParameters( httpListenerContext, server ), HeaderParameters = httpListenerContext.Request.Headers };
                 var nanoContext = new NanoContext( nanoRequest, new NanoResponse(), server.NanoConfiguration ) { HostContext = httpListenerContext, RootFolderPath = server.NanoConfiguration.ApplicationRootFolderPath };
@@ -1771,6 +1794,10 @@ namespace Nano.Web.Core
             /// </summary>
             public bool RewriteLocalhost;
 
+            /// <summary>The application's virtual application root path on the server. Set this if the application runs under a virtual directory.</summary>
+            /// <remarks>The virtual path of the current application.</remarks>
+            public string ApplicationPath = string.Empty;
+
             /// <summary>Initializes a new instance of the <see cref="HttpListenerConfiguration" /> class.</summary>
             /// <param name="httpListener">The HTTP listener.</param>
             public HttpListenerConfiguration( System.Net.HttpListener httpListener )
@@ -1803,6 +1830,27 @@ namespace Nano.Web.Core
 
                     HttpListener.Prefixes.Add( prefix );
                 }
+            }
+
+            /// <summary>
+            /// Gets the first URL being listened on and adds the <see cref="ApplicationPath"/> if one has been supplied.
+            /// </summary>
+            /// <returns>First URL being listened on.</returns>
+            public string GetFirstUrlBeingListenedOn()
+            {
+                var firstUrlBeingListenedOn = HttpListener.Prefixes.FirstOrDefault();
+
+                if ( string.IsNullOrWhiteSpace( firstUrlBeingListenedOn ) )
+                    return null;
+
+                var uriBuilder = new UriBuilder( firstUrlBeingListenedOn );
+
+                if( string.IsNullOrWhiteSpace( ApplicationPath ) == false )
+                {
+                    uriBuilder.Path = ApplicationPath + "/";
+                }
+
+                return uriBuilder.Uri.ToString();
             }
         }
     }

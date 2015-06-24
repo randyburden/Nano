@@ -45,6 +45,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Customer.cs" />
+    <Compile Include="Host\HttpListener\HttpListenerConfigurationShould.cs" />
     <Compile Include="ProxyTests.cs" />
     <Compile Include="RequestHandlers\FileRequestHandlerShould.cs" />
     <Compile Include="RequestHandlers\DirectoryRequestHandlerShould.cs" />
