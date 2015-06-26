@@ -1663,9 +1663,8 @@ namespace Nano.Web.Core
                 {
                     var sr = new StreamReader( httpListenerContext.Request.InputStream, httpListenerContext.Request.ContentEncoding );
                     string formData = sr.ReadToEnd();
-                    string decodedFormData = UrlDecode( formData );
 
-                    string[] parameters = decodedFormData.Split( '&' );
+                    string[] parameters = formData.Split( '&' );
 
                     if( parameters.Length > server.HttpListenerConfiguration.MaximumFormParameters )
                         throw new Exception( "The maximum number of form parameters posted was exceeded." );
@@ -1673,7 +1672,9 @@ namespace Nano.Web.Core
                     foreach( string parameter in parameters )
                     {
                         string[] keyValuePair = parameter.Split( '=' );
-                        nameValueCollection.Add( keyValuePair[0], keyValuePair[1] );
+                        string decodedKey = UrlDecode(keyValuePair[0]);
+                        string decodedValue = UrlDecode(keyValuePair[1]);
+                        nameValueCollection.Add(decodedKey, decodedValue);
                     }
 
                     return nameValueCollection;
