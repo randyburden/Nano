@@ -81,8 +81,8 @@ namespace Nano.Demo.TopshelfSelfHost
                 } );
 
                 _server = HttpListenerNanoServer.Start( config, validatedUrls );
-                _server.HttpListenerConfiguration.ApplicationPath = "YourVirtualAppPathName";
-
+                _server.HttpListenerConfiguration.ApplicationPath = "YourOptionalVirtualAppPathName";
+                
                 if( Debugger.IsAttached )
                     Process.Start( _server.HttpListenerConfiguration.GetFirstUrlBeingListenedOn().TrimEnd( '/' ) + "/ApiExplorer" );
 
