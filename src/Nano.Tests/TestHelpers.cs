@@ -1,7 +1,9 @@
 ﻿using System;
+using System.Collections.Specialized;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Text;
 using Nano.Web.Core;
 using Nano.Web.Core.Host.HttpListener;
 
@@ -116,6 +118,46 @@ namespace Nano.Tests
                     throw;
 
                 return response;
+            }
+        }
+
+        /// <summary>
+        /// Posts JSON to a URL.
+        /// </summary>
+        /// <param name="url">Url to post to.</param>
+        /// <param name="json">JSON to post.</param>
+        /// <returns>JSON response.</returns>
+        public static string PostJson( string url, string json )
+        {
+            using( var webClient = new WebClient() )
+            {
+                webClient.Headers.Add( HttpRequestHeader.ContentType, "application/json" );
+
+                webClient.Encoding = Encoding.UTF8;
+
+                byte[] data = Encoding.UTF8.GetBytes( json );
+
+                var result = webClient.UploadData( new Uri( url ), "POST", data );
+
+                string responseString = Encoding.UTF8.GetString( result );
+
+                return responseString;
+            }
+        }
+
+        /// <summary>
+        /// Posts the specified URL.
+        /// </summary>
+        /// <param name="url">The URL.</param>
+        /// <param name="nameValueCollection">The name value collection to send to the server.</param>
+        /// <returns>Response string</returns>
+        public static string Post( string url, NameValueCollection nameValueCollection )
+        {
+            using( var client = new WebClient() )
+            {
+                byte[] responsebytes = client.UploadValues( url, "POST", nameValueCollection );
+                string responsebody = Encoding.UTF8.GetString( responsebytes );
+                return responsebody;
             }
         }
     }

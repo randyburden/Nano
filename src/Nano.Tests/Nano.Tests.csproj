@@ -46,6 +46,9 @@
   <ItemGroup>
     <Compile Include="Customer.cs" />
     <Compile Include="Host\HttpListener\HttpListenerConfigurationShould.cs" />
+    <Compile Include="Host\HttpListener\HttpListenerNanoServer\HttpListenerNanoServerShould.cs" />
+    <Compile Include="Host\HttpListener\HttpListenerNanoServer\ParseFormBodyParametersShould.cs" />
+    <Compile Include="ModelBinder\GetRequestParameterValueShould.cs" />
     <Compile Include="ProxyTests.cs" />
     <Compile Include="RequestHandlers\FileRequestHandlerShould.cs" />
     <Compile Include="RequestHandlers\DirectoryRequestHandlerShould.cs" />
