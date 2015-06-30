@@ -15,9 +15,10 @@ Nano is a micro web framework for building web-based HTTP services and websites 
  - Self-host in an executable or integrate into a new or existing ASP.NET application with ease
  - It can be used as a [C# single file drop in](https://raw.githubusercontent.com/AmbitEnergyLabs/Nano/master/src/Nano/Nano.cs) or referenced as a [NuGet Package](https://www.nuget.org/packages/Nano).
 
-*Note: This is currently an alpha level project and will incur many fast moving releases.*
+*Note: This project in currently in beta. The API has stabilized and we have not had to make a breaking change in quite some time. We will continue to add new features while in beta and are essentially just waiting for 4 different projects in flight to come out of development and into production use in order to make a determination of when we will declare version 1.0, meaning it is production certified and ready for widespread use for the masses.*
 
 Live demo hosted on AppHarbor: [Nano ApiExplorer Demo](http://nano-1.apphb.com/ApiExplorer/)
+ - [Api Explorer single file drop in](https://github.com/AmbitEnergyLabs/Nano/blob/master/src/Nano.Demo.TopshelfSelfHost/www/ApiExplorer/index.html)
 
 Project Background
 ---
