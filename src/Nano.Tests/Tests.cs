@@ -31,39 +31,5 @@ namespace Nano.Tests
                 }
             }
         }
-
-        /// <summary>
-        /// Posts JSON to a URL.
-        /// </summary>
-        /// <param name="url">Url to post to.</param>
-        /// <param name="json">JSON to post.</param>
-        /// <returns>JSON response.</returns>
-        public static string PostJson( string url, string json )
-        {
-            using( var webClient = new WebClient() )
-            {
-                webClient.Headers.Add( HttpRequestHeader.ContentType, "application/json" );
-
-                webClient.Encoding = Encoding.UTF8;
-
-                byte[] data = Encoding.UTF8.GetBytes( json );
-
-                var result = webClient.UploadData( new Uri( url ), "POST", data );
-
-                string responseString = Encoding.UTF8.GetString( result );
-
-                return responseString;
-            }
-        }
-
-        public static string Post( string url, NameValueCollection nameValueCollection )
-        {
-            using( var client = new WebClient() )
-            {
-                byte[] responsebytes = client.UploadValues( url, "POST", nameValueCollection );
-                string responsebody = Encoding.UTF8.GetString( responsebytes );
-                return responsebody;
-            }
-        }
     }
 }

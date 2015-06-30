@@ -152,6 +152,66 @@ namespace Nano.Tests.RequestHandlers
                 Assert.That( response.Contains( someDateTimeString ) );
             }
         }
+        
+        [Test]
+        public void Accept_A_Char_As_Input()
+        {
+            using( var server = NanoTestServer.Start() )
+            {
+                // Arrange
+                server.NanoConfiguration.AddMethods<Echo>();
+                const char someChar = 'R';
+
+                // Act
+                var response = HttpHelper.GetResponseString( server.GetUrl() + "/api/Echo/EchoChar?someChar=" + someChar );
+
+                // Visual Assertion
+                Trace.WriteLine( response );
+
+                // Assert
+                Assert.That( response.Contains( someChar.ToString() ) );
+            }
+        }
+
+        [Test]
+        public void Accept_A_Guid_As_Input()
+        {
+            using( var server = NanoTestServer.Start() )
+            {
+                // Arrange
+                server.NanoConfiguration.AddMethods<Echo>();
+                var someGuid = Guid.NewGuid();
+
+                // Act
+                var response = HttpHelper.GetResponseString( server.GetUrl() + "/api/Echo/EchoGuid?someGuid=" + someGuid );
+
+                // Visual Assertion
+                Trace.WriteLine( response );
+
+                // Assert
+                Assert.That( response.Contains( someGuid.ToString() ) );
+            }
+        }
+
+        [Test]
+        public void Accept_A_Bool_As_Input()
+        {
+            using( var server = NanoTestServer.Start() )
+            {
+                // Arrange
+                server.NanoConfiguration.AddMethods<Echo>();
+                var someBool = true.ToString().ToLower();
+
+                // Act
+                var response = HttpHelper.GetResponseString( server.GetUrl() + "/api/Echo/EchoBool?someBool=" + someBool );
+
+                // Visual Assertion
+                Trace.WriteLine( response );
+
+                // Assert
+                Assert.That( response.Contains( someBool ) );
+            }
+        }
 
         [Test]
         public void Accept_An_Object_As_Input()
@@ -376,6 +436,21 @@ namespace Nano.Tests.RequestHandlers
             public static DateTime EchoDateTime( DateTime someDateTime )
             {
                 return someDateTime;
+            }
+
+            public static char EchoChar( char someChar )
+            {
+                return someChar;
+            }
+
+            public static Guid EchoGuid( Guid someGuid )
+            {
+                return someGuid;
+            }
+
+            public static bool EchoBool( bool someBool )
+            {
+                return someBool;
             }
 
             public static object EchoObject( object someObject )

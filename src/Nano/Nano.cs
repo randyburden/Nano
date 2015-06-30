@@ -1,5 +1,5 @@
 ﻿/*
-    Nano v0.8.0
+    Nano v0.10.0
     
     Nano is a micro web framework for building web-based HTTP services and websites for .NET.
 
@@ -580,7 +580,7 @@ namespace Nano.Web.Core
             }
             else
             {
-                Version = "0.8.0.0";
+                Version = "0.10.0.0";
             }
         }
 
@@ -1159,7 +1159,7 @@ namespace Nano.Web.Core
             get { return _basePath; }
             set
             {
-                if( string.IsNullOrEmpty( value ) )
+                if( string.IsNullOrWhiteSpace( value ) )
                 {
                     return;
                 }
@@ -1298,12 +1298,12 @@ namespace Nano.Web.Core
 
         private static string GetQuery( string query )
         {
-            return string.IsNullOrEmpty( query ) ? string.Empty : ( query[0] == '?' ? query : '?' + query );
+            return string.IsNullOrWhiteSpace( query ) ? string.Empty : ( query[0] == '?' ? query : '?' + query );
         }
 
         private static string GetCorrectPath( string path )
         {
-            return ( string.IsNullOrEmpty( path ) || path.Equals( "/" ) ) ? string.Empty : path;
+            return ( string.IsNullOrWhiteSpace( path ) || path.Equals( "/" ) ) ? string.Empty : path;
         }
 
         private static string GetPort( int? port )
@@ -1429,7 +1429,7 @@ namespace Nano.Web.Core
                     Port = httpContext.Request.Url.Port,
                     BasePath = basePath,
                     Path = path,
-                    Query = httpContext.Request.Url.Query,
+                    Query = httpContext.Request.Url.Query
                 };
                 
                 Func<Stream> requestBodyAccessor = () => httpContext.Request.InputStream;
@@ -1600,7 +1600,30 @@ namespace Nano.Web.Core
             public static NanoContext MapHttpListenerContextToNanoContext( HttpListenerContext httpListenerContext, HttpListenerNanoServer server )
             {
                 string httpMethod = httpListenerContext.Request.HttpMethod;
-                Uri url = httpListenerContext.Request.Url;
+
+                string basePath = String.Empty;
+                string path = httpListenerContext.Request.Url.AbsolutePath;
+
+                if ( string.IsNullOrWhiteSpace( server.HttpListenerConfiguration.ApplicationPath ) == false )
+                {
+                    basePath = "/" + server.HttpListenerConfiguration.ApplicationPath.TrimStart( '/' ).TrimEnd( '/' );
+
+                    if ( httpListenerContext.Request.Url.AbsolutePath.StartsWith( basePath ) )
+                        path = path.Substring( basePath.Length );
+                }
+                
+                path = string.IsNullOrWhiteSpace( path ) ? "/" : path;
+
+                var url = new Url
+                {
+                    Scheme = httpListenerContext.Request.Url.Scheme,
+                    HostName = httpListenerContext.Request.Url.Host,
+                    Port = httpListenerContext.Request.Url.Port,
+                    BasePath = basePath,
+                    Path = path,
+                    Query = httpListenerContext.Request.Url.Query
+                };
+
                 Func<Stream> requestBodyAccessor = () => httpListenerContext.Request.InputStream;
                 var nanoRequest = new NanoRequest( httpMethod, url, requestBodyAccessor ) { QueryStringParameters = httpListenerContext.Request.QueryString, FormBodyParameters = ParseFormBodyParameters( httpListenerContext, server ), HeaderParameters = httpListenerContext.Request.Headers };
                 var nanoContext = new NanoContext( nanoRequest, new NanoResponse(), server.NanoConfiguration ) { HostContext = httpListenerContext, RootFolderPath = server.NanoConfiguration.ApplicationRootFolderPath };
@@ -1640,9 +1663,8 @@ namespace Nano.Web.Core
                 {
                     var sr = new StreamReader( httpListenerContext.Request.InputStream, httpListenerContext.Request.ContentEncoding );
                     string formData = sr.ReadToEnd();
-                    string decodedFormData = UrlDecode( formData );
 
-                    string[] parameters = decodedFormData.Split( '&' );
+                    string[] parameters = formData.Split( '&' );
 
                     if( parameters.Length > server.HttpListenerConfiguration.MaximumFormParameters )
                         throw new Exception( "The maximum number of form parameters posted was exceeded." );
@@ -1650,7 +1672,9 @@ namespace Nano.Web.Core
                     foreach( string parameter in parameters )
                     {
                         string[] keyValuePair = parameter.Split( '=' );
-                        nameValueCollection.Add( keyValuePair[0], keyValuePair[1] );
+                        string decodedKey = UrlDecode(keyValuePair[0]);
+                        string decodedValue = UrlDecode(keyValuePair[1]);
+                        nameValueCollection.Add(decodedKey, decodedValue);
                     }
 
                     return nameValueCollection;
@@ -1771,6 +1795,10 @@ namespace Nano.Web.Core
             /// </summary>
             public bool RewriteLocalhost;
 
+            /// <summary>The application's virtual application root path on the server. Set this if the application runs under a virtual directory.</summary>
+            /// <remarks>The virtual path of the current application.</remarks>
+            public string ApplicationPath = string.Empty;
+
             /// <summary>Initializes a new instance of the <see cref="HttpListenerConfiguration" /> class.</summary>
             /// <param name="httpListener">The HTTP listener.</param>
             public HttpListenerConfiguration( System.Net.HttpListener httpListener )
@@ -1803,6 +1831,27 @@ namespace Nano.Web.Core
 
                     HttpListener.Prefixes.Add( prefix );
                 }
+            }
+
+            /// <summary>
+            /// Gets the first URL being listened on and adds the <see cref="ApplicationPath"/> if one has been supplied.
+            /// </summary>
+            /// <returns>First URL being listened on.</returns>
+            public string GetFirstUrlBeingListenedOn()
+            {
+                var firstUrlBeingListenedOn = HttpListener.Prefixes.FirstOrDefault();
+
+                if ( string.IsNullOrWhiteSpace( firstUrlBeingListenedOn ) )
+                    return null;
+
+                var uriBuilder = new UriBuilder( firstUrlBeingListenedOn );
+
+                if( string.IsNullOrWhiteSpace( ApplicationPath ) == false )
+                {
+                    uriBuilder.Path = ApplicationPath + "/";
+                }
+
+                return uriBuilder.Uri.ToString();
             }
         }
     }
@@ -2153,7 +2202,7 @@ namespace Nano.Web.Core
                     }
 
                     var returnParameterType = metadataProvider.GetOperationReturnParameterType( nanoContext, methodRequestHandler );
-                    metadata.ReturnParameterType = returnParameterType.Name;
+                    metadata.ReturnParameterType = GetTypeName( returnParameterType );
                     AddModels( apiMetadata, returnParameterType );
                     apiMetadata.Operations.Add( metadata );
                 }
