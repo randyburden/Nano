@@ -39,6 +39,7 @@ namespace Nano.Demo.SelfHost
 
                 Console.WriteLine( "Nano Server is running on: " + url );
                 Console.WriteLine( "Press Ctrl+C to exit." );
+				Console.WriteLine( config.ToString() );
                 exitEvent.WaitOne();
             }
         }

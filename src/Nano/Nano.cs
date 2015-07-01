@@ -204,6 +204,20 @@ namespace Nano.Web.Core
             BackgroundTasks.Add( backgroundTask);
             return backgroundTask;
         }
+
+		public override string ToString()
+		{
+			var builder = new StringBuilder();
+
+			builder.AppendLine( "[Nano Configuration]" );
+
+			foreach ( IRequestHandler handler in RequestHandlers ) 
+			{
+				builder.AppendFormat( "Handler [{0}] -> Path: {1}{2}", handler.GetType ().Name, handler.UrlPath, Environment.NewLine );
+			}
+
+			return builder.ToString();
+		}
     }
 
     /// <summary>The context of the current web request.</summary>
@@ -1960,10 +1974,95 @@ namespace Nano.Web.Core
 
                 return nanoContext;
             }
+
+			public override string ToString ()
+			{
+				return string.Format( "[RequestHandler: UrlPath={0}, Type={1}]", UrlPath, GetType().Name );
+			}
         }
 
+		/// <summary>
+		/// Defines a request handler that returns files from a filesystem.
+		/// </summary>
+		public abstract class FileSystemRequestHandler : RequestHandler
+		{
+			#region Private Fields
+
+			private static readonly ConcurrentDictionary<string, string> _paths = new ConcurrentDictionary<string, string>();
+
+			#endregion
+
+			#region Constructors
+
+			static FileSystemRequestHandler() 
+			{
+				string path = Path.GetTempFileName();
+
+				IsCaseSensitiveFileSystem = !File.Exists( path.ToUpper() );
+			}
+
+			public FileSystemRequestHandler( string fileSystemPath, string urlPath, EventHandler handler ) : base( urlPath, handler )
+			{
+				FileSystemPath = fileSystemPath.Replace( "/", Constants.DirectorySeparatorString ).TrimStart( '~', Constants.DirectorySeparatorChar ).TrimEnd( '/', Constants.DirectorySeparatorChar );
+			}
+
+			#endregion
+
+			#region Public Properties
+
+			public static bool IsCaseSensitiveFileSystem { get; set; }
+
+			public string FileSystemPath { get; set; }
+
+			#endregion
+
+			#region Protected Methods
+
+			protected string GetPathCaseSensitive( string path )
+			{
+				if ( _paths.ContainsKey( path ) ) return _paths[path];
+
+				string[] segments = path.Split( new[] { Constants.DirectorySeparatorChar }, StringSplitOptions.RemoveEmptyEntries );
+
+				var current = new DirectoryInfo( FileSystemPath ).Root;
+
+				for ( int i = 0; i < segments.Length; i++ ) 
+				{	
+					string result = GetPathSegmentCaseSensitive( segments[i], current );
+
+					if ( i == segments.Length - 1 )
+					{
+						if ( result != null ) _paths[path] = result;
+
+						return result;
+					} 
+
+					if ( result == null ) return null;
+
+					current = new DirectoryInfo( result );
+				}
+
+				return null;
+			}
+
+			#endregion
+
+			#region Private Methods
+
+			private string GetPathSegmentCaseSensitive( string name, DirectoryInfo directory )
+			{
+				if ( directory == null ) return null;
+
+				FileSystemInfo match = directory.GetFileSystemInfos().FirstOrDefault( f => f.Name.Equals( name, StringComparison.CurrentCultureIgnoreCase ) );
+
+				return match != null ? match.FullName : null;
+			}
+
+			#endregion
+		}
+
         /// <summary>Handles requests to defined file system directories and files within those directories.</summary>
-        public class DirectoryRequestHandler : RequestHandler
+		public class DirectoryRequestHandler : FileSystemRequestHandler
         {
             /// <summary>Initializes a new instance of the <see cref="DirectoryRequestHandler" /> class.</summary>
             /// <param name="urlPath">The URL path.</param>
@@ -1978,7 +2077,7 @@ namespace Nano.Web.Core
             /// <exception cref="System.ArgumentNullException">fileSystemPath</exception>
             /// <exception cref="Nano.Web.Core.RequestHandlers.DirectoryRequestHandler.RootDirectoryException"></exception>
             public DirectoryRequestHandler( string urlPath, EventHandler eventHandler, string fileSystemPath, bool returnHttp404WhenFileWasNoFound = false, IList<string> defaultDocuments = null )
-                : base( urlPath, eventHandler )
+				: base( fileSystemPath, urlPath, eventHandler )
             {
                 if( string.IsNullOrWhiteSpace( fileSystemPath ) )
                     throw new ArgumentNullException( "fileSystemPath" );
@@ -1986,18 +2085,12 @@ namespace Nano.Web.Core
                 if( defaultDocuments == null )
                     defaultDocuments = new[] { "index.html" };
 
-                FileSystemPath = fileSystemPath.Replace( "/", Constants.DirectorySeparatorString ).TrimStart( '~', Constants.DirectorySeparatorChar ).TrimEnd( '/', Constants.DirectorySeparatorChar );
-
                 if( FileSystemPath == Constants.DirectorySeparatorString )
                     throw new RootDirectoryException();
 
                 ReturnHttp404WhenFileWasNoFound = returnHttp404WhenFileWasNoFound;
                 DefaultDocuments = defaultDocuments;
             }
-
-            /// <summary>Gets or sets the file system path.</summary>
-            /// <value>The file system path.</value>
-            public string FileSystemPath { get; set; }
 
             /// <summary>
             /// Gets or sets a value indicating whether it should return an 'HTTP 404 - File Not Found' when no file was found..
@@ -2021,11 +2114,13 @@ namespace Nano.Web.Core
                 string encodedPartialRequestPath = partialRequestPath.Replace( "/", Constants.DirectorySeparatorString ).TrimStart( Constants.DirectorySeparatorChar );
                 string fullFileSystemPath = Path.Combine( nanoContext.RootFolderPath, FileSystemPath, encodedPartialRequestPath );
 
+				if ( IsCaseSensitiveFileSystem )
+					fullFileSystemPath = GetPathCaseSensitive( fullFileSystemPath );
+
                 if( nanoContext.TryReturnFile( new FileInfo( fullFileSystemPath ) ) )
                     return nanoContext;
-
                 
-                var directoryInfo = new DirectoryInfo( fullFileSystemPath );
+                var directoryInfo = new DirectoryInfo( fullFileSystemPath );			
 
                 if( directoryInfo.Exists )
                 {
@@ -2042,8 +2137,9 @@ namespace Nano.Web.Core
                     {
                         string path = Path.Combine( fullFileSystemPath, defaultDocument );
 
-                        if( nanoContext.TryReturnFile( new FileInfo( path ) ) )
-                            return nanoContext;
+						if ( IsCaseSensitiveFileSystem ) path = GetPathCaseSensitive( path );
+
+                        if( nanoContext.TryReturnFile( new FileInfo( path ) ) ) return nanoContext;
                     }
                 }
 
@@ -2082,7 +2178,7 @@ namespace Nano.Web.Core
         }
 
         /// <summary>Handles requests to defined file system files.</summary>
-        public class FileRequestHandler : RequestHandler
+		public class FileRequestHandler : FileSystemRequestHandler
         {
             /// <summary>Initializes a new instance of the <see cref="FileRequestHandler" /> class.</summary>
             /// <param name="urlPath">The URL path.</param>
@@ -2090,17 +2186,11 @@ namespace Nano.Web.Core
             /// <param name="fileSystemPath">The file system path.</param>
             /// <exception cref="System.ArgumentNullException">fileSystemPath</exception>
             public FileRequestHandler( string urlPath, EventHandler eventHandler, string fileSystemPath )
-                : base( urlPath, eventHandler )
+                : base( fileSystemPath, urlPath, eventHandler )
             {
                 if( string.IsNullOrWhiteSpace( fileSystemPath ) )
                     throw new ArgumentNullException( "fileSystemPath" );
-
-                FileSystemPath = fileSystemPath.Replace( "/", Constants.DirectorySeparatorString ).TrimStart( '~', Constants.DirectorySeparatorChar );
             }
-
-            /// <summary>Gets or sets the file system path.</summary>
-            /// <value>The file system path.</value>
-            public string FileSystemPath { get; set; }
 
             /// <summary>Handles the request.</summary>
             /// <param name="nanoContext">The <see cref="NanoContext" />.</param>
@@ -2109,8 +2199,9 @@ namespace Nano.Web.Core
             {
                 string fullFilePath = Path.Combine( nanoContext.RootFolderPath, FileSystemPath );
 
-                if( nanoContext.TryReturnFile( new FileInfo( fullFilePath ) ) )
-                    return nanoContext;
+				if ( IsCaseSensitiveFileSystem ) fullFilePath = GetPathCaseSensitive( fullFilePath );
+
+                if( nanoContext.TryReturnFile( new FileInfo( fullFilePath ) ) )  return nanoContext;
 
                 return nanoContext.ReturnHttp404NotFound();
             }
