@@ -2001,7 +2001,13 @@ namespace Nano.Web.Core
 				IsCaseSensitiveFileSystem = !File.Exists( path.ToUpper() );
 			}
 
-			public FileSystemRequestHandler( string fileSystemPath, string urlPath, EventHandler handler ) : base( urlPath, handler )
+            /// <summary>
+            /// Initializes a new instance of the <see cref="FileSystemRequestHandler" /> class.
+            /// </summary>
+            /// <param name="fileSystemPath">The file system path.</param>
+            /// <param name="urlPath">The URL path.</param>
+            /// <param name="handler">The event handlers.</param>
+		    protected FileSystemRequestHandler( string fileSystemPath, string urlPath, EventHandler handler ) : base( urlPath, handler )
 			{
 				FileSystemPath = fileSystemPath.Replace( "/", Constants.DirectorySeparatorString ).TrimStart( '~', Constants.DirectorySeparatorChar ).TrimEnd( '/', Constants.DirectorySeparatorChar );
 			}
@@ -2010,14 +2016,25 @@ namespace Nano.Web.Core
 
 			#region Public Properties
 
+            /// <summary>
+            /// Flag indicating whether or not the file system is case sensitive.
+            /// </summary>
 			public static bool IsCaseSensitiveFileSystem { get; set; }
 
+            /// <summary>
+            /// The file system path.
+            /// </summary>
 			public string FileSystemPath { get; set; }
 
 			#endregion
 
 			#region Protected Methods
 
+            /// <summary>
+            /// Returns the corrected path after a case-sensitive search has been performed.
+            /// </summary>
+            /// <param name="path">The path to search for.</param>
+            /// <returns>The valid case-sensitive path or null.</returns>
 			protected string GetPathCaseSensitive( string path )
 			{
 				if ( _paths.ContainsKey( path ) ) return _paths[path];
