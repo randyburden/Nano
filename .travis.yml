@@ -1,5 +1,5 @@
 language: csharp
-solution: Nano.sln
+solution: src/Nano.sln
 install:
   - nuget restore Nano.sln
   - nuget install NUnit.Runners -Version 2.6.4 -OutputDirectory testrunner
