@@ -56,7 +56,7 @@ namespace Nano.Tests.SpeedTests
                 {
                     using( var client = new WebClient() )
                     {
-                        byte[] responsebytes = client.UploadValues( "http://localhost:4545/Customer/CreateCustomer", "POST", parameters );
+                        byte[] responsebytes = client.UploadValues( "http://localhost:4545/api/Customer/CreateCustomer", "POST", parameters );
                         string responsebody = Encoding.UTF8.GetString( responsebytes );
                         if( requestCount == 1 ) Trace.WriteLine( responsebody );
                     }
