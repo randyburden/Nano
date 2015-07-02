@@ -1,7 +1,7 @@
 ﻿/*
-    Nano v0.10.0
+    Nano v0.11.0
     
-    Nano is a micro web framework for building web-based HTTP services and websites for .NET.
+    Nano is a cross-platform micro web framework for building web-based HTTP services and websites for .NET.
 
     To find out more, visit the project home page at: https://github.com/AmbitEnergyLabs/Nano
 
@@ -594,7 +594,7 @@ namespace Nano.Web.Core
             }
             else
             {
-                Version = "0.10.0.0";
+                Version = "0.11.0.0";
             }
         }
 
