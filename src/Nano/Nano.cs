@@ -1616,14 +1616,14 @@ namespace Nano.Web.Core
                 string httpMethod = httpListenerContext.Request.HttpMethod;
 
                 string basePath = String.Empty;
-                string path = httpListenerContext.Request.Url.AbsolutePath;
+
+				string path = "/" + httpListenerContext.Request.Url.AbsolutePath.TrimStart( '/' );
 
                 if ( string.IsNullOrWhiteSpace( server.HttpListenerConfiguration.ApplicationPath ) == false )
                 {
                     basePath = "/" + server.HttpListenerConfiguration.ApplicationPath.TrimStart( '/' ).TrimEnd( '/' );
 
-                    if ( httpListenerContext.Request.Url.AbsolutePath.StartsWith( basePath ) )
-                        path = path.Substring( basePath.Length );
+					if ( path.StartsWith( basePath ) ) path = path.Substring( basePath.Length );
                 }
                 
                 path = string.IsNullOrWhiteSpace( path ) ? "/" : path;
@@ -2114,37 +2114,39 @@ namespace Nano.Web.Core
                 string encodedPartialRequestPath = partialRequestPath.Replace( "/", Constants.DirectorySeparatorString ).TrimStart( Constants.DirectorySeparatorChar );
                 string fullFileSystemPath = Path.Combine( nanoContext.RootFolderPath, FileSystemPath, encodedPartialRequestPath );
 
-				if ( IsCaseSensitiveFileSystem )
-					fullFileSystemPath = GetPathCaseSensitive( fullFileSystemPath );
+				if ( IsCaseSensitiveFileSystem ) fullFileSystemPath = GetPathCaseSensitive( fullFileSystemPath );
 
-                if( nanoContext.TryReturnFile( new FileInfo( fullFileSystemPath ) ) )
-                    return nanoContext;
+				if ( !String.IsNullOrWhiteSpace( fullFileSystemPath ) )
+				{					
+					if ( nanoContext.TryReturnFile( new FileInfo( fullFileSystemPath ) ) ) return nanoContext;
                 
-                var directoryInfo = new DirectoryInfo( fullFileSystemPath );			
+					var directoryInfo = new DirectoryInfo( fullFileSystemPath );			
 
-                if( directoryInfo.Exists )
-                {
-                    // If the URL does not end with a forward slash then redirect to the same URL with a forward slash
-                    // so that relative URLs will work correctly
-                    if( nanoContext.Request.Url.Path.EndsWith( "/", StringComparison.Ordinal ) == false )
-                    {
-                        string url = nanoContext.Request.Url.BasePath + nanoContext.Request.Url.Path + "/" + nanoContext.Request.Url.Query;
-                        nanoContext.Response.Redirect( url );
-                        return nanoContext;
-                    }
+					if ( directoryInfo.Exists )
+					{
+						// If the URL does not end with a forward slash then redirect to the same URL with a forward slash
+						// so that relative URLs will work correctly
+						if ( nanoContext.Request.Url.Path.EndsWith( "/", StringComparison.Ordinal ) == false )
+						{
+							string url = nanoContext.Request.Url.BasePath + nanoContext.Request.Url.Path + "/" + nanoContext.Request.Url.Query;
+							nanoContext.Response.Redirect( url );
+							return nanoContext;
+						}
 
-                    foreach( string defaultDocument in DefaultDocuments )
-                    {
-                        string path = Path.Combine( fullFileSystemPath, defaultDocument );
+						foreach ( string defaultDocument in DefaultDocuments )
+						{
+							string path = Path.Combine( fullFileSystemPath, defaultDocument );
 
-						if ( IsCaseSensitiveFileSystem ) path = GetPathCaseSensitive( path );
+							if ( IsCaseSensitiveFileSystem )
+								path = GetPathCaseSensitive( path );
 
-                        if( nanoContext.TryReturnFile( new FileInfo( path ) ) ) return nanoContext;
-                    }
-                }
+							if ( nanoContext.TryReturnFile( new FileInfo( path ) ) )
+								return nanoContext;
+						}
+					}
+				}
 
-                if( ReturnHttp404WhenFileWasNoFound )
-                    return nanoContext.ReturnHttp404NotFound();
+                if( ReturnHttp404WhenFileWasNoFound ) return nanoContext.ReturnHttp404NotFound();
 
                 return nanoContext;
             }
