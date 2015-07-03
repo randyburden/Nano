@@ -43,33 +43,6 @@ namespace Nano.Tests
     }
 
     /// <summary>
-    /// <see cref="HttpWebResponse"/> extensions.
-    /// </summary>
-    public static class HttpWebResponseExtensions
-    {
-        /// <summary>
-        /// Gets the response as a string.
-        /// </summary>
-        /// <param name="httpWebResponse">The HTTP web response.</param>
-        /// <returns>The response as a string.</returns>
-        public static string GetResponseString( this HttpWebResponse httpWebResponse )
-        {
-            using ( var stream = httpWebResponse.GetResponseStream() )
-            {
-                if ( stream != null )
-                {
-                    using ( var sr = new StreamReader( stream ) )
-                    {
-                        return sr.ReadToEnd();
-                    }
-                }
-            }
-
-            return null;
-        }
-    }
-
-    /// <summary>
     /// Http helpers.
     /// </summary>
     public static class HttpHelper
@@ -82,6 +55,27 @@ namespace Nano.Tests
         public static string EncodeUrl( string url )
         {
             return System.Uri.EscapeDataString( url ).Replace( "%20", "+" );
+        }
+
+        /// <summary>
+        /// Gets the response as a string.
+        /// </summary>
+        /// <param name="httpWebResponse">The HTTP web response.</param>
+        /// <returns>The response as a string.</returns>
+        public static string GetResponseString( this HttpWebResponse httpWebResponse )
+        {
+            using( var stream = httpWebResponse.GetResponseStream() )
+            {
+                if( stream != null )
+                {
+                    using( var sr = new StreamReader( stream ) )
+                    {
+                        return sr.ReadToEnd();
+                    }
+                }
+            }
+
+            return null;
         }
 
         /// <summary>
@@ -103,12 +97,33 @@ namespace Nano.Tests
         /// <returns>Response as a <see cref="HttpWebResponse"/>.</returns>
         public static HttpWebResponse GetHttpWebResponse( string url, bool allowAutoRedirect = true )
         {
+            var request = GetHttpWebRequest( url, allowAutoRedirect );
+            return request.GetHttpWebResponse();
+        }
+
+        /// <summary>
+        /// Gets the HTTP web request.
+        /// </summary>
+        /// <param name="url">The URL.</param>
+        /// <param name="allowAutoRedirect">if set to <c>true</c> [allow automatic redirect].</param>
+        /// <returns><see cref="HttpWebRequest"/>.</returns>
+        public static HttpWebRequest GetHttpWebRequest( string url, bool allowAutoRedirect = true )
+        {
             var request = WebRequest.Create( url ) as HttpWebRequest;
             request.AllowAutoRedirect = allowAutoRedirect;
+            return request;
+        }
 
+        /// <summary>
+        /// Gets the response as a <see cref="HttpWebResponse"/>.
+        /// </summary>
+        /// <param name="request">The request.</param>
+        /// <returns>Response as a <see cref="HttpWebResponse"/>.</returns>
+        public static HttpWebResponse GetHttpWebResponse( this HttpWebRequest request )
+        {
             try
             {
-                return ( HttpWebResponse ) request.GetResponse();
+                return (HttpWebResponse)request.GetResponse();
             }
             catch( WebException we )
             {

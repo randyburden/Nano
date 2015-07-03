@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using System;
+using System.Diagnostics;
 using System.Net;
 using NUnit.Framework;
 
@@ -49,5 +50,199 @@ namespace Nano.Tests.RequestHandlers
                 Assert.That( response.StatusCode == HttpStatusCode.NotFound );
             }
         }
+
+        #region ETag Tests
+
+        [TestCase( "/ApiExplorer/" )]
+        public void Return_An_ETag_Header_When_A_File_Is_Returned( string path )
+        {
+            using( var server = NanoTestServer.Start() )
+            {
+                // Arrange
+                server.NanoConfiguration.AddFile( path, "www/ApiExplorer/index.html" );
+
+                // Act
+                var response = HttpHelper.GetHttpWebResponse( server.GetUrl() + path );
+                var eTag = response.GetResponseHeader( "ETag" );
+
+                // Visual Assertion
+                Trace.WriteLine( "ETag Header Value: " + eTag );
+
+                // Assert
+                Assert.NotNull( eTag );
+            }
+        }
+
+        [TestCase( "/ApiExplorer/" )]
+        public void Return_Not_Modified_Http_Status_Code_304_When_Request_ETag_Matches_File_ETag( string path )
+        {
+            using( var server = NanoTestServer.Start() )
+            {
+                // Arrange
+                server.NanoConfiguration.AddFile( path, "www/ApiExplorer/index.html" );
+                var initialResponse = HttpHelper.GetHttpWebResponse( server.GetUrl() + path );
+                var initialETag = initialResponse.GetResponseHeader( "ETag" );
+                var request = HttpHelper.GetHttpWebRequest( server.GetUrl() + path );
+                request.Headers["If-None-Match"] = initialETag;
+
+                // Act
+                var response = request.GetHttpWebResponse();
+                var responseCode = response.StatusCode;
+
+                // Visual Assertion
+                Trace.WriteLine( "HTTP Status Code: " + responseCode );
+
+                // Assert
+                Assert.That( responseCode == HttpStatusCode.NotModified );
+            }
+        }
+
+        [TestCase( "/ApiExplorer/" )]
+        public void Return_Matching_ETag_When_Server_Returns_Not_Modified( string path )
+        {
+            using( var server = NanoTestServer.Start() )
+            {
+                // Arrange
+                server.NanoConfiguration.AddFile( path, "www/ApiExplorer/index.html" );
+                var initialResponse = HttpHelper.GetHttpWebResponse( server.GetUrl() + path );
+                var initialETag = initialResponse.GetResponseHeader( "ETag" );
+                var request = HttpHelper.GetHttpWebRequest( server.GetUrl() + path );
+                request.Headers["If-None-Match"] = initialETag;
+
+                // Act
+                var response = request.GetHttpWebResponse();
+                var eTag = response.GetResponseHeader( "ETag" );
+
+                // Visual Assertion
+                Trace.WriteLine( "ETag Header Value: " + eTag );
+
+                // Assert
+                Assert.That( initialETag == eTag );
+            }
+        }
+
+        [TestCase( "/ApiExplorer/" )]
+        public void Return_Empty_Body_When_Server_Returns_Not_Modified_Http_Status_Code_304_Because_Of_A_Matching_ETag( string path )
+        {
+            using( var server = NanoTestServer.Start() )
+            {
+                // Arrange
+                server.NanoConfiguration.AddFile( path, "www/ApiExplorer/index.html" );
+                var initialResponse = HttpHelper.GetHttpWebResponse( server.GetUrl() + path );
+                Trace.WriteLine( "Initial Response Length: " + initialResponse.GetResponseString().Length );
+                var initialETag = initialResponse.GetResponseHeader( "ETag" );
+                var request = HttpHelper.GetHttpWebRequest( server.GetUrl() + path );
+                request.Headers["If-None-Match"] = initialETag;
+
+                // Act
+                var response = request.GetHttpWebResponse();
+                var responseLength = response.GetResponseString().Length;
+
+                // Visual Assertion
+                Trace.WriteLine( "Not Modified Response Length: " + responseLength );
+
+                // Assert
+                Assert.That( responseLength == 0 );
+            }
+        }
+
+        #endregion ETag Tests
+
+        #region Last-Modified Tests
+
+        [TestCase( "/ApiExplorer/" )]
+        public void Return_An_Last_Modified_Header_When_A_File_Is_Returned( string path )
+        {
+            using( var server = NanoTestServer.Start() )
+            {
+                // Arrange
+                server.NanoConfiguration.AddFile( path, "www/ApiExplorer/index.html" );
+
+                // Act
+                var response = HttpHelper.GetHttpWebResponse( server.GetUrl() + path );
+                var lastModified = response.GetResponseHeader( "Last-Modified" );
+
+                // Visual Assertion
+                Trace.WriteLine( "Last-Modified Header Value: " + lastModified );
+
+                // Assert
+                Assert.NotNull( lastModified );
+            }
+        }
+
+        [TestCase( "/ApiExplorer/" )]
+        public void Return_Not_Modified_Http_Status_Code_304_When_Request_Last_Modified_Header_Matches_File_Last_Modified_DateTime( string path )
+        {
+            using( var server = NanoTestServer.Start() )
+            {
+                // Arrange
+                server.NanoConfiguration.AddFile( path, "www/ApiExplorer/index.html" );
+                var initialResponse = HttpHelper.GetHttpWebResponse( server.GetUrl() + path );
+                var initialLastModified = initialResponse.GetResponseHeader( "Last-Modified" );
+                var request = HttpHelper.GetHttpWebRequest( server.GetUrl() + path );
+                request.IfModifiedSince = DateTime.Parse( initialLastModified );
+
+                // Act
+                var response = request.GetHttpWebResponse();
+                var responseCode = response.StatusCode;
+
+                // Visual Assertion
+                Trace.WriteLine( "HTTP Status Code: " + responseCode );
+
+                // Assert
+                Assert.That( responseCode == HttpStatusCode.NotModified );
+            }
+        }
+
+        [TestCase( "/ApiExplorer/" )]
+        public void Return_Matching_Last_Modified_Header_When_Server_Returns_Not_Modified( string path )
+        {
+            using( var server = NanoTestServer.Start() )
+            {
+                // Arrange
+                server.NanoConfiguration.AddFile( path, "www/ApiExplorer/index.html" );
+                var initialResponse = HttpHelper.GetHttpWebResponse( server.GetUrl() + path );
+                var initialLastModified = initialResponse.GetResponseHeader( "Last-Modified" );
+                var request = HttpHelper.GetHttpWebRequest( server.GetUrl() + path );
+                request.IfModifiedSince = DateTime.Parse( initialLastModified );
+
+                // Act
+                var response = request.GetHttpWebResponse();
+                var lastModified = response.GetResponseHeader( "Last-Modified" );
+
+                // Visual Assertion
+                Trace.WriteLine( "Last-Modified Header Value: " + lastModified );
+
+                // Assert
+                Assert.That( initialLastModified == lastModified );
+            }
+        }
+
+        [TestCase( "/ApiExplorer/" )]
+        public void Return_Empty_Body_When_Server_Returns_Not_Modified_Http_Status_Code_304_Because_Of_A_Matching_Last_Modified_Header( string path )
+        {
+            using( var server = NanoTestServer.Start() )
+            {
+                // Arrange
+                server.NanoConfiguration.AddFile( path, "www/ApiExplorer/index.html" );
+                var initialResponse = HttpHelper.GetHttpWebResponse( server.GetUrl() + path );
+                Trace.WriteLine( "Initial Response Length: " + initialResponse.GetResponseString().Length );
+                var initialLastModified = initialResponse.GetResponseHeader( "Last-Modified" );
+                var request = HttpHelper.GetHttpWebRequest( server.GetUrl() + path );
+                request.IfModifiedSince = DateTime.Parse( initialLastModified );
+
+                // Act
+                var response = request.GetHttpWebResponse();
+                var responseLength = response.GetResponseString().Length;
+
+                // Visual Assertion
+                Trace.WriteLine( "Not Modified Response Length: " + responseLength );
+
+                // Assert
+                Assert.That( responseLength == 0 );
+            }
+        }
+
+        #endregion Last-Modified Tests
     }
 }
