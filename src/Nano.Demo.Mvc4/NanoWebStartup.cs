@@ -2,6 +2,7 @@ using System.Web;
 using Nano.Web.Core;
 using Nano.Web.Core.Host.SystemWeb;
 
+#pragma warning disable 1591
 namespace Nano.Demo.Mvc4
 {
     public static class NanoWebStartup
@@ -49,10 +50,24 @@ namespace Nano.Demo.Mvc4
             SystemWebNanoServer.Start( httpApplication, config );
         }
 
+        /// <summary>
+        /// A person.
+        /// </summary>
         public class Person
         {
+            /// <summary>
+            /// The person id.
+            /// </summary>
             public int PersonId;
+
+            /// <summary>
+            /// The first name.
+            /// </summary>
             public string FirstName;
+
+            /// <summary>
+            /// The last name.
+            /// </summary>
             public string LastName;
         }
     }
