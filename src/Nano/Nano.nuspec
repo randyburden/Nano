@@ -12,6 +12,7 @@
     <description>Nano is a micro web framework for building web-based HTTP services and websites for .NET.</description>
 	<summary>Nano is a micro web framework for building web-based HTTP services and websites for .NET.</summary>
     <releaseNotes>
+* 0.12.0 - Implemented ETag and Last-Modified HTTP Header Support.
 * 0.11.0 - Linux support added; Support for case-sensitive file system.
 * 0.10.0 - Fixed form data parsing bug in HttpListenerNanoServer; Added support for generic lists in metadata ReturnParameterType property.
 * 0.9.0 - Implemented ApplicationPath ( virtual directory ) support for HttpListener host.
