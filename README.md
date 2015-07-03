@@ -14,7 +14,7 @@ Travis CI ( Linux ):
 	<img src="https://travis-ci.org/AmbitEnergyLabs/Nano.svg" alt="Travis CI Linux Build Status" />
 </a>
 
-Nano is a cross-platform micro web framework for building web-based HTTP services and websites for .NET.
+Nano is a .NET cross-platform micro web framework for building web-based HTTP services and websites.
 
  - Rapidly create web apis by writing static methods
  - Low ceremony so that you can focus on business logic and not infrastructure and framework hassles
