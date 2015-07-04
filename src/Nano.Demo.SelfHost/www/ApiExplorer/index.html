@@ -80,8 +80,8 @@ body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line
                 var param = data.InputParameters[i];
 
                 tbody += '<tr>';
-                tbody += '<td><label for="' + param.Name + '">' + param.Name + '</label></td>';
-                tbody += '<td><textarea id="' + param.Name + '" name="' + param.Name + '" class="inputParameter" rows="1"></textarea></td>';
+                tbody += '<td><label for="' + param.Name + 'Form_' + param.Name + '">' + param.Name + '</label></td>';
+                tbody += '<td><textarea id="' + param.Name + 'Form_' + param.Name + '" name="' + param.Name + '" class="inputParameter" rows="1"></textarea></td>';
                 tbody += '<td>' + param.Type + '</td>';
                 tbody += '<td>' + (param.Description || '') + '</td>';
                 tbody += '</tr>';
@@ -139,7 +139,16 @@ body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line
                 "info": true,
                 columns: [
                     { data: "Name" },
-                    { data: "Path" },
+                    {
+                        data: "Path",
+                        render: function (data, type, row) {
+                            console.log("row", row);
+                            console.log("data", data);
+                            console.log("type", type);
+                            return '<span data-path="' + data + '" id="span' + row.Name + '">' + data + '</span>';
+                        }
+
+                    },
                     { data: "Description" }
                 ]
             });
@@ -177,6 +186,7 @@ body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line
                 else {
                     // Open this row
                     var rowData = row.data();
+
                     if (existingRows.hasOwnProperty(getFormId(rowData))) {
                         row.child.show();
                     } else {
@@ -227,18 +237,33 @@ body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line
             // Enable textArea's to auto-resize
             autosize($('.inputParameter'));
 
+            var formId = getFormId(rowData);
+            var formInputs = $("#" + formId + " .inputParameter");
+            var originalPath = $("#span" + rowData.Name).attr("data-path");
+
             $('.btn-clear').click(function () {
-                $('.inputParameter').val('');
+                $(formInputs).val("");
+                $("#span" + rowData.Name).text(originalPath);
                 clearSuccessAndFailureResults(rowData);
                 var resultsId = getResultsId(rowData);
                 $('#' + resultsId).hide();
             });
-
-            var formId = getFormId(rowData);
-
-            $(".inputParameter").on("keydown", function (e) {
+            
+            $(".inputParameter").on("keyup", function (e) {
                 if (e.keyCode === 13 && e.ctrlKey)
                     $(this).closest("form").submit();
+                else {
+                    var q = "?", i = 0;
+                    $(formInputs).each(function () {
+                        if (i > 0)
+                            q += "&";
+
+                        q += this.name + "=" + $(this).val();
+                        i += 1;
+                    });
+                    
+                    $("#span" + rowData.Name).text(originalPath + q);
+                }
             });
 
             $('#' + formId).submit(function (event) {
@@ -695,6 +720,7 @@ body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line
                     window.open(url, '_blank');
                 }
             });
+
         });
 
     </script>
