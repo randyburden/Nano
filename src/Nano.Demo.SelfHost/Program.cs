@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 using Nano.Web.Core;
@@ -21,7 +22,19 @@ namespace Nano.Demo.SelfHost
             };
 
             var config = new NanoConfiguration();
-            config.AddDirectory( "/", "www", null, true );
+
+            var root = "www";
+
+            if (Debugger.IsAttached)
+            {
+                root = "../../www";
+            }
+
+            config.AddDirectory("/", root, null, true, new List<string> { "index.html" });
+
+
+
+            //config.AddDirectory( "/", "www", null, true );
             config.AddMethods<Customer>( "/api/customer/" );
             config.AddFunc( "/hi", context => "Hello World!" );
             

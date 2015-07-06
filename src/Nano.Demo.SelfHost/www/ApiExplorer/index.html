@@ -26,7 +26,7 @@ table.dataTable {width: 100%;margin: 0 auto;clear: both;border-collapse: separat
     </style>
 
     <style>
-body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line-height:1.428571429;color:#333;background-color:#fff}.btn-primary{color:#fff;background-color:#428bca;border-color:#428bca}.btn-default{color:#fff;background-color:#474949;border-color:#474949}.btn{display:inline-block;padding:8px 12px;margin-bottom:0;font-size:14px;font-weight:500;line-height:1.428571429;text-align:center;white-space:nowrap;vertical-align:middle;cursor:pointer;border:1px solid transparent;border-radius:4px}label{display:inline-block;margin-bottom:5px;font-weight:700}.operationItem{cursor:pointer;margin:5px}.childRow{background-color:#fff}#operationTable>tfoot,#operationTable>thead{text-align:left}div.slider{display:none}table.dataTable tbody td.no-padding{padding:0}
+body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line-height:1.428571429;color:#333;background-color:#fff}.btn-primary{color:#fff;background-color:#428bca;border-color:#428bca}.btn-default{color:#fff;background-color:#474949;border-color:#474949}.btn{display:inline-block;padding:8px 12px;margin-bottom:0;font-size:14px;font-weight:500;line-height:1.428571429;text-align:center;white-space:nowrap;vertical-align:middle;cursor:pointer;border:1px solid transparent;border-radius:4px}label{display:inline-block;margin-bottom:5px;font-weight:700}.operationItem{margin:5px}.childRow{background-color:#fff}#operationTable>tfoot,#operationTable>thead{text-align:left}div.slider{display:none}table.dataTable tbody td.no-padding{padding:0}.sorting_1{ cursor: pointer;}
     </style>
 </head>
 <body>
@@ -138,14 +138,16 @@ body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line
                 "ordering": true,
                 "info": true,
                 columns: [
-                    { data: "Name" },
+                    {
+                        data: "Name",
+                        render: function (data, type, row) {
+                            return '&uarr;&darr;' + data;
+                        }
+                    },
                     {
                         data: "Path",
                         render: function (data, type, row) {
-                            console.log("row", row);
-                            console.log("data", data);
-                            console.log("type", type);
-                            return '<span data-path="' + data + '" id="span' + row.Name + '">' + data + '</span>';
+                            return '<a href="#" data-path="' + data + '" id="span' + row.Name + '" target="_blank">' + data + '</a>';
                         }
 
                     },
@@ -169,7 +171,7 @@ body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line
             table.draw().rows().nodes().to$().addClass('operationItem');
 
             // Add event listener for opening and closing details
-            $('#operationTable tbody').on('click', 'td', function () {
+            $('#operationTable tbody').on('click', 'td.sorting_1', function () {
                 var tr = $(this).closest('tr');
                 var row = table.row(tr);
 
@@ -243,7 +245,7 @@ body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line
 
             $('.btn-clear').click(function () {
                 $(formInputs).val("");
-                $("#span" + rowData.Name).text(originalPath);
+                $("#span" + rowData.Name).text(originalPath).attr("href","#");
                 clearSuccessAndFailureResults(rowData);
                 var resultsId = getResultsId(rowData);
                 $('#' + resultsId).hide();
@@ -262,7 +264,7 @@ body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line
                         i += 1;
                     });
                     
-                    $("#span" + rowData.Name).text(originalPath + q);
+                    $("#span" + rowData.Name).text(originalPath + q).attr("href", originalPath + q);
                 }
             });
 
