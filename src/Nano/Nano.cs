@@ -1,4 +1,4 @@
-﻿/*
+/*
     Nano v0.12.0
     
     Nano is a .NET cross-platform micro web framework for building web-based HTTP services and websites.
@@ -1648,11 +1648,11 @@ namespace Nano.Web.Core
 
                 string basePath = String.Empty;
 
-				string path = "/" + httpListenerContext.Request.Url.AbsolutePath.TrimStart( '/' );
+				string path = "/" + httpListenerContext.Request.Url.AbsolutePath.TrimStart( '/' ).ToLower();
 
                 if ( string.IsNullOrWhiteSpace( server.HttpListenerConfiguration.ApplicationPath ) == false )
                 {
-                    basePath = "/" + server.HttpListenerConfiguration.ApplicationPath.TrimStart( '/' ).TrimEnd( '/' );
+                    basePath = "/" + server.HttpListenerConfiguration.ApplicationPath.TrimStart( '/' ).TrimEnd( '/' ).ToLower();
 
 					if ( path.StartsWith( basePath ) ) path = path.Substring( basePath.Length );
                 }
