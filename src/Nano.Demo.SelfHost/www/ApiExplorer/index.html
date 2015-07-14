@@ -26,7 +26,7 @@ table.dataTable {width: 100%;margin: 0 auto;clear: both;border-collapse: separat
     </style>
 
     <style>
-body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line-height:1.428571429;color:#333;background-color:#fff}.btn-primary{color:#fff;background-color:#428bca;border-color:#428bca}.btn-default{color:#fff;background-color:#474949;border-color:#474949}.btn{display:inline-block;padding:8px 12px;margin-bottom:0;font-size:14px;font-weight:500;line-height:1.428571429;text-align:center;white-space:nowrap;vertical-align:middle;cursor:pointer;border:1px solid transparent;border-radius:4px}label{display:inline-block;margin-bottom:5px;font-weight:700}.operationItem{margin:5px}.childRow{background-color:#fff}#operationTable>tfoot,#operationTable>thead{text-align:left}div.slider{display:none}table.dataTable tbody td.no-padding{padding:0}.sorting_1{ cursor: pointer;}
+body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line-height:1.428571429;color:#333;background-color:#fff}.btn-primary{color:#fff;background-color:#428bca;border-color:#428bca}.btn-default{color:#fff;background-color:#474949;border-color:#474949}.btn{display:inline-block;padding:8px 12px;margin-bottom:0;font-size:14px;font-weight:500;line-height:1.428571429;text-align:center;white-space:nowrap;vertical-align:middle;cursor:pointer;border:1px solid transparent;border-radius:4px}label{display:inline-block;margin-bottom:5px;font-weight:700}.operationItem{margin:5px}.childRow{background-color:#fff}#operationTable>tfoot,#operationTable>thead{text-align:left}div.slider{display:none}table.dataTable tbody td.no-padding{padding:0}
     </style>
 </head>
 <body>
@@ -72,8 +72,10 @@ body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line
         function getChildRowHtml(data) {
 
             var html = getOperationInputParametersTableTemplate();
+            var urlPath = getBaseUrl() + data.Path;
 
-            var tbody = '';
+            //var tbody = '';
+            var tbody = '<tr><td colspan="4"></td><td rowspan="' + (data.InputParameters.length + 1) + '"><a href="#" data-path="' + urlPath + '" id="span' + data.Name + '" target="_blank">' + urlPath + '</a></td></tr>';
 
             for (var i = 0; i < data.InputParameters.length; i++) {
 
@@ -87,8 +89,8 @@ body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line
                 tbody += '</tr>';
             }
 
-            var urlPath = getBaseUrl() + data.Path;
 
+            //tbody += '<tr><td colspan="4"></td><td rowspan="' + (data.InputParameters.length + 1) + '"><a href="#">adf asdf asdf asd fasd f</a></td></tr>';
             html = html.replace('<tbody>', '<tbody>' + tbody);
             html = replaceAllOccurrences(html, '{{Name}}', data.Name);
             html = replaceAllOccurrences(html, '{{Path}}',  urlPath);
@@ -139,17 +141,10 @@ body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line
                 "info": true,
                 columns: [
                     {
-                        data: "Name",
-                        render: function (data, type, row) {
-                            return '&uarr;&darr;' + data;
-                        }
+                        data: "Name"
                     },
                     {
-                        data: "Path",
-                        render: function (data, type, row) {
-                            return '<a href="#" data-path="' + data + '" id="span' + row.Name + '" target="_blank">' + data + '</a>';
-                        }
-
+                        data: "Path"
                     },
                     { data: "Description" }
                 ]
@@ -171,7 +166,7 @@ body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line
             table.draw().rows().nodes().to$().addClass('operationItem');
 
             // Add event listener for opening and closing details
-            $('#operationTable tbody').on('click', 'td.sorting_1', function () {
+            $('#operationTable tbody').on('click', 'td', function () {
                 var tr = $(this).closest('tr');
                 var row = table.row(tr);
 
@@ -238,19 +233,33 @@ body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line
 
             // Enable textArea's to auto-resize
             autosize($('.inputParameter'));
-
+            
             var formId = getFormId(rowData);
             var formInputs = $("#" + formId + " .inputParameter");
             var originalPath = $("#span" + rowData.Name).attr("data-path");
 
+
+
+            var q = "?", i = 0;
+            $(formInputs).each(function () {
+                if (i > 0)
+                    q += "&";
+
+                q += this.name + "=" + $(this).val();
+                i += 1;
+            });
+            var fullPath = originalPath + q;
+            $("#span" + rowData.Name).text(fullPath).attr("href", fullPath);
+
+
             $('.btn-clear').click(function () {
                 $(formInputs).val("");
-                $("#span" + rowData.Name).text(originalPath).attr("href","#");
+                $("#span" + rowData.Name).text(originalPath + q).attr("href", "#");
                 clearSuccessAndFailureResults(rowData);
                 var resultsId = getResultsId(rowData);
                 $('#' + resultsId).hide();
             });
-            
+
             $(".inputParameter").on("keyup", function (e) {
                 if (e.keyCode === 13 && e.ctrlKey)
                     $(this).closest("form").submit();
@@ -330,6 +339,7 @@ body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line
                 '                   <th>Value</th>',
                 '                   <th>Type</th>',
                 '                   <th>Description</th>',
+                '                   <th>Sample Link</th>',
                 '               </tr>',
                 '           </thead>',
                 '           <tbody></tbody>',
