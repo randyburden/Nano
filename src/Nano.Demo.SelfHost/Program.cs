@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 using Nano.Web.Core;
@@ -23,18 +22,9 @@ namespace Nano.Demo.SelfHost
 
             var config = new NanoConfiguration();
 
-            var root = "www";
-
-            if (Debugger.IsAttached)
-            {
-                root = "../../www";
-            }
-
-            config.AddDirectory("/", root, null, true, new List<string> { "index.html" });
-
-
-
-            //config.AddDirectory( "/", "www", null, true );
+            // When the Debugger is attached, map two folders up so that you can live edit files in Visual Studio without having to restart
+            // your application to get the files copied to your bin directory.
+            config.AddDirectory( "/", Debugger.IsAttached ? "../../www" : "www", returnHttp404WhenFileWasNotFound: true );
             config.AddMethods<Customer>( "/api/customer/" );
             config.AddFunc( "/hi", context => "Hello World!" );
             
@@ -52,6 +42,7 @@ namespace Nano.Demo.SelfHost
 
                 Console.WriteLine( "Nano Server is running on: " + url );
                 Console.WriteLine( "Press Ctrl+C to exit." );
+				Console.WriteLine( config.ToString() );
                 exitEvent.WaitOne();
             }
         }

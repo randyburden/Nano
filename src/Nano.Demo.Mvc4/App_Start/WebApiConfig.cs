@@ -1,5 +1,6 @@
 ﻿using System.Web.Http;
 
+#pragma warning disable 1591
 namespace Nano.Demo.Mvc4
 {
     public static class WebApiConfig

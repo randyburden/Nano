@@ -36,7 +36,7 @@ namespace Nano.Demo
         }
 
         /// <summary>
-        /// Gets a person by <see cref="personId"/>.
+        /// Gets a person by id.
         /// </summary>
         /// <param name="personId">The person identifier.</param>
         /// <returns>Person.</returns>

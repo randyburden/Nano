@@ -56,7 +56,7 @@ namespace Nano.Tests.SpeedTests
                 {
                     using( var client = new WebClient() )
                     {
-                        byte[] responsebytes = client.UploadValues( "http://localhost:4545/Customer/CreateCustomer", "POST", parameters );
+                        byte[] responsebytes = client.UploadValues( "http://localhost:4545/api/Customer/CreateCustomer", "POST", parameters );
                         string responsebody = Encoding.UTF8.GetString( responsebytes );
                         if( requestCount == 1 ) Trace.WriteLine( responsebody );
                     }
@@ -85,10 +85,9 @@ namespace Nano.Tests.SpeedTests
 
 
         [Explicit( "This test requires the API to already be running by an external process on LOCALHOST." )]
-        [Test]
-        public void SimpleSpeedTest_NotHostedInProcess()
+        [TestCase( 100000 )]
+        public void SimpleSpeedTest_NotHostedInProcess( int requestCount )
         {
-            const int requestCount = 100000;
             //string url = "http://10.1.152.104:4545/api/customer/CreateCustomer2"; // Deployed to server
             string url = "http://localhost:4545/api/Customer/CreateCustomer"; // Self-host
             //string url = "http://localhost:43787/api/customer/createcustomer"; // Local IIS

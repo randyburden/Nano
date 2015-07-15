@@ -1,6 +1,7 @@
 ﻿using System.Web.Mvc;
 using System.Web.Routing;
 
+#pragma warning disable 1591
 namespace Nano.Demo.Mvc4
 {
     public class RouteConfig
