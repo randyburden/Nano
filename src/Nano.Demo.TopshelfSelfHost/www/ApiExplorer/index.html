@@ -32,7 +32,7 @@ body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line
 <body>
     <table style="width: 100%;">
         <tr>
-            <td><h3 style="font-size: 24px;">Api Explorer v.0.5.0</h3></td>
+            <td><h3 style="font-size: 24px;">Api Explorer v.0.6.0</h3></td>
             <td style="text-align: right;">
                 <select id="DropdownFeatures">
                     <option>Api Explorer Features</option>
@@ -110,7 +110,7 @@ body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line
         function getApiMetadata(callback) {
 
             $.ajax({
-                method: 'POST',
+                method: 'GET',
                 url: getBaseUrl() + '/metadata/GetNanoMetadata'
             })
                 .done(function (data) {

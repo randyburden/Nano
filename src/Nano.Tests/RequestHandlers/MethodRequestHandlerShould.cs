@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Dynamic;
+using System.Net;
 using Newtonsoft.Json;
 using NUnit.Framework;
 
@@ -652,5 +653,142 @@ namespace Nano.Tests.RequestHandlers
                 return number1 + number2 + number3 + number4 + number5 + number6 + number7 + number8 + number9 + number10 + number11 + number12 + number13 + number14 + number15;
             }
         }
+
+        #region ETag Tests
+
+        public class ETagTestsApi
+        {
+            public static Person GetPerson( int id )
+            {
+                return new Person { Id = id, FirstName = "Clark", LastName = "Kent" };
+            }
+
+            public class Person
+            {
+                public int Id;
+                public string FirstName;
+                public string LastName;
+            }
+        }
+
+        [Test]
+        public void Return_An_ETag_Header_When_An_Http_200_Response_Is_Returned()
+        {
+            using( var server = NanoTestServer.Start() )
+            {
+                // Arrange
+                server.NanoConfiguration.AddMethods<ETagTestsApi>();
+
+                // Act
+                var response = HttpHelper.GetHttpWebResponse( server.GetUrl() + "/api/ETagTestsApi/GetPerson?id=1" );
+                var eTag = response.GetResponseHeader( "ETag" );
+
+                // Visual Assertion
+                Trace.WriteLine( "ETag Header Value: " + eTag );
+
+                // Assert
+                Assert.NotNull( eTag );
+            }
+        }
+
+        [Test]
+        public void Return_Not_Modified_Http_Status_Code_304_When_Request_ETag_Matches_File_ETag()
+        {
+            using( var server = NanoTestServer.Start() )
+            {
+                // Arrange
+                server.NanoConfiguration.AddMethods<ETagTestsApi>();
+                var initialResponse = HttpHelper.GetHttpWebResponse( server.GetUrl() + "/api/ETagTestsApi/GetPerson?id=1" );
+                var initialETag = initialResponse.GetResponseHeader( "ETag" );
+                var request = HttpHelper.GetHttpWebRequest( server.GetUrl() + "/api/ETagTestsApi/GetPerson?id=1" );
+                request.Headers["If-None-Match"] = initialETag;
+
+                // Act
+                var response = request.GetHttpWebResponse();
+                var responseCode = response.StatusCode;
+
+                // Visual Assertion
+                Trace.WriteLine( "HTTP Status Code: " + responseCode );
+
+                // Assert
+                Assert.That( responseCode == HttpStatusCode.NotModified );
+            }
+        }
+
+        [Test]
+        public void Return_Matching_ETag_When_Server_Returns_Not_Modified()
+        {
+            using( var server = NanoTestServer.Start() )
+            {
+                // Arrange
+                server.NanoConfiguration.AddMethods<ETagTestsApi>();
+                var initialResponse = HttpHelper.GetHttpWebResponse( server.GetUrl() + "/api/ETagTestsApi/GetPerson?id=1" );
+                var initialETag = initialResponse.GetResponseHeader( "ETag" );
+                var request = HttpHelper.GetHttpWebRequest( server.GetUrl() + "/api/ETagTestsApi/GetPerson?id=1" );
+                request.Headers["If-None-Match"] = initialETag;
+
+                // Act
+                var response = request.GetHttpWebResponse();
+                var eTag = response.GetResponseHeader( "ETag" );
+
+                // Visual Assertion
+                Trace.WriteLine( "ETag Header Value: " + eTag );
+
+                // Assert
+                Assert.That( initialETag == eTag );
+            }
+        }
+
+        [Test]
+        public void Return_Non_Matching_ETag_When_Server_Does_Not_Return_Not_Modified()
+        {
+            using( var server = NanoTestServer.Start() )
+            {
+                // Arrange
+                server.NanoConfiguration.AddMethods<ETagTestsApi>();
+                var initialResponse = HttpHelper.GetHttpWebResponse( server.GetUrl() + "/api/ETagTestsApi/GetPerson?id=1" );
+                var initialETag = initialResponse.GetResponseHeader( "ETag" );
+                var request = HttpHelper.GetHttpWebRequest( server.GetUrl() + "/api/ETagTestsApi/GetPerson?id=2" );
+                request.Headers["If-None-Match"] = initialETag;
+
+                // Act
+                var response = request.GetHttpWebResponse();
+                var eTag = response.GetResponseHeader( "ETag" );
+
+                // Visual Assertion
+                Trace.WriteLine( "1st ETag Header Value: " + initialETag );
+                Trace.WriteLine( "2nd ETag Header Value: " + eTag );
+
+                // Assert
+                Assert.That( initialETag != eTag );
+            }
+        }
+
+        [Test]
+        public void Return_Empty_Body_When_Server_Returns_Not_Modified_Http_Status_Code_304_Because_Of_A_Matching_ETag()
+        {
+            using( var server = NanoTestServer.Start() )
+            {
+                // Arrange
+                server.NanoConfiguration.AddMethods<ETagTestsApi>();
+                var initialResponse = HttpHelper.GetHttpWebResponse( server.GetUrl() + "/api/ETagTestsApi/GetPerson?id=1" );
+                Trace.WriteLine( "Initial Response Length: " + initialResponse.GetResponseString().Length );
+                var initialETag = initialResponse.GetResponseHeader( "ETag" );
+                var request = HttpHelper.GetHttpWebRequest( server.GetUrl() + "/api/ETagTestsApi/GetPerson?id=1" );
+                request.Headers["If-None-Match"] = initialETag;
+
+                // Act
+                var response = request.GetHttpWebResponse();
+                var responseLength = response.GetResponseString().Length;
+
+                // Visual Assertion
+                Trace.WriteLine( "Not Modified Response Length: " + responseLength );
+
+                // Assert
+                Assert.That( responseLength == 0 );
+            }
+        }
+
+        #endregion ETag Tests
     }
 }

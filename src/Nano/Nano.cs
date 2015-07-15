@@ -1,7 +1,7 @@
 ﻿/*
-    Nano v0.10.0
+    Nano v0.12.0
     
-    Nano is a micro web framework for building web-based HTTP services and websites for .NET.
+    Nano is a .NET cross-platform micro web framework for building web-based HTTP services and websites.
 
     To find out more, visit the project home page at: https://github.com/AmbitEnergyLabs/Nano
 
@@ -100,10 +100,7 @@ namespace Nano.Web.Core
         public Func<Type, string> GetDefaultMethodUrlPath = type => "/api/" + type.Name;
 
         /// <summary>Initializes a new instance of the <see cref="NanoConfiguration" /> class.</summary>
-        /// <param name="serializationService">
-        /// The optional serialization service used to serialize/deserialize requests and
-        /// responses.
-        /// </param>
+        /// <param name="serializationService">The optional serialization service used to serialize/deserialize requests and responses.</param>
         public NanoConfiguration( ISerializationService serializationService = null )
         {
             SerializationService = serializationService ?? new JsonNetSerializer();
@@ -177,10 +174,7 @@ namespace Nano.Web.Core
         /// <param name="directoryPath">The directory path.</param>
         /// <param name="eventHandler">The event handlers.</param>
         /// <param name="returnHttp404WhenFileWasNotFound">Should return an 'HTTP 404 - File Not Found' when no file was found.</param>
-        /// <param name="defaultDocuments">
-        /// The default documents to serve when the root of a directory is requested. Default is
-        /// index.html.
-        /// </param>
+        /// <param name="defaultDocuments">The default documents to serve when the root of a directory is requested. Default is index.html.</param>
         /// <returns><see cref="DirectoryRequestHandler" />.</returns>
         public DirectoryRequestHandler AddDirectory( string urlPath, string directoryPath, EventHandler eventHandler = null, bool returnHttp404WhenFileWasNotFound = false, IList<string> defaultDocuments = null )
         {
@@ -189,21 +183,32 @@ namespace Nano.Web.Core
             return handler;
         }
 
-        /// <summary>
-        /// Adds the background task.
-        /// </summary>
+        /// <summary>Adds the background task.</summary>
         /// <param name="taskName">The task name.</param>
         /// <param name="millisecondInterval">The millisecond interval.</param>
         /// <param name="task">The task which takes no parameters and returns a result of type <see cref="object"/>.</param>
         /// <param name="allowOverlappingRuns">If set to <c>true</c> [allow overlapping runs].</param>
         /// <param name="backgroundTaskEventHandler">The background task event handler.</param>
-        /// <returns></returns>
+        /// <returns>The added <see cref="BackgroundTask"/>.</returns>
         public BackgroundTask AddBackgroundTask( string taskName, int millisecondInterval, Func<object> task, bool allowOverlappingRuns = false, BackgroundTaskEventHandler backgroundTaskEventHandler = null )
         {
             var backgroundTask = new BackgroundTask { Name = taskName, MillisecondInterval = millisecondInterval, Task = task, AllowOverlappingRuns = allowOverlappingRuns, BackgroundTaskEventHandler = backgroundTaskEventHandler ?? DefaultBackgroundTaskEventHandler };
             BackgroundTasks.Add( backgroundTask);
             return backgroundTask;
         }
+
+        /// <summary>Returns a <see cref="System.String" /> containing all request handler types and paths.</summary>
+        /// <returns>Returns a <see cref="System.String" /> containing all request handler types and paths.</returns>
+		public override string ToString()
+		{
+			var builder = new StringBuilder();
+			builder.AppendLine( "[Nano Configuration]" );
+
+            foreach ( IRequestHandler handler in RequestHandlers )
+                builder.AppendFormat( "Handler [{0}] -> Path: {1}{2}", handler.GetType().Name, handler.UrlPath, Environment.NewLine );
+
+            return builder.ToString();
+		}
     }
 
     /// <summary>The context of the current web request.</summary>
@@ -221,7 +226,7 @@ namespace Nano.Web.Core
         /// <summary>The underlying HTTP host context.</summary>
         /// <remarks>
         /// This enables accessing host-only features although this will make code dependent on this object non-host agnostic. The
-        /// main intent of this is to enable features that are not currently supported by Nano.Web directly.
+        /// main intent of this is to enable features that are not currently supported by Nano directly.
         /// </remarks>
         public object HostContext;
 
@@ -417,6 +422,8 @@ namespace Nano.Web.Core
         /// <summary>Whether the cookie is secure ( HTTPS only )</summary>
         public bool Secure { get; private set; }
 
+        /// <summary>Returns a <see cref="System.String" /> that represents this instance as a valid Set-Cookie header value.</summary>
+        /// <returns>A <see cref="System.String" /> that represents this instance as a valid Set-Cookie header value.</returns>
         public override string ToString()
         {
             StringBuilder sb = new StringBuilder( 50 ).AppendFormat( "{0}={1}; path={2}", Name, Value, Path );
@@ -580,7 +587,7 @@ namespace Nano.Web.Core
             }
             else
             {
-                Version = "0.10.0.0";
+                Version = "0.12.0.0";
             }
         }
 
@@ -821,35 +828,61 @@ namespace Nano.Web.Core
         }
     }
 
-    /// <summary>
-    /// <see cref="NanoContext" /> extensions.
-    /// </summary>
+    /// <summary><see cref="NanoContext" /> extensions.</summary>
     public static class NanoContextExtensions
     {
         /// <summary>Writes the response object to the host's response stream.</summary>
         /// <param name="nanoContext">The nano context.</param>
-        /// <param name="stream">The stream.</param>
-        public static void WriteResponseObjectToStream( this NanoContext nanoContext, Stream stream )
+        public static void WriteResponseObjectToResponseStream( this NanoContext nanoContext )
         {
-            // Handle null responses and void methods
-            if( nanoContext.Response.ResponseObject == null )
+            // Return early if there is already a response stream writer
+            if ( nanoContext.Response.ResponseStreamWriter != null )
                 return;
 
-            // Handle a Stream response object
+            // Handle null responses and void methods by returning early
+            if ( nanoContext.Response.ResponseObject == null )
+                return;
+
+            // Handle a Stream response object by copying the stream to the response stream
             var streamResponse = nanoContext.Response.ResponseObject as Stream;
 
-            if( streamResponse != null && streamResponse.Length >= 0 )
+            if ( streamResponse != null && streamResponse.Length >= 0 )
             {
-                using( streamResponse )
+                nanoContext.Response.ResponseStreamWriter = stream =>
                 {
-                    streamResponse.CopyTo( stream );
+                    using ( streamResponse )
+                    {
+                        streamResponse.CopyTo( stream );
+                    }
+                };
+
+                return;
+            }
+
+            // Serialize the response object
+            string serializedResponse = nanoContext.NanoConfiguration.SerializationService.Serialize( nanoContext.Response.ResponseObject );
+            byte[] bytes = Encoding.UTF8.GetBytes( serializedResponse );
+
+            // Generate an ETag and return an 'HTTP 304 - NOT MODIFIED' if the request contains a matching ETag in the If-None-Match header
+            using ( var md5 = System.Security.Cryptography.MD5.Create() )
+            {
+                byte[] hash = md5.ComputeHash( bytes );
+                var eTag = BitConverter.ToString( hash ).Replace( "-", string.Empty );
+                nanoContext.Response.HeaderParameters[ "ETag" ] = eTag;
+
+                var requestETag = nanoContext.Request.HeaderParameters[ "If-None-Match" ];
+                if ( string.IsNullOrWhiteSpace( requestETag ) == false && requestETag.Equals( eTag, StringComparison.Ordinal ) )
+                {
+                    nanoContext.Response.HttpStatusCode = Constants.HttpStatusCode.NotModified.ToInt();
                     return;
                 }
             }
 
-            // Handle response object serialization
-            string serializedResponse = nanoContext.NanoConfiguration.SerializationService.Serialize( nanoContext.Response.ResponseObject );
-            stream.Write( serializedResponse );
+            // Write serialized object to response stream
+            nanoContext.Response.ResponseStreamWriter = stream =>
+            {
+                stream.Write( bytes, 0, bytes.Length );
+            };
         }
 
         /// <summary>Returns an 'HTTP 404 - NOT FOUND' to the client using the default 'NOT FOUND' HTML.</summary>
@@ -863,9 +896,7 @@ namespace Nano.Web.Core
             return nanoContext;
         }
 
-        /// <summary>
-        /// Returns an 'HTTP 500 - INTERNAL SERVER ERROR' to the client using the default 'INTERNAL SERVER ERROR' HTML.
-        /// </summary>
+        /// <summary>Returns an 'HTTP 500 - INTERNAL SERVER ERROR' to the client using the default 'INTERNAL SERVER ERROR' HTML.</summary>
         /// <param name="nanoContext">The nano context.</param>
         public static void ReturnHttp500InternalServerError( this NanoContext nanoContext )
         {
@@ -915,18 +946,47 @@ namespace Nano.Web.Core
         /// <returns>Returns true if the file exists else false.</returns>
         public static bool TryReturnFile( this NanoContext nanoContext, FileInfo fileInfo )
         {
-            if( fileInfo.Exists )
+            if ( fileInfo.Exists )
             {
                 nanoContext.Handled = true;
                 nanoContext.Response.ContentType = FileExtensionToContentTypeConverter.GetContentType( fileInfo.Extension );
+                var eTag = "\"" + fileInfo.LastWriteTimeUtc.Ticks.ToString( "X" ) + "\""; // Quoted hexadecimal string
+                nanoContext.Response.HeaderParameters[ "ETag" ] = eTag;
+                nanoContext.Response.HeaderParameters[ "Last-Modified" ] = fileInfo.LastWriteTimeUtc.ToString( "R" ); // RFC-1123 - Example: Fri, 03 Jul 2015 02:44:49 GMT
 
-                nanoContext.Response.ResponseStreamWriter = stream =>
+                var requestETag = nanoContext.Request.HeaderParameters[ "If-None-Match" ];
+                if ( string.IsNullOrWhiteSpace( requestETag ) == false && requestETag.Equals( eTag, StringComparison.Ordinal ) )
                 {
-                    using( FileStream file = fileInfo.OpenRead() )
+                    nanoContext.Response.HttpStatusCode = Constants.HttpStatusCode.NotModified.ToInt();
+                    return true;
+                }
+
+                var requestDateString = nanoContext.Request.HeaderParameters[ "If-Modified-Since" ];
+                if ( string.IsNullOrWhiteSpace( requestDateString ) == false )
+                {
+                    DateTime requestDate;
+                    if ( DateTime.TryParseExact( requestDateString, "R", CultureInfo.InvariantCulture, DateTimeStyles.None, out requestDate ) )
                     {
-                        file.CopyTo( stream, (int)( fileInfo.Length < Constants.DefaultFileBufferSize ? fileInfo.Length : Constants.DefaultFileBufferSize ) );
+                        if ( ( ( int ) ( fileInfo.LastWriteTimeUtc - requestDate ).TotalSeconds ) <= 0 )
+                        {
+                            nanoContext.Response.HttpStatusCode = Constants.HttpStatusCode.NotModified.ToInt();
+                            return true;
+                        }
                     }
-                };
+                }
+
+                nanoContext.Response.HeaderParameters[ "Content-Length" ] = fileInfo.Length.ToString();
+
+                if ( fileInfo.Length > 0 )
+                {
+                    nanoContext.Response.ResponseStreamWriter = stream =>
+                    {
+                        using ( FileStream file = fileInfo.OpenRead() )
+                        {
+                            file.CopyTo( stream, ( int ) ( fileInfo.Length < Constants.DefaultFileBufferSize ? fileInfo.Length : Constants.DefaultFileBufferSize ) );
+                        }
+                    };
+                }
 
                 return true;
             }
@@ -1060,13 +1120,33 @@ namespace Nano.Web.Core
             }
         }
 
+        /// <summary>Gets the request parameter value.</summary>
+        /// <typeparam name="T">The type to convert the parameter to.</typeparam>
+        /// <param name="nanoContext">The nano context.</param>
+        /// <param name="parameterName">Name of the parameter.</param>
+        /// <returns>The request parameter object converted to the requested type.</returns>
+        public static object GetRequestParameterValue<T>( this NanoContext nanoContext, string parameterName )
+        {
+            return Bind<T>( nanoContext, parameterName );
+        }
+
+        /// <summary>Gets the request parameter value.</summary>
+        /// <param name="nanoContext">The nano context.</param>
+        /// <param name="parameterName">Name of the parameter.</param>
+        /// <param name="type">The type to convert the parameter to.</param>
+        /// <returns>The request parameter object converted to the requested type.</returns>
+        public static object GetRequestParameterValue( this NanoContext nanoContext, string parameterName, Type type )
+        {
+            return Bind( nanoContext, type, parameterName );
+        }
+
         /// <summary>
         /// Gets a request parameter string value given a NanoContext and the parameter name. By default this will return the first
         /// value found in the following sources in this order: query string, form body, headers.
         /// </summary>
         /// <param name="nanoContext">The nano context.</param>
         /// <param name="parameterName">Name of the parameter.</param>
-        /// <returns></returns>
+        /// <returns>Request parameter value.</returns>
         public static string GetRequestParameterValue( this NanoContext nanoContext, string parameterName )
         {
             return nanoContext.Request.GetRequestParameterValue( parameterName );
@@ -1078,7 +1158,7 @@ namespace Nano.Web.Core
         /// </summary>
         /// <param name="nanoRequest">The nano request.</param>
         /// <param name="parameterName">Name of the parameter.</param>
-        /// <returns></returns>
+        /// <returns>Request parameter value.</returns>
         public static string GetRequestParameterValue( this NanoRequest nanoRequest, string parameterName )
         {
             // Try to get the method parameter value from the request parameters
@@ -1090,7 +1170,7 @@ namespace Nano.Web.Core
         }
     }
 
-    /// <summary>User identity.</summary>
+    /// <summary>User Identity.</summary>
     public interface IUserIdentity
     {
         /// <summary>The username of the authenticated user.</summary>
@@ -1100,17 +1180,13 @@ namespace Nano.Web.Core
         IEnumerable<string> Claims { get; }
     }
 
-    /// <summary>
-    /// Represents a full Url of the form scheme://hostname:port/basepath/path?query
-    /// </summary>
+    /// <summary>Represents a full Url of the form scheme://hostname:port/basepath/path?query</summary>
     public sealed class Url : ICloneable
     {
         private string _basePath;
         private string _query;
 
-        /// <summary>
-        /// Creates an instance of the <see cref="Url" /> class
-        /// </summary>
+        /// <summary>Creates an instance of the <see cref="Url" /> class.</summary>
         public Url()
         {
             Scheme = Uri.UriSchemeHttp;
@@ -1121,9 +1197,7 @@ namespace Nano.Web.Core
             Query = string.Empty;
         }
 
-        /// <summary>
-        /// Creates an instance of the <see cref="Url" /> class
-        /// </summary>
+        /// <summary>Creates an instance of the <see cref="Url" /> class.</summary>
         /// <param name="url">A <see cref="string" /> containing a URL.</param>
         public Url( string url )
         {
@@ -1135,25 +1209,17 @@ namespace Nano.Web.Core
             Scheme = uri.Scheme;
         }
 
-        /// <summary>
-        /// Gets or sets the HTTP protocol used by the client.
-        /// </summary>
+        /// <summary>Gets or sets the HTTP protocol used by the client.</summary>
         /// <value>The protocol.</value>
         public string Scheme { get; set; }
 
-        /// <summary>
-        /// Gets the host name of the request
-        /// </summary>
+        /// <summary>Gets the host name of the request.</summary>
         public string HostName { get; set; }
 
-        /// <summary>
-        /// Gets the port name of the request
-        /// </summary>
+        /// <summary>Gets the port name of the request.</summary>
         public int? Port { get; set; }
 
-        /// <summary>
-        /// Gets the base path of the request i.e. the application root
-        /// </summary>
+        /// <summary>Gets the base path of the request i.e. the application root.</summary>
         public string BasePath
         {
             get { return _basePath; }
@@ -1168,24 +1234,17 @@ namespace Nano.Web.Core
             }
         }
 
-        /// <summary>
-        /// Gets the path of the request, relative to the base path.
-        /// This property drives the route matching.
-        /// </summary>
+        /// <summary>Gets the path of the request, relative to the base path. This property drives the route matching.</summary>
         public string Path { get; set; }
 
-        /// <summary>
-        /// Gets the query string.
-        /// </summary>
+        /// <summary>Gets the query string.</summary>
         public string Query
         {
             get { return _query; }
             set { _query = GetQuery( value ); }
         }
 
-        /// <summary>
-        /// Gets the domain part of the request.
-        /// </summary>
+        /// <summary>Gets the domain part of the request.</summary>
         public string SiteBase
         {
             get
@@ -1199,9 +1258,7 @@ namespace Nano.Web.Core
             }
         }
 
-        /// <summary>
-        /// Gets whether the URL is secure or not.
-        /// </summary>
+        /// <summary>Gets whether the URL is secure or not.</summary>
         public bool IsSecure
         {
             get
@@ -1210,6 +1267,8 @@ namespace Nano.Web.Core
             }
         }
 
+        /// <summary>Returns a <see cref="System.String" /> that represents this instance as a URI.</summary>
+        /// <returns>A <see cref="System.String" /> that represents this instance as a URI.</returns>
         public override string ToString()
         {
             return new StringBuilder()
@@ -1223,18 +1282,14 @@ namespace Nano.Web.Core
                 .ToString();
         }
 
-        /// <summary>
-        /// Clones the url.
-        /// </summary>
+        /// <summary>Clones the url.</summary>
         /// <returns>Returns a new cloned instance of the url.</returns>
         object ICloneable.Clone()
         {
             return Clone();
         }
 
-        /// <summary>
-        /// Clones the url.
-        /// </summary>
+        /// <summary>Clones the url.</summary>
         /// <returns>Returns a new cloned instance of the url.</returns>
         public Url Clone()
         {
@@ -1249,9 +1304,7 @@ namespace Nano.Web.Core
             };
         }
 
-        /// <summary>
-        /// Casts the current <see cref="Url"/> instance to a <see cref="string"/> instance.
-        /// </summary>
+        /// <summary>Casts the current <see cref="Url"/> instance to a <see cref="string"/> instance.</summary>
         /// <param name="url">The instance that should be cast.</param>
         /// <returns>A <see cref="string"/> representation of the <paramref name="url"/>.</returns>
         public static implicit operator string( Url url )
@@ -1259,9 +1312,7 @@ namespace Nano.Web.Core
             return url.ToString();
         }
 
-        /// <summary>
-        /// Casts the current <see cref="string"/> instance to a <see cref="Url"/> instance.
-        /// </summary>
+        /// <summary>Casts the current <see cref="string"/> instance to a <see cref="Url"/> instance.</summary>
         /// <param name="url">The instance that should be cast.</param>
         /// <returns>An <see cref="Url"/> representation of the <paramref name="url"/>.</returns>
         public static implicit operator Url( string url )
@@ -1269,9 +1320,7 @@ namespace Nano.Web.Core
             return new Uri( url );
         }
 
-        /// <summary>
-        /// Casts the current <see cref="Url"/> instance to a <see cref="Uri"/> instance.
-        /// </summary>
+        /// <summary>Casts the current <see cref="Url"/> instance to a <see cref="Uri"/> instance.</summary>
         /// <param name="url">The instance that should be cast.</param>
         /// <returns>An <see cref="Uri"/> representation of the <paramref name="url"/>.</returns>
         public static implicit operator Uri( Url url )
@@ -1279,9 +1328,7 @@ namespace Nano.Web.Core
             return new Uri( url.ToString(), UriKind.Absolute );
         }
 
-        /// <summary>
-        /// Casts a <see cref="Uri"/> instance to a <see cref="Url"/> instance
-        /// </summary>
+        /// <summary>Casts a <see cref="Uri"/> instance to a <see cref="Url"/> instance.</summary>
         /// <param name="uri">The instance that should be cast.</param>
         /// <returns>An <see cref="Url"/> representation of the <paramref name="uri"/>.</returns>
         public static implicit operator Url( Uri uri )
@@ -1328,9 +1375,7 @@ namespace Nano.Web.Core
         }
     }
 
-    /// <summary>
-    /// <see cref="Stream" /> extensions.
-    /// </summary>
+    /// <summary><see cref="Stream" /> extensions.</summary>
     public static class StreamExtensions
     {
         /// <summary>Writes the given text to the stream using UTF-8.</summary>
@@ -1602,14 +1647,14 @@ namespace Nano.Web.Core
                 string httpMethod = httpListenerContext.Request.HttpMethod;
 
                 string basePath = String.Empty;
-                string path = httpListenerContext.Request.Url.AbsolutePath;
+
+				string path = "/" + httpListenerContext.Request.Url.AbsolutePath.TrimStart( '/' );
 
                 if ( string.IsNullOrWhiteSpace( server.HttpListenerConfiguration.ApplicationPath ) == false )
                 {
                     basePath = "/" + server.HttpListenerConfiguration.ApplicationPath.TrimStart( '/' ).TrimEnd( '/' );
 
-                    if ( httpListenerContext.Request.Url.AbsolutePath.StartsWith( basePath ) )
-                        path = path.Substring( basePath.Length );
+					if ( path.StartsWith( basePath ) ) path = path.Substring( basePath.Length );
                 }
                 
                 path = string.IsNullOrWhiteSpace( path ) ? "/" : path;
@@ -1824,10 +1869,8 @@ namespace Nano.Web.Core
                 {
                     string prefix = uri.ToString();
 
-                    if( RewriteLocalhost && !uri.Host.Contains( "." ) )
-                    {
+                    if ( RewriteLocalhost && !uri.Host.Contains( "." ) )
                         prefix = prefix.Replace( "localhost", "+" );
-                    }
 
                     HttpListener.Prefixes.Add( prefix );
                 }
@@ -1846,10 +1889,8 @@ namespace Nano.Web.Core
 
                 var uriBuilder = new UriBuilder( firstUrlBeingListenedOn );
 
-                if( string.IsNullOrWhiteSpace( ApplicationPath ) == false )
-                {
+                if ( string.IsNullOrWhiteSpace( ApplicationPath ) == false )
                     uriBuilder.Path = ApplicationPath + "/";
-                }
 
                 return uriBuilder.Uri.ToString();
             }
@@ -1960,10 +2001,94 @@ namespace Nano.Web.Core
 
                 return nanoContext;
             }
+
+            /// <summary>Returns a <see cref="System.String" /> that represents the request handler type and path.</summary>
+            /// <returns>A <see cref="System.String" /> that represents the request handler type and path.</returns>
+			public override string ToString ()
+			{
+				return string.Format( "[RequestHandler: UrlPath={0}, Type={1}]", UrlPath, GetType().Name );
+			}
         }
 
+		/// <summary>
+		/// Defines a request handler that returns files from a file system.
+		/// </summary>
+		public abstract class FileSystemRequestHandler : RequestHandler
+		{
+			private static readonly ConcurrentDictionary<string, string> _paths = new ConcurrentDictionary<string, string>();
+            
+			static FileSystemRequestHandler() 
+			{
+				string path = Path.GetTempFileName();
+
+				IsCaseSensitiveFileSystem = !File.Exists( path.ToUpper() );
+			}
+
+            /// <summary>
+            /// Initializes a new instance of the <see cref="FileSystemRequestHandler" /> class.
+            /// </summary>
+            /// <param name="fileSystemPath">The file system path.</param>
+            /// <param name="urlPath">The URL path.</param>
+            /// <param name="handler">The event handlers.</param>
+		    protected FileSystemRequestHandler( string fileSystemPath, string urlPath, EventHandler handler ) : base( urlPath, handler )
+			{
+				FileSystemPath = fileSystemPath.Replace( "/", Constants.DirectorySeparatorString ).TrimStart( '~', Constants.DirectorySeparatorChar ).TrimEnd( '/', Constants.DirectorySeparatorChar );
+			}
+
+            /// <summary>
+            /// Flag indicating whether or not the file system is case sensitive.
+            /// </summary>
+			public static bool IsCaseSensitiveFileSystem { get; set; }
+
+            /// <summary>
+            /// The file system path.
+            /// </summary>
+			public string FileSystemPath { get; set; }
+
+            /// <summary>
+            /// Returns the corrected path after a case-sensitive search has been performed.
+            /// </summary>
+            /// <param name="path">The path to search for.</param>
+            /// <returns>The valid case-sensitive path or null.</returns>
+			protected string GetPathCaseSensitive( string path )
+			{
+				if ( _paths.ContainsKey( path ) ) return _paths[path];
+
+				string[] segments = path.Split( new[] { Constants.DirectorySeparatorChar }, StringSplitOptions.RemoveEmptyEntries );
+
+				var current = new DirectoryInfo( FileSystemPath ).Root;
+
+				for ( int i = 0; i < segments.Length; i++ ) 
+				{	
+					string result = GetPathSegmentCaseSensitive( segments[i], current );
+
+					if ( i == segments.Length - 1 )
+					{
+						if ( result != null ) _paths[path] = result;
+
+						return result;
+					} 
+
+					if ( result == null ) return null;
+
+					current = new DirectoryInfo( result );
+				}
+
+				return null;
+			}
+
+			private string GetPathSegmentCaseSensitive( string name, DirectoryInfo directory )
+			{
+				if ( directory == null ) return null;
+
+				FileSystemInfo match = directory.GetFileSystemInfos().FirstOrDefault( f => f.Name.Equals( name, StringComparison.CurrentCultureIgnoreCase ) );
+
+				return match != null ? match.FullName : null;
+			}
+		}
+
         /// <summary>Handles requests to defined file system directories and files within those directories.</summary>
-        public class DirectoryRequestHandler : RequestHandler
+		public class DirectoryRequestHandler : FileSystemRequestHandler
         {
             /// <summary>Initializes a new instance of the <see cref="DirectoryRequestHandler" /> class.</summary>
             /// <param name="urlPath">The URL path.</param>
@@ -1978,15 +2103,13 @@ namespace Nano.Web.Core
             /// <exception cref="System.ArgumentNullException">fileSystemPath</exception>
             /// <exception cref="Nano.Web.Core.RequestHandlers.DirectoryRequestHandler.RootDirectoryException"></exception>
             public DirectoryRequestHandler( string urlPath, EventHandler eventHandler, string fileSystemPath, bool returnHttp404WhenFileWasNoFound = false, IList<string> defaultDocuments = null )
-                : base( urlPath, eventHandler )
+				: base( fileSystemPath, urlPath, eventHandler )
             {
                 if( string.IsNullOrWhiteSpace( fileSystemPath ) )
                     throw new ArgumentNullException( "fileSystemPath" );
 
                 if( defaultDocuments == null )
                     defaultDocuments = new[] { "index.html" };
-
-                FileSystemPath = fileSystemPath.Replace( "/", Constants.DirectorySeparatorString ).TrimStart( '~', Constants.DirectorySeparatorChar ).TrimEnd( '/', Constants.DirectorySeparatorChar );
 
                 if( FileSystemPath == Constants.DirectorySeparatorString )
                     throw new RootDirectoryException();
@@ -1995,16 +2118,10 @@ namespace Nano.Web.Core
                 DefaultDocuments = defaultDocuments;
             }
 
-            /// <summary>Gets or sets the file system path.</summary>
-            /// <value>The file system path.</value>
-            public string FileSystemPath { get; set; }
-
             /// <summary>
             /// Gets or sets a value indicating whether it should return an 'HTTP 404 - File Not Found' when no file was found..
             /// </summary>
-            /// <value>
-            /// <c>true</c> if [return HTTP404 when file was no found]; otherwise, <c>false</c>.
-            /// </value>
+            /// <value><c>true</c> if [return HTTP404 when file was no found]; otherwise, <c>false</c>.</value>
             public bool ReturnHttp404WhenFileWasNoFound { get; set; }
 
             /// <summary>Gets or sets the default documents.</summary>
@@ -2021,34 +2138,39 @@ namespace Nano.Web.Core
                 string encodedPartialRequestPath = partialRequestPath.Replace( "/", Constants.DirectorySeparatorString ).TrimStart( Constants.DirectorySeparatorChar );
                 string fullFileSystemPath = Path.Combine( nanoContext.RootFolderPath, FileSystemPath, encodedPartialRequestPath );
 
-                if( nanoContext.TryReturnFile( new FileInfo( fullFileSystemPath ) ) )
-                    return nanoContext;
+				if ( IsCaseSensitiveFileSystem ) fullFileSystemPath = GetPathCaseSensitive( fullFileSystemPath );
 
+				if ( !String.IsNullOrWhiteSpace( fullFileSystemPath ) )
+				{					
+					if ( nanoContext.TryReturnFile( new FileInfo( fullFileSystemPath ) ) ) return nanoContext;
                 
-                var directoryInfo = new DirectoryInfo( fullFileSystemPath );
+					var directoryInfo = new DirectoryInfo( fullFileSystemPath );			
 
-                if( directoryInfo.Exists )
-                {
-                    // If the URL does not end with a forward slash then redirect to the same URL with a forward slash
-                    // so that relative URLs will work correctly
-                    if( nanoContext.Request.Url.Path.EndsWith( "/", StringComparison.Ordinal ) == false )
-                    {
-                        string url = nanoContext.Request.Url.BasePath + nanoContext.Request.Url.Path + "/" + nanoContext.Request.Url.Query;
-                        nanoContext.Response.Redirect( url );
-                        return nanoContext;
-                    }
+					if ( directoryInfo.Exists )
+					{
+						// If the URL does not end with a forward slash then redirect to the same URL with a forward slash
+						// so that relative URLs will work correctly
+						if ( nanoContext.Request.Url.Path.EndsWith( "/", StringComparison.Ordinal ) == false )
+						{
+							string url = nanoContext.Request.Url.BasePath + nanoContext.Request.Url.Path + "/" + nanoContext.Request.Url.Query;
+							nanoContext.Response.Redirect( url );
+							return nanoContext;
+						}
 
-                    foreach( string defaultDocument in DefaultDocuments )
-                    {
-                        string path = Path.Combine( fullFileSystemPath, defaultDocument );
+						foreach ( string defaultDocument in DefaultDocuments )
+						{
+							string path = Path.Combine( fullFileSystemPath, defaultDocument );
 
-                        if( nanoContext.TryReturnFile( new FileInfo( path ) ) )
-                            return nanoContext;
-                    }
-                }
+							if ( IsCaseSensitiveFileSystem )
+								path = GetPathCaseSensitive( path );
 
-                if( ReturnHttp404WhenFileWasNoFound )
-                    return nanoContext.ReturnHttp404NotFound();
+							if ( nanoContext.TryReturnFile( new FileInfo( path ) ) )
+								return nanoContext;
+						}
+					}
+				}
+
+                if( ReturnHttp404WhenFileWasNoFound ) return nanoContext.ReturnHttp404NotFound();
 
                 return nanoContext;
             }
@@ -2060,7 +2182,7 @@ namespace Nano.Web.Core
             /// <param name="originalString">The original string.</param>
             /// <param name="stringToReplace">The string to be replaced.</param>
             /// <param name="replacementString">The replacement string.</param>
-            /// <returns></returns>
+            /// <returns>Replaced string.</returns>
             public static string ReplaceFirstOccurrence( string originalString, string stringToReplace, string replacementString )
             {
                 int pos = originalString.IndexOf( stringToReplace, StringComparison.Ordinal );
@@ -2082,7 +2204,7 @@ namespace Nano.Web.Core
         }
 
         /// <summary>Handles requests to defined file system files.</summary>
-        public class FileRequestHandler : RequestHandler
+		public class FileRequestHandler : FileSystemRequestHandler
         {
             /// <summary>Initializes a new instance of the <see cref="FileRequestHandler" /> class.</summary>
             /// <param name="urlPath">The URL path.</param>
@@ -2090,17 +2212,11 @@ namespace Nano.Web.Core
             /// <param name="fileSystemPath">The file system path.</param>
             /// <exception cref="System.ArgumentNullException">fileSystemPath</exception>
             public FileRequestHandler( string urlPath, EventHandler eventHandler, string fileSystemPath )
-                : base( urlPath, eventHandler )
+                : base( fileSystemPath, urlPath, eventHandler )
             {
                 if( string.IsNullOrWhiteSpace( fileSystemPath ) )
                     throw new ArgumentNullException( "fileSystemPath" );
-
-                FileSystemPath = fileSystemPath.Replace( "/", Constants.DirectorySeparatorString ).TrimStart( '~', Constants.DirectorySeparatorChar );
             }
-
-            /// <summary>Gets or sets the file system path.</summary>
-            /// <value>The file system path.</value>
-            public string FileSystemPath { get; set; }
 
             /// <summary>Handles the request.</summary>
             /// <param name="nanoContext">The <see cref="NanoContext" />.</param>
@@ -2109,8 +2225,9 @@ namespace Nano.Web.Core
             {
                 string fullFilePath = Path.Combine( nanoContext.RootFolderPath, FileSystemPath );
 
-                if( nanoContext.TryReturnFile( new FileInfo( fullFilePath ) ) )
-                    return nanoContext;
+				if ( IsCaseSensitiveFileSystem ) fullFilePath = GetPathCaseSensitive( fullFilePath );
+
+                if( nanoContext.TryReturnFile( new FileInfo( fullFilePath ) ) )  return nanoContext;
 
                 return nanoContext.ReturnHttp404NotFound();
             }
@@ -2152,7 +2269,7 @@ namespace Nano.Web.Core
                 if ( string.IsNullOrWhiteSpace( nanoContext.Response.ContentType ) )
                     nanoContext.Response.ContentType =  "application/json";
 
-                nanoContext.Response.ResponseStreamWriter = nanoContext.Response.ResponseStreamWriter ?? nanoContext.WriteResponseObjectToStream;
+                nanoContext.WriteResponseObjectToResponseStream();
                 return nanoContext;
             }
         }
@@ -2209,13 +2326,11 @@ namespace Nano.Web.Core
 
                 nanoContext.Response.ResponseObject = apiMetadata;
                 nanoContext.Response.ContentType = "application/json";
-                nanoContext.Response.ResponseStreamWriter = nanoContext.WriteResponseObjectToStream;
+                nanoContext.WriteResponseObjectToResponseStream();
                 return nanoContext;
             }
 
-            /// <summary>
-            /// Recursive method that crawls each of the types fields and properties creating Models for each user type.
-            /// </summary>
+            /// <summary>Recursive method that crawls each of the types fields and properties creating Models for each user type.</summary>
             /// <param name="apiMetadata">ApiMetadata to add each model to.</param>
             /// <param name="type">Type to crawl.</param>
             public static void AddModels( ApiMetadata apiMetadata, Type type )
@@ -2413,7 +2528,7 @@ namespace Nano.Web.Core
                     return nanoContext;
 
                 nanoContext.Response.ContentType = "application/json";
-                nanoContext.Response.ResponseStreamWriter = nanoContext.Response.ResponseStreamWriter ?? nanoContext.WriteResponseObjectToStream;
+                nanoContext.WriteResponseObjectToResponseStream();
                 return nanoContext;
             }
 
@@ -2463,9 +2578,7 @@ namespace Nano.Web.Core
             /// <param name="nanoContext">The <see cref="NanoContext" />.</param>
             /// <param name="handler">The handler.</param>
             /// <returns>List of method parameter values.</returns>
-            /// <exception cref="System.Exception">
-            /// Expected a MethodRoute but was a  + nanoContext.RequestHandler.GetType().Name or or Type conversion error or
-            /// </exception>
+            /// <exception cref="System.Exception">Expected a MethodRoute but was a  + nanoContext.RequestHandler.GetType().Name or or Type conversion error or</exception>
             public static object[] Bind( NanoContext nanoContext, MethodRequestHandler handler )
             {
                 var methodInvokationParameters = new List<object>();
@@ -2507,7 +2620,7 @@ namespace Nano.Web.Core
                                 var sr = new StreamReader( nanoContext.Request.RequestBody );
                                 requestParameterValue = sr.ReadToEnd();
                             }
-                            catch ( Exception e )
+                            catch ( Exception )
                             {
                             }
                         }
@@ -2654,12 +2767,8 @@ namespace Nano.Web.Core
 
             /// <summary>Gets the <see cref="MethodRequestHandler" />.</summary>
             /// <param name="requestHandler">The <see cref="IRequestHandler" />.</param>
-            /// <returns>
-            ///     <see cref="MethodRequestHandler" />
-            /// </returns>
-            /// <exception cref="System.Exception">
-            /// nanoContext.RequestHandler is NULL or Expected a MethodRequestHandler but was a  + requestHandler.GetType()
-            /// </exception>
+            /// <returns><see cref="MethodRequestHandler" /></returns>
+            /// <exception cref="System.Exception">nanoContext.RequestHandler is NULL or Expected a MethodRequestHandler but was a  + requestHandler.GetType()</exception>
             public MethodRequestHandler GetMethodRequestHandler( IRequestHandler requestHandler )
             {
                 if( requestHandler == null )
@@ -3852,7 +3961,7 @@ namespace Nano.Web.Core
 
     #region Open Source Attributions
 
-    /*
+/*
 Open Source Attributions
 ------------------------
 Nano made use of substantial portions and/or was heavily influenced by the following open source software:
