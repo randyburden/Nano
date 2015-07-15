@@ -26,7 +26,7 @@ table.dataTable {width: 100%;margin: 0 auto;clear: both;border-collapse: separat
     </style>
 
     <style>
-body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line-height:1.428571429;color:#333;background-color:#fff}.btn-primary{color:#fff;background-color:#428bca;border-color:#428bca}.btn-default{color:#fff;background-color:#474949;border-color:#474949}.btn{display:inline-block;padding:8px 12px;margin-bottom:0;font-size:14px;font-weight:500;line-height:1.428571429;text-align:center;white-space:nowrap;vertical-align:middle;cursor:pointer;border:1px solid transparent;border-radius:4px}label{display:inline-block;margin-bottom:5px;font-weight:700}.operationItem{cursor:pointer;margin:5px}.childRow{background-color:#fff}#operationTable>tfoot,#operationTable>thead{text-align:left}div.slider{display:none}table.dataTable tbody td.no-padding{padding:0}
+body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line-height:1.428571429;color:#333;background-color:#fff}.btn-primary{color:#fff;background-color:#428bca;border-color:#428bca}.btn-default{color:#fff;background-color:#474949;border-color:#474949}.btn{display:inline-block;padding:8px 12px;margin-bottom:0;font-size:14px;font-weight:500;line-height:1.428571429;text-align:center;white-space:nowrap;vertical-align:middle;cursor:pointer;border:1px solid transparent;border-radius:4px}label{display:inline-block;margin-bottom:5px;font-weight:700}.operationItem{margin:5px}.childRow{background-color:#fff}#operationTable>tfoot,#operationTable>thead{text-align:left}div.slider{display:none}table.dataTable tbody td.no-padding{padding:0}
     </style>
 </head>
 <body>
@@ -72,23 +72,25 @@ body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line
         function getChildRowHtml(data) {
 
             var html = getOperationInputParametersTableTemplate();
+            var urlPath = getBaseUrl() + data.Path;
 
-            var tbody = '';
+            //var tbody = '';
+            var tbody = '<tr><td colspan="4"></td><td rowspan="' + (data.InputParameters.length + 1) + '"><a href="#" data-path="' + urlPath + '" id="span' + data.Name + '" target="_blank">' + urlPath + '</a></td></tr>';
 
             for (var i = 0; i < data.InputParameters.length; i++) {
 
                 var param = data.InputParameters[i];
 
                 tbody += '<tr>';
-                tbody += '<td><label for="' + param.Name + '">' + param.Name + '</label></td>';
-                tbody += '<td><textarea id="' + param.Name + '" name="' + param.Name + '" class="inputParameter" rows="1"></textarea></td>';
+                tbody += '<td><label for="' + param.Name + 'Form_' + param.Name + '">' + param.Name + '</label></td>';
+                tbody += '<td><textarea id="' + param.Name + 'Form_' + param.Name + '" name="' + param.Name + '" class="inputParameter" rows="1"></textarea></td>';
                 tbody += '<td>' + param.Type + '</td>';
                 tbody += '<td>' + (param.Description || '') + '</td>';
                 tbody += '</tr>';
             }
 
-            var urlPath = getBaseUrl() + data.Path;
 
+            //tbody += '<tr><td colspan="4"></td><td rowspan="' + (data.InputParameters.length + 1) + '"><a href="#">adf asdf asdf asd fasd f</a></td></tr>';
             html = html.replace('<tbody>', '<tbody>' + tbody);
             html = replaceAllOccurrences(html, '{{Name}}', data.Name);
             html = replaceAllOccurrences(html, '{{Path}}',  urlPath);
@@ -138,8 +140,12 @@ body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line
                 "ordering": true,
                 "info": true,
                 columns: [
-                    { data: "Name" },
-                    { data: "Path" },
+                    {
+                        data: "Name"
+                    },
+                    {
+                        data: "Path"
+                    },
                     { data: "Description" }
                 ]
             });
@@ -177,6 +183,7 @@ body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line
                 else {
                     // Open this row
                     var rowData = row.data();
+
                     if (existingRows.hasOwnProperty(getFormId(rowData))) {
                         row.child.show();
                     } else {
@@ -226,19 +233,48 @@ body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line
 
             // Enable textArea's to auto-resize
             autosize($('.inputParameter'));
+            
+            var formId = getFormId(rowData);
+            var formInputs = $("#" + formId + " .inputParameter");
+            var originalPath = $("#span" + rowData.Name).attr("data-path");
+
+
+
+            var q = "?", i = 0;
+            $(formInputs).each(function () {
+                if (i > 0)
+                    q += "&";
+
+                q += this.name + "=" + $(this).val();
+                i += 1;
+            });
+            var fullPath = originalPath + q;
+            $("#span" + rowData.Name).text(fullPath).attr("href", fullPath);
+
 
             $('.btn-clear').click(function () {
-                $('.inputParameter').val('');
+                $(formInputs).val("");
+                $("#span" + rowData.Name).text(originalPath + q).attr("href", "#");
                 clearSuccessAndFailureResults(rowData);
                 var resultsId = getResultsId(rowData);
                 $('#' + resultsId).hide();
             });
 
-            var formId = getFormId(rowData);
-
-            $(".inputParameter").on("keydown", function (e) {
+            $(".inputParameter").on("keyup", function (e) {
                 if (e.keyCode === 13 && e.ctrlKey)
                     $(this).closest("form").submit();
+                else {
+                    var q = "?", i = 0;
+                    $(formInputs).each(function () {
+                        if (i > 0)
+                            q += "&";
+
+                        q += this.name + "=" + $(this).val();
+                        i += 1;
+                    });
+                    
+                    $("#span" + rowData.Name).text(originalPath + q).attr("href", originalPath + q);
+                }
             });
 
             $('#' + formId).submit(function (event) {
@@ -303,6 +339,7 @@ body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line
                 '                   <th>Value</th>',
                 '                   <th>Type</th>',
                 '                   <th>Description</th>',
+                '                   <th>Sample Link</th>',
                 '               </tr>',
                 '           </thead>',
                 '           <tbody></tbody>',
@@ -695,6 +732,7 @@ body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line
                     window.open(url, '_blank');
                 }
             });
+
         });
 
     </script>
