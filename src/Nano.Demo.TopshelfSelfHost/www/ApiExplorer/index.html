@@ -201,28 +201,24 @@ body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line
             });
         };
 
-        function getId(rowData) {
-            return rowData.Path.replace(new RegExp('/', "g"), '-') + '-' + rowData.Name;
-        };
-
         function getFormId(rowData) {
-            return getId(rowData) + 'Form';
+            return rowData.Name + 'Form';
         };
 
         function getResultsId(rowData) {
-            return getId(rowData) + 'Results';
+            return rowData.Name + 'Results';
         };
 
         function getSuccessResultsId(rowData) {
-            return getId(rowData) + 'SuccessResults';
+            return rowData.Name + 'SuccessResults';
         };
 
         function getFailureResultsId(rowData) {
-            return getId(rowData) + 'FailureResults';
+            return rowData.Name + 'FailureResults';
         };
 
         function getParametersTableId(rowData) {
-            return getId(rowData) + 'ParametersTable';
+            return rowData.Name + 'ParametersTable';
         };
 
         function clearSuccessAndFailureResults(rowData) {
