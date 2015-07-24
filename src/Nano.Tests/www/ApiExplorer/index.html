@@ -194,24 +194,28 @@ body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line
             });
         };
 
+        function getId(rowData) {
+            return rowData.Path.replace(new RegExp('/', "g"), '-') + '-' + rowData.Name;
+        };
+
         function getFormId(rowData) {
-            return rowData.Name + 'Form';
+            return getId(rowData) + 'Form';
         };
 
         function getResultsId(rowData) {
-            return rowData.Name + 'Results';
+            return getId(rowData) + 'Results';
         };
 
         function getSuccessResultsId(rowData) {
-            return rowData.Name + 'SuccessResults';
+            return getId(rowData) + 'SuccessResults';
         };
 
         function getFailureResultsId(rowData) {
-            return rowData.Name + 'FailureResults';
+            return getId(rowData) + 'FailureResults';
         };
 
         function getParametersTableId(rowData) {
-            return rowData.Name + 'ParametersTable';
+            return getId(rowData) + 'ParametersTable';
         };
 
         function clearSuccessAndFailureResults(rowData) {
