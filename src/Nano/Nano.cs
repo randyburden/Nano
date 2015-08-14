@@ -2527,6 +2527,7 @@ namespace Nano.Web.Core
                 if( nanoContext.Response.ResponseObject == null || nanoContext.Response.ResponseObject == nanoContext )
                     return nanoContext;
 
+                if (string.IsNullOrWhiteSpace(nanoContext.Response.ContentType)) ;
                 nanoContext.Response.ContentType = "application/json";
                 nanoContext.WriteResponseObjectToResponseStream();
                 return nanoContext;
