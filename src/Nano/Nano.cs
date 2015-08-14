@@ -548,6 +548,9 @@ namespace Nano.Web.Core
             /// <summary>304 NotModified</summary>
             NotModified = 304,
 
+            /// <summary>401 Unauthorized</summary>
+            Unauthorized = 401,
+
             /// <summary>404 NotFound</summary>
             NotFound = 404,
 
@@ -594,6 +597,9 @@ namespace Nano.Web.Core
         /// <summary>Custom error responses.</summary>
         public static class CustomErrorResponse
         {
+            /// <summary>401 Unauthorized custom error response.</summary>
+            public static string Unauthorized401 = "<html><head><title>Unauthorized</title></head><body><h3>Unauthorized: Error 401</h3><p>Oops, access is denied due to invalid credentials.</p></body></html>";
+        
             /// <summary>404 Not Found custom error response.</summary>
             public static string NotFound404 = "<html><head><title>Page Not Found</title></head><body><h3>Page Not Found: Error 404</h3><p>Oops, the page you requested was not found.</p></body></html>";
 
