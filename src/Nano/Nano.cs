@@ -248,6 +248,11 @@ namespace Nano.Web.Core
         /// <summary>The root folder path.</summary>
         /// <value>The root folder path.</value>
         public string RootFolderPath;
+
+        /// <summary>
+        /// Flag to indicate if a dispose has been called already
+        /// </summary>
+        private bool _disposed;
         
         /// <summary>Initializes a new instance of the <see cref="NanoContext" /> class.</summary>
         /// <param name="nanoRequest">The nano request.</param>
@@ -267,10 +272,31 @@ namespace Nano.Web.Core
         /// <summary>Disposes any disposable items in the <see cref="Items" /> dictionary.</summary>
         public void Dispose()
         {
-            foreach( IDisposable disposableItem in Items.Values.OfType<IDisposable>() )
-                disposableItem.Dispose();
+            Dispose( true );
 
-            Items.Clear();
+            GC.SuppressFinalize( this );
+        }
+
+        /// <summary>
+        /// Disposes any disposable items in the <see cref="Items" /> dictionary.
+        /// </summary>
+        /// <param name="disposing"></param>
+        protected virtual void Dispose( bool disposing )
+        {
+            if ( _disposed )
+                return;
+
+            if ( disposing )
+            {
+                // Free any other managed objects here. 
+                foreach ( IDisposable disposableItem in Items.Values.OfType<IDisposable>() )
+                    disposableItem.Dispose();
+
+                Items.Clear();
+            }
+
+            // Free any unmanaged objects here. 
+            _disposed = true;
         }
     }
 
@@ -1581,39 +1607,39 @@ namespace Nano.Web.Core
                     httpListenerContext.Response.ContentEncoding = nanoContext.Response.ContentEncoding;
                     httpListenerContext.Response.ContentType = nanoContext.Response.ContentType;
 
-                    foreach( string headerName in nanoContext.Response.HeaderParameters )
+                    foreach ( string headerName in nanoContext.Response.HeaderParameters )
                     {
-                        if( !IgnoredHeaders.IsIgnored( headerName ) )
+                        if ( !IgnoredHeaders.IsIgnored( headerName ) )
                         {
                             httpListenerContext.Response.Headers.Add( headerName, nanoContext.Response.HeaderParameters[headerName] );
                         }
                     }
 
-                    foreach( NanoCookie cookie in nanoContext.Response.Cookies )
+                    foreach ( NanoCookie cookie in nanoContext.Response.Cookies )
                         httpListenerContext.Response.Headers.Add( "Set-Cookie", cookie.ToString() );
 
                     httpListenerContext.Response.StatusCode = nanoContext.Response.HttpStatusCode;
 
-                    if( nanoContext.Response.ResponseStreamWriter != null )
+                    if ( nanoContext.Response.ResponseStreamWriter != null )
                     {
-                        if( IsGZipSupported( httpListenerContext ) )
+                        Stream outputStream;
+
+                        if ( IsGZipSupported( httpListenerContext ) )
                         {
                             httpListenerContext.Response.Headers.Add( "Content-Encoding", "gzip" );
 
-                            using( Stream outputStream = httpListenerContext.Response.OutputStream )
+                            outputStream = httpListenerContext.Response.OutputStream;
+
+                            using ( var gZipStream = new GZipStream( outputStream, CompressionMode.Compress, true ) )
                             {
-                                using( var gZipStream = new GZipStream( outputStream, CompressionMode.Compress, true ) )
-                                {
-                                    nanoContext.Response.ResponseStreamWriter( gZipStream );
-                                }
+                                nanoContext.Response.ResponseStreamWriter( gZipStream );
                             }
                         }
                         else
                         {
-                            using( Stream outputStream = httpListenerContext.Response.OutputStream )
-                            {
-                                nanoContext.Response.ResponseStreamWriter( outputStream );
-                            }
+                            outputStream = httpListenerContext.Response.OutputStream;
+
+                            nanoContext.Response.ResponseStreamWriter( outputStream );
                         }
                     }
                 }
@@ -1815,7 +1841,7 @@ namespace Nano.Web.Core
         /// <summary>
         /// <see cref="System.Net.HttpListener" /> configuration.
         /// </summary>
-        public class HttpListenerConfiguration
+        public class HttpListenerConfiguration : IDisposable
         {
             /// <summary>The HTTP listener.</summary>
             public System.Net.HttpListener HttpListener;
@@ -1893,6 +1919,38 @@ namespace Nano.Web.Core
                     uriBuilder.Path = ApplicationPath + "/";
 
                 return uriBuilder.Uri.ToString();
+            }
+
+            /// <summary>
+            /// Dispose resources
+            /// </summary>
+            public void Dispose()
+            {
+                Dispose( true );
+                GC.SuppressFinalize( this );
+            }
+
+            /// <summary>
+            /// Dispose the HttpListener
+            /// </summary>
+            /// <param name="disposing"></param>
+            protected virtual void Dispose( bool disposing )
+            {
+                try
+                {
+                    if ( true )
+                    {
+
+                        if ( HttpListener == null ) return;
+
+                        HttpListener.Close();
+
+                        HttpListener = null;
+                    }
+                }
+                catch ( ObjectDisposedException )
+                {
+                }
             }
         }
     }
@@ -2015,7 +2073,7 @@ namespace Nano.Web.Core
 		/// </summary>
 		public abstract class FileSystemRequestHandler : RequestHandler
 		{
-			private static readonly ConcurrentDictionary<string, string> _paths = new ConcurrentDictionary<string, string>();
+			private static readonly ConcurrentDictionary<string, string> Paths = new ConcurrentDictionary<string, string>();
             
 			static FileSystemRequestHandler() 
 			{
@@ -2052,7 +2110,7 @@ namespace Nano.Web.Core
             /// <returns>The valid case-sensitive path or null.</returns>
 			protected string GetPathCaseSensitive( string path )
 			{
-				if ( _paths.ContainsKey( path ) ) return _paths[path];
+				if ( Paths.ContainsKey( path ) ) return Paths[path];
 
 				string[] segments = path.Split( new[] { Constants.DirectorySeparatorChar }, StringSplitOptions.RemoveEmptyEntries );
 
@@ -2064,7 +2122,7 @@ namespace Nano.Web.Core
 
 					if ( i == segments.Length - 1 )
 					{
-						if ( result != null ) _paths[path] = result;
+						if ( result != null ) Paths[path] = result;
 
 						return result;
 					} 
@@ -2192,6 +2250,7 @@ namespace Nano.Web.Core
             }
 
             /// <summary>Root Directory exception.</summary>
+            [Serializable]
             public class RootDirectoryException : Exception
             {
                 /// <summary>Initializes a new instance of the <see cref="RootDirectoryException" /> class.</summary>
@@ -2343,7 +2402,7 @@ namespace Nano.Web.Core
                 }
 
                 // Adding all user types as "Models"
-                if( IsUserType( type ) && apiMetadata.Models.Any( x => x.Type == type.Name ) == false )
+                if ( type != null && IsUserType( type ) && apiMetadata.Models.Any( x => x.Type == type.Name ) == false )
                 {
                     var modelMetadata = new ModelMetadata { Type = type.Name, Description = GetDescription( type ) };
                     FieldInfo[] fields = type.GetFields();
