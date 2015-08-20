@@ -1,5 +1,8 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Runtime.Remoting.Messaging;
+using Nano.Web.Core;
 
 // ReSharper disable once CheckNamespace
 namespace Nano.Demo
@@ -144,6 +147,37 @@ namespace Nano.Demo
                 customer.FirstName,
                 customer.LastName
             };
+        }
+
+        /// <summary>
+        /// Downloads the customer Excel report.
+        /// </summary>
+        /// <param name="nanoContext">The Nano context.</param>
+        /// <param name="customerId">The customer id.</param>
+        public static Stream DownloadCustomerExcelReport( dynamic nanoContext, int customerId )
+        {
+            var htmlTable = @"
+<table>
+    <thead>
+        <tr style=""background-color: yellow;"">
+            <th>Customer Id</th>
+            <th>First Name</th>
+            <th>Last Name</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>" + customerId + @"</td>
+            <td>Bob</td>
+            <td>Smith</td>
+        </tr>
+    </tbody>
+</table>
+";
+
+            nanoContext.Response.ContentType = "application/vnd.ms-excel";
+            nanoContext.Response.HeaderParameters.Add("Content-Disposition", "attachment; filename=CustomerReport-" + customerId + ".xls");
+            return new MemoryStream( System.Text.Encoding.UTF8.GetBytes( htmlTable ) );
         }
 
         /// <summary>
