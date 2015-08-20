@@ -86,7 +86,10 @@ namespace Nano.Tests
         /// <returns>HTTP response as a string.</returns>
         public static string GetResponseString( string url, bool allowAutoRedirect = true )
         {
-            return GetHttpWebResponse( url, allowAutoRedirect ).GetResponseString();
+            using ( var response = GetHttpWebResponse( url, allowAutoRedirect ) )
+            {
+                return response.GetResponseString();
+            }
         }
 
         /// <summary>
@@ -123,13 +126,13 @@ namespace Nano.Tests
         {
             try
             {
-                return (HttpWebResponse)request.GetResponse();
+                return ( HttpWebResponse ) request.GetResponse();
             }
-            catch( WebException we )
+            catch ( WebException we )
             {
                 var response = we.Response as HttpWebResponse;
 
-                if( response == null )
+                if ( response == null )
                     throw;
 
                 return response;

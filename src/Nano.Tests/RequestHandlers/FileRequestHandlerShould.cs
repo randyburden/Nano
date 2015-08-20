@@ -62,8 +62,11 @@ namespace Nano.Tests.RequestHandlers
                 server.NanoConfiguration.AddFile( path, "www/ApiExplorer/index.html" );
 
                 // Act
-                var response = HttpHelper.GetHttpWebResponse( server.GetUrl() + path );
-                var eTag = response.GetResponseHeader( "ETag" );
+                string eTag;
+                using ( var response = HttpHelper.GetHttpWebResponse( server.GetUrl() + path ) )
+                {
+                    eTag = response.GetResponseHeader("ETag");
+                }
 
                 // Visual Assertion
                 Trace.WriteLine( "ETag Header Value: " + eTag );
@@ -80,14 +83,22 @@ namespace Nano.Tests.RequestHandlers
             {
                 // Arrange
                 server.NanoConfiguration.AddFile( path, "www/ApiExplorer/index.html" );
-                var initialResponse = HttpHelper.GetHttpWebResponse( server.GetUrl() + path );
-                var initialETag = initialResponse.GetResponseHeader( "ETag" );
+
+                string initialETag;
+                using ( var initialResponse = HttpHelper.GetHttpWebResponse( server.GetUrl() + path ) )
+                {
+                    initialETag = initialResponse.GetResponseHeader("ETag");
+                }
+
                 var request = HttpHelper.GetHttpWebRequest( server.GetUrl() + path );
                 request.Headers["If-None-Match"] = initialETag;
 
                 // Act
-                var response = request.GetHttpWebResponse();
-                var responseCode = response.StatusCode;
+                HttpStatusCode responseCode;
+                using ( var response = request.GetHttpWebResponse() )
+                {
+                    responseCode = response.StatusCode;
+                }
 
                 // Visual Assertion
                 Trace.WriteLine( "HTTP Status Code: " + responseCode );
@@ -104,14 +115,22 @@ namespace Nano.Tests.RequestHandlers
             {
                 // Arrange
                 server.NanoConfiguration.AddFile( path, "www/ApiExplorer/index.html" );
-                var initialResponse = HttpHelper.GetHttpWebResponse( server.GetUrl() + path );
-                var initialETag = initialResponse.GetResponseHeader( "ETag" );
+
+                string initialETag;
+                using ( var initialResponse = HttpHelper.GetHttpWebResponse( server.GetUrl() + path ) )
+                {
+                    initialETag = initialResponse.GetResponseHeader("ETag");
+                }
+
                 var request = HttpHelper.GetHttpWebRequest( server.GetUrl() + path );
                 request.Headers["If-None-Match"] = initialETag;
 
                 // Act
-                var response = request.GetHttpWebResponse();
-                var eTag = response.GetResponseHeader( "ETag" );
+                string eTag;
+                using ( var response = request.GetHttpWebResponse() )
+                {
+                    eTag = response.GetResponseHeader("ETag");
+                }
 
                 // Visual Assertion
                 Trace.WriteLine( "ETag Header Value: " + eTag );
@@ -128,15 +147,23 @@ namespace Nano.Tests.RequestHandlers
             {
                 // Arrange
                 server.NanoConfiguration.AddFile( path, "www/ApiExplorer/index.html" );
-                var initialResponse = HttpHelper.GetHttpWebResponse( server.GetUrl() + path );
-                Trace.WriteLine( "Initial Response Length: " + initialResponse.GetResponseString().Length );
-                var initialETag = initialResponse.GetResponseHeader( "ETag" );
+
+                string initialETag;
+                using ( var initialResponse = HttpHelper.GetHttpWebResponse( server.GetUrl() + path ) )
+                {
+                    Trace.WriteLine("Initial Response Length: " + initialResponse.GetResponseString().Length);
+                    initialETag = initialResponse.GetResponseHeader("ETag");
+                }
+
                 var request = HttpHelper.GetHttpWebRequest( server.GetUrl() + path );
                 request.Headers["If-None-Match"] = initialETag;
 
                 // Act
-                var response = request.GetHttpWebResponse();
-                var responseLength = response.GetResponseString().Length;
+                int responseLength;
+                using ( var response = request.GetHttpWebResponse() )
+                {
+                    responseLength = response.GetResponseString().Length;
+                }
 
                 // Visual Assertion
                 Trace.WriteLine( "Not Modified Response Length: " + responseLength );
@@ -159,8 +186,11 @@ namespace Nano.Tests.RequestHandlers
                 server.NanoConfiguration.AddFile( path, "www/ApiExplorer/index.html" );
 
                 // Act
-                var response = HttpHelper.GetHttpWebResponse( server.GetUrl() + path );
-                var lastModified = response.GetResponseHeader( "Last-Modified" );
+                string lastModified;
+                using ( var response = HttpHelper.GetHttpWebResponse( server.GetUrl() + path ) )
+                {
+                    lastModified = response.GetResponseHeader("Last-Modified");
+                }
 
                 // Visual Assertion
                 Trace.WriteLine( "Last-Modified Header Value: " + lastModified );
@@ -177,14 +207,22 @@ namespace Nano.Tests.RequestHandlers
             {
                 // Arrange
                 server.NanoConfiguration.AddFile( path, "www/ApiExplorer/index.html" );
-                var initialResponse = HttpHelper.GetHttpWebResponse( server.GetUrl() + path );
-                var initialLastModified = initialResponse.GetResponseHeader( "Last-Modified" );
+
+                string initialLastModified;
+                using ( var initialResponse = HttpHelper.GetHttpWebResponse( server.GetUrl() + path ) )
+                {
+                    initialLastModified = initialResponse.GetResponseHeader("Last-Modified");
+                }
+
                 var request = HttpHelper.GetHttpWebRequest( server.GetUrl() + path );
                 request.IfModifiedSince = DateTime.Parse( initialLastModified );
 
                 // Act
-                var response = request.GetHttpWebResponse();
-                var responseCode = response.StatusCode;
+                HttpStatusCode responseCode;
+                using ( var response = request.GetHttpWebResponse() )
+                {
+                    responseCode = response.StatusCode;
+                }
 
                 // Visual Assertion
                 Trace.WriteLine( "HTTP Status Code: " + responseCode );
@@ -201,14 +239,22 @@ namespace Nano.Tests.RequestHandlers
             {
                 // Arrange
                 server.NanoConfiguration.AddFile( path, "www/ApiExplorer/index.html" );
-                var initialResponse = HttpHelper.GetHttpWebResponse( server.GetUrl() + path );
-                var initialLastModified = initialResponse.GetResponseHeader( "Last-Modified" );
+
+                string initialLastModified;
+                using ( var initialResponse = HttpHelper.GetHttpWebResponse( server.GetUrl() + path ) )
+                {
+                    initialLastModified = initialResponse.GetResponseHeader("Last-Modified");
+                }
+
                 var request = HttpHelper.GetHttpWebRequest( server.GetUrl() + path );
                 request.IfModifiedSince = DateTime.Parse( initialLastModified );
 
                 // Act
-                var response = request.GetHttpWebResponse();
-                var lastModified = response.GetResponseHeader( "Last-Modified" );
+                string lastModified;
+                using ( var response = request.GetHttpWebResponse() )
+                {
+                    lastModified = response.GetResponseHeader("Last-Modified");
+                }
 
                 // Visual Assertion
                 Trace.WriteLine( "Last-Modified Header Value: " + lastModified );
@@ -225,15 +271,23 @@ namespace Nano.Tests.RequestHandlers
             {
                 // Arrange
                 server.NanoConfiguration.AddFile( path, "www/ApiExplorer/index.html" );
-                var initialResponse = HttpHelper.GetHttpWebResponse( server.GetUrl() + path );
-                Trace.WriteLine( "Initial Response Length: " + initialResponse.GetResponseString().Length );
-                var initialLastModified = initialResponse.GetResponseHeader( "Last-Modified" );
+
+                string initialLastModified;
+                using ( var initialResponse = HttpHelper.GetHttpWebResponse( server.GetUrl() + path ) )
+                {
+                    Trace.WriteLine("Initial Response Length: " + initialResponse.GetResponseString().Length);
+                    initialLastModified = initialResponse.GetResponseHeader("Last-Modified");
+                }
+                
                 var request = HttpHelper.GetHttpWebRequest( server.GetUrl() + path );
                 request.IfModifiedSince = DateTime.Parse( initialLastModified );
 
                 // Act
-                var response = request.GetHttpWebResponse();
-                var responseLength = response.GetResponseString().Length;
+                int responseLength;
+                using ( var response = request.GetHttpWebResponse() )
+                {
+                    responseLength = response.GetResponseString().Length;
+                }
 
                 // Visual Assertion
                 Trace.WriteLine( "Not Modified Response Length: " + responseLength );

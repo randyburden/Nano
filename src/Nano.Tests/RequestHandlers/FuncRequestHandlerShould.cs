@@ -144,8 +144,11 @@ namespace Nano.Tests.RequestHandlers
                 } );
 
                 // Act
-                var response = HttpHelper.GetHttpWebResponse( server.GetUrl() + "/api/GetPerson?id=1" );
-                var eTag = response.GetResponseHeader( "ETag" );
+                string eTag;
+                using ( var response = HttpHelper.GetHttpWebResponse( server.GetUrl() + "/api/GetPerson?id=1" ) )
+                {
+                    eTag = response.GetResponseHeader("ETag");
+                }
 
                 // Visual Assertion
                 Trace.WriteLine( "ETag Header Value: " + eTag );
@@ -166,14 +169,22 @@ namespace Nano.Tests.RequestHandlers
                     var id = context.GetRequestParameterValue<int>( "id" );
                     return new { Id = id, FirstName = "Clark", LastName = "Kent" };
                 } );
-                var initialResponse = HttpHelper.GetHttpWebResponse( server.GetUrl() + "/api/GetPerson?id=1" );
-                var initialETag = initialResponse.GetResponseHeader( "ETag" );
+
+                string initialETag;
+                using ( var initialResponse = HttpHelper.GetHttpWebResponse( server.GetUrl() + "/api/GetPerson?id=1" ) )
+                {
+                    initialETag = initialResponse.GetResponseHeader("ETag");
+                }
+
                 var request = HttpHelper.GetHttpWebRequest( server.GetUrl() + "/api/GetPerson?id=1" );
                 request.Headers["If-None-Match"] = initialETag;
 
                 // Act
-                var response = request.GetHttpWebResponse();
-                var responseCode = response.StatusCode;
+                HttpStatusCode responseCode;
+                using ( var response = request.GetHttpWebResponse() )
+                {
+                    responseCode = response.StatusCode;
+                }
 
                 // Visual Assertion
                 Trace.WriteLine( "HTTP Status Code: " + responseCode );
@@ -194,14 +205,22 @@ namespace Nano.Tests.RequestHandlers
                     var id = context.GetRequestParameterValue<int>( "id" );
                     return new { Id = id, FirstName = "Clark", LastName = "Kent" };
                 } );
-                var initialResponse = HttpHelper.GetHttpWebResponse( server.GetUrl() + "/api/GetPerson?id=1" );
-                var initialETag = initialResponse.GetResponseHeader( "ETag" );
+
+                string initialETag;
+                using ( var initialResponse = HttpHelper.GetHttpWebResponse( server.GetUrl() + "/api/GetPerson?id=1" ) )
+                {
+                    initialETag = initialResponse.GetResponseHeader("ETag");
+                }
+
                 var request = HttpHelper.GetHttpWebRequest( server.GetUrl() + "/api/GetPerson?id=1" );
                 request.Headers["If-None-Match"] = initialETag;
 
                 // Act
-                var response = request.GetHttpWebResponse();
-                var eTag = response.GetResponseHeader( "ETag" );
+                string eTag;
+                using ( var response = request.GetHttpWebResponse() )
+                {
+                    eTag = response.GetResponseHeader("ETag");
+                }
 
                 // Visual Assertion
                 Trace.WriteLine( "ETag Header Value: " + eTag );
@@ -222,14 +241,22 @@ namespace Nano.Tests.RequestHandlers
                     var id = context.GetRequestParameterValue<int>( "id" );
                     return new { Id = id, FirstName = "Clark", LastName = "Kent" };
                 } );
-                var initialResponse = HttpHelper.GetHttpWebResponse( server.GetUrl() + "/api/GetPerson?id=1" );
-                var initialETag = initialResponse.GetResponseHeader( "ETag" );
+
+                string initialETag;
+                using ( var initialResponse = HttpHelper.GetHttpWebResponse( server.GetUrl() + "/api/GetPerson?id=1" ) )
+                {
+                    initialETag = initialResponse.GetResponseHeader("ETag");
+                }
+                    
                 var request = HttpHelper.GetHttpWebRequest( server.GetUrl() + "/api/GetPerson?id=2" );
                 request.Headers["If-None-Match"] = initialETag;
 
                 // Act
-                var response = request.GetHttpWebResponse();
-                var eTag = response.GetResponseHeader( "ETag" );
+                string eTag;
+                using ( var response = request.GetHttpWebResponse() )
+                {
+                    eTag = response.GetResponseHeader( "ETag" );
+                }
 
                 // Visual Assertion
                 Trace.WriteLine( "1st ETag Header Value: " + initialETag );
@@ -251,21 +278,30 @@ namespace Nano.Tests.RequestHandlers
                     var id = context.GetRequestParameterValue<int>( "id" );
                     return new { Id = id, FirstName = "Clark", LastName = "Kent" };
                 } );
-                var initialResponse = HttpHelper.GetHttpWebResponse( server.GetUrl() + "/api/GetPerson?id=1" );
-                Trace.WriteLine( "Initial Response Length: " + initialResponse.GetResponseString().Length );
-                var initialETag = initialResponse.GetResponseHeader( "ETag" );
+
+                string initialETag;
+                using ( var initialResponse = HttpHelper.GetHttpWebResponse( server.GetUrl() + "/api/GetPerson?id=1" ) )
+                {
+                    Trace.WriteLine("Initial Response Length: " + initialResponse.GetResponseString().Length);
+                    initialETag = initialResponse.GetResponseHeader("ETag");
+                }
+                
                 var request = HttpHelper.GetHttpWebRequest( server.GetUrl() + "/api/GetPerson?id=1" );
                 request.Headers["If-None-Match"] = initialETag;
 
                 // Act
-                var response = request.GetHttpWebResponse();
-                var responseLength = response.GetResponseString().Length;
+                int responseLength;
+                using ( var response = request.GetHttpWebResponse() )
+                {
+                    responseLength = response.GetResponseString().Length;
+                }
 
                 // Visual Assertion
                 Trace.WriteLine( "Not Modified Response Length: " + responseLength );
 
                 // Assert
                 Assert.That( responseLength == 0 );
+                
             }
         }
 

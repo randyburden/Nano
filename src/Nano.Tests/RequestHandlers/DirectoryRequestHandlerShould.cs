@@ -55,13 +55,14 @@ namespace Nano.Tests.RequestHandlers
                 server.NanoConfiguration.AddDirectory( "/", "www", returnHttp404WhenFileWasNotFound: true );
 
                 // Act
-                var response = HttpHelper.GetHttpWebResponse( server.GetUrl() + path );
+                using ( var response = HttpHelper.GetHttpWebResponse( server.GetUrl() + path ) )
+                {
+                    // Visual Assertion
+                    Trace.WriteLine(response.GetResponseString());
 
-                // Visual Assertion
-                Trace.WriteLine( response.GetResponseString() );
-
-                // Assert
-                Assert.That( response.StatusCode == HttpStatusCode.NotFound );
+                    // Assert
+                    Assert.That(response.StatusCode == HttpStatusCode.NotFound);
+                }
             }
         }
 
@@ -74,10 +75,11 @@ namespace Nano.Tests.RequestHandlers
                 server.NanoConfiguration.AddDirectory( "/", "www", returnHttp404WhenFileWasNotFound: false );
 
                 // Act
-                var response = HttpHelper.GetHttpWebResponse( server.GetUrl() + "/NoSuchDirectory/" );
-                
-                // Assert
-                Assert.That( response.StatusCode == HttpStatusCode.OK );
+                using ( var response = HttpHelper.GetHttpWebResponse( server.GetUrl() + "/NoSuchDirectory/" ) )
+                {
+                    // Assert
+                    Assert.That( response.StatusCode == HttpStatusCode.OK );
+                }
             }
         }
 
@@ -90,8 +92,11 @@ namespace Nano.Tests.RequestHandlers
                 server.NanoConfiguration.AddDirectory( "/", "www" );
 
                 // Act
-                var response = HttpHelper.GetHttpWebResponse( server.GetUrl() + "/ApiExplorer", allowAutoRedirect: false );
-                var location = response.GetResponseHeader( "location" );
+                string location;
+                using ( var response = HttpHelper.GetHttpWebResponse( server.GetUrl() + "/ApiExplorer", allowAutoRedirect: false ) )
+                {
+                    location = response.GetResponseHeader("location");
+                }
 
                 // Visual Assertion
                 Trace.WriteLine( "Location Header Value: " + location );
@@ -112,8 +117,11 @@ namespace Nano.Tests.RequestHandlers
                 server.NanoConfiguration.AddDirectory( "/", "www" );
 
                 // Act
-                var response = HttpHelper.GetHttpWebResponse( server.GetUrl() + "/ApiExplorer" );
-                var eTag = response.GetResponseHeader( "ETag" );
+                string eTag;
+                using ( var response = HttpHelper.GetHttpWebResponse( server.GetUrl() + "/ApiExplorer" ) )
+                {
+                    eTag = response.GetResponseHeader("ETag");
+                }
 
                 // Visual Assertion
                 Trace.WriteLine( "ETag Header Value: " + eTag );
@@ -130,14 +138,22 @@ namespace Nano.Tests.RequestHandlers
             {
                 // Arrange
                 server.NanoConfiguration.AddDirectory( "/", "www" );
-                var initialResponse = HttpHelper.GetHttpWebResponse( server.GetUrl() + "/ApiExplorer" );
-                var initialETag = initialResponse.GetResponseHeader( "ETag" );
+
+                string initialETag;
+                using ( var initialResponse = HttpHelper.GetHttpWebResponse( server.GetUrl() + "/ApiExplorer" ) )
+                {
+                    initialETag = initialResponse.GetResponseHeader("ETag");
+                }
+
                 var request = HttpHelper.GetHttpWebRequest( server.GetUrl() + "/ApiExplorer" );
                 request.Headers["If-None-Match"] = initialETag;
 
                 // Act
-                var response = request.GetHttpWebResponse();
-                var responseCode = response.StatusCode;
+                HttpStatusCode responseCode;
+                using ( var response = request.GetHttpWebResponse() )
+                {
+                    responseCode = response.StatusCode;
+                }
                 
                 // Visual Assertion
                 Trace.WriteLine( "HTTP Status Code: " + responseCode );
@@ -154,14 +170,22 @@ namespace Nano.Tests.RequestHandlers
             {
                 // Arrange
                 server.NanoConfiguration.AddDirectory( "/", "www" );
-                var initialResponse = HttpHelper.GetHttpWebResponse( server.GetUrl() + "/ApiExplorer" );
-                var initialETag = initialResponse.GetResponseHeader( "ETag" );
+
+                string initialETag;
+                using ( var initialResponse = HttpHelper.GetHttpWebResponse( server.GetUrl() + "/ApiExplorer" ) )
+                {
+                    initialETag = initialResponse.GetResponseHeader("ETag");
+                }
+
                 var request = HttpHelper.GetHttpWebRequest( server.GetUrl() + "/ApiExplorer" );
                 request.Headers["If-None-Match"] = initialETag;
 
                 // Act
-                var response = request.GetHttpWebResponse();
-                var eTag = response.GetResponseHeader( "ETag" );
+                string eTag;
+                using ( var response = request.GetHttpWebResponse() )
+                {
+                    eTag = response.GetResponseHeader("ETag");
+                }
                 
                 // Visual Assertion
                 Trace.WriteLine( "ETag Header Value: " + eTag );
@@ -178,15 +202,23 @@ namespace Nano.Tests.RequestHandlers
             {
                 // Arrange
                 server.NanoConfiguration.AddDirectory( "/", "www" );
-                var initialResponse = HttpHelper.GetHttpWebResponse( server.GetUrl() + "/ApiExplorer" );
-                Trace.WriteLine( "Initial Response Length: " + initialResponse.GetResponseString().Length );
-                var initialETag = initialResponse.GetResponseHeader( "ETag" );
+
+                string initialETag;
+                using ( var initialResponse = HttpHelper.GetHttpWebResponse( server.GetUrl() + "/ApiExplorer" ) )
+                {
+                    Trace.WriteLine("Initial Response Length: " + initialResponse.GetResponseString().Length);
+                    initialETag = initialResponse.GetResponseHeader("ETag");
+                }
+                
                 var request = HttpHelper.GetHttpWebRequest( server.GetUrl() + "/ApiExplorer" );
                 request.Headers["If-None-Match"] = initialETag;
 
                 // Act
-                var response = request.GetHttpWebResponse();
-                var responseLength = response.GetResponseString().Length;
+                int responseLength;
+                using ( var response = request.GetHttpWebResponse() )
+                {
+                    responseLength = response.GetResponseString().Length;
+                }
 
                 // Visual Assertion
                 Trace.WriteLine( "Not Modified Response Length: " + responseLength );
@@ -209,8 +241,11 @@ namespace Nano.Tests.RequestHandlers
                 server.NanoConfiguration.AddDirectory( "/", "www" );
 
                 // Act
-                var response = HttpHelper.GetHttpWebResponse( server.GetUrl() + "/ApiExplorer" );
-                var lastModified = response.GetResponseHeader( "Last-Modified" );
+                string lastModified;
+                using ( var response = HttpHelper.GetHttpWebResponse( server.GetUrl() + "/ApiExplorer" ) )
+                {
+                    lastModified = response.GetResponseHeader("Last-Modified");
+                }
 
                 // Visual Assertion
                 Trace.WriteLine( "Last-Modified Header Value: " + lastModified );
@@ -227,14 +262,22 @@ namespace Nano.Tests.RequestHandlers
             {
                 // Arrange
                 server.NanoConfiguration.AddDirectory( "/", "www" );
-                var initialResponse = HttpHelper.GetHttpWebResponse( server.GetUrl() + "/ApiExplorer" );
-                var initialLastModified = initialResponse.GetResponseHeader( "Last-Modified" );
+
+                string initialLastModified;
+                using ( var initialResponse = HttpHelper.GetHttpWebResponse( server.GetUrl() + "/ApiExplorer" ) )
+                {
+                    initialLastModified = initialResponse.GetResponseHeader("Last-Modified");
+                }
+
                 var request = HttpHelper.GetHttpWebRequest( server.GetUrl() + "/ApiExplorer" );
                 request.IfModifiedSince = DateTime.Parse( initialLastModified );
 
                 // Act
-                var response = request.GetHttpWebResponse();
-                var responseCode = response.StatusCode;
+                HttpStatusCode responseCode;
+                using ( var response = request.GetHttpWebResponse() )
+                {
+                    responseCode = response.StatusCode;
+                }
 
                 // Visual Assertion
                 Trace.WriteLine( "HTTP Status Code: " + responseCode );
@@ -251,14 +294,22 @@ namespace Nano.Tests.RequestHandlers
             {
                 // Arrange
                 server.NanoConfiguration.AddDirectory( "/", "www" );
-                var initialResponse = HttpHelper.GetHttpWebResponse( server.GetUrl() + "/ApiExplorer" );
-                var initialLastModified = initialResponse.GetResponseHeader( "Last-Modified" );
+
+                string initialLastModified;
+                using ( var initialResponse = HttpHelper.GetHttpWebResponse( server.GetUrl() + "/ApiExplorer" ) )
+                {
+                    initialLastModified = initialResponse.GetResponseHeader("Last-Modified");
+                }
+
                 var request = HttpHelper.GetHttpWebRequest( server.GetUrl() + "/ApiExplorer" );
                 request.IfModifiedSince = DateTime.Parse( initialLastModified );
 
                 // Act
-                var response = request.GetHttpWebResponse();
-                var lastModified = response.GetResponseHeader( "Last-Modified" );
+                string lastModified;
+                using ( var response = request.GetHttpWebResponse() )
+                {
+                    lastModified = response.GetResponseHeader("Last-Modified");
+                }
 
                 // Visual Assertion
                 Trace.WriteLine( "Last-Modified Header Value: " + lastModified );
@@ -275,15 +326,23 @@ namespace Nano.Tests.RequestHandlers
             {
                 // Arrange
                 server.NanoConfiguration.AddDirectory( "/", "www" );
-                var initialResponse = HttpHelper.GetHttpWebResponse( server.GetUrl() + "/ApiExplorer" );
-                Trace.WriteLine( "Initial Response Length: " + initialResponse.GetResponseString().Length );
-                var initialLastModified = initialResponse.GetResponseHeader( "Last-Modified" );
+
+                string initialLastModified;
+                using ( var initialResponse = HttpHelper.GetHttpWebResponse( server.GetUrl() + "/ApiExplorer" ) )
+                {
+                    Trace.WriteLine("Initial Response Length: " + initialResponse.GetResponseString().Length);
+                    initialLastModified = initialResponse.GetResponseHeader("Last-Modified");
+                }
+                
                 var request = HttpHelper.GetHttpWebRequest( server.GetUrl() + "/ApiExplorer" );
                 request.IfModifiedSince = DateTime.Parse( initialLastModified );
 
                 // Act
-                var response = request.GetHttpWebResponse();
-                var responseLength = response.GetResponseString().Length;
+                int responseLength;
+                using ( var response = request.GetHttpWebResponse() )
+                {
+                    responseLength = response.GetResponseString().Length;
+                }
 
                 // Visual Assertion
                 Trace.WriteLine( "Not Modified Response Length: " + responseLength );
