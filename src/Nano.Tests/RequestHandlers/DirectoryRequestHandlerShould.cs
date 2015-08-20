@@ -97,7 +97,7 @@ namespace Nano.Tests.RequestHandlers
                 Trace.WriteLine( "Location Header Value: " + location );
 
                 // Assert
-                Assert.That( location == "/ApiExplorer/" );
+                Assert.That( location == "/ApiExplorer/".ToLower() );
             }
         }
 
