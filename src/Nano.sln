@@ -1,8 +1,15 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2013
-VisualStudioVersion = 12.0.31101.0
+# Visual Studio 14
+VisualStudioVersion = 14.0.23107.0
 MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".nuget", ".nuget", "{89C604CD-D086-427D-A30C-61E6DCA992DE}"
+	ProjectSection(SolutionItems) = preProject
+		.nuget\NuGet.Config = .nuget\NuGet.Config
+		.nuget\NuGet.exe = .nuget\NuGet.exe
+		.nuget\NuGet.targets = .nuget\NuGet.targets
+	EndProjectSection
+EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nano.Demo.SelfHost", "Nano.Demo.SelfHost\Nano.Demo.SelfHost.csproj", "{3521BBE9-A03F-416D-A9BC-A72A77806957}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nano", "Nano\Nano.csproj", "{3E238CB3-21E8-4B80-A874-2BC86FDC82D0}"
@@ -12,13 +19,6 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nano.Demo.Mvc4", "Nano.Demo.Mvc4\Nano.Demo.Mvc4.csproj", "{74DAFA08-D79C-41C5-BC9F-B08DDC5AE01D}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nano.Demo.TopshelfSelfHost", "Nano.Demo.TopshelfSelfHost\Nano.Demo.TopshelfSelfHost.csproj", "{C7E39F30-0168-44F5-9AF7-C3485E15C7E5}"
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".nuget", ".nuget", "{89C604CD-D086-427D-A30C-61E6DCA992DE}"
-	ProjectSection(SolutionItems) = preProject
-		.nuget\NuGet.Config = .nuget\NuGet.Config
-		.nuget\NuGet.exe = .nuget\NuGet.exe
-		.nuget\NuGet.targets = .nuget\NuGet.targets
-	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

@@ -57,7 +57,7 @@ namespace Nano.Demo.TopshelfSelfHost
                 config.AddDirectory( "/", Debugger.IsAttached ? "../../www" : "www", returnHttp404WhenFileWasNotFound: true );
                 config.AddMethods<Customer>( "/api/customer/" );
                 config.AddFunc( "/hi", context => "Hello World!" );
-
+                
                 config.GlobalEventHandler.UnhandledExceptionHandlers.Add( ( exception, context ) =>
                 {
                     try
