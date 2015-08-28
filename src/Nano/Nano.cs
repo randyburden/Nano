@@ -123,8 +123,9 @@ namespace Nano.Web.Core
 
             foreach( MethodInfo methodInfo in methods )
             {
-                string methodUrlPath = string.Format( "/{0}/{1}", urlPath, methodInfo.Name ).ToLower();
-                var requestHandler = new MethodRequestHandler( methodUrlPath, eventHandler ?? DefaultEventHandler, methodInfo ) { MetadataProvider = metadataProvider ?? DefaultMethodRequestHandlerMetadataProvider };
+                string caseSensitiveUrlPath = string.Format( "/{0}/{1}", urlPath, methodInfo.Name );
+                string methodUrlPath = caseSensitiveUrlPath.ToLower();
+                var requestHandler = new MethodRequestHandler( methodUrlPath, eventHandler ?? DefaultEventHandler, methodInfo ) { MetadataProvider = metadataProvider ?? DefaultMethodRequestHandlerMetadataProvider, CaseSensitiveUrlPath = caseSensitiveUrlPath };
                 RequestHandlers.Add( requestHandler );
                 handlers.Add( requestHandler );
             }
@@ -2365,7 +2366,7 @@ namespace Nano.Web.Core
                     if( metadataProvider == null )
                         continue;
 
-                    var metadata = new OperationMetaData { UrlPath = methodRequestHandler.UrlPath };
+                    var metadata = new OperationMetaData { UrlPath = methodRequestHandler.CaseSensitiveUrlPath };
                     metadata.Name = metadataProvider.GetOperationName( nanoContext, methodRequestHandler );
                     metadata.Description = metadataProvider.GetOperationDescription( nanoContext, methodRequestHandler );
                     IList<MethodParameter> parameters = metadataProvider.GetOperationParameters( nanoContext, methodRequestHandler );
@@ -2578,6 +2579,10 @@ namespace Nano.Web.Core
             /// <summary>Gets or sets the description for the method.</summary>
             /// <value>The description.</value>
             public string Description { get; set; }
+
+            /// <summary>The case sensitive URL path for this handler.</summary>
+            /// <value>The case sensitive URL path.</value>
+            public string CaseSensitiveUrlPath { get; set; }
 
             /// <summary>Handles the request.</summary>
             /// <param name="nanoContext">The <see cref="NanoContext" />.</param>
