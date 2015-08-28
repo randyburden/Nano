@@ -2,7 +2,8 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.Remoting.Messaging;
-using Nano.Web.Core;
+using System.Text;
+using System.Threading;
 
 // ReSharper disable once CheckNamespace
 namespace Nano.Demo
@@ -18,7 +19,7 @@ namespace Nano.Demo
         /// <param name="firstName">The first name.</param>
         /// <param name="lastName">The last name.</param>
         /// <returns>Customer.</returns>
-        public static CustomerModel CreateCustomer( string firstName, string lastName )
+        public static CustomerModel CreateCustomer(string firstName, string lastName)
         {
             return new CustomerModel
             {
@@ -33,7 +34,7 @@ namespace Nano.Demo
         /// </summary>
         /// <param name="customerModel">The customer model.</param>
         /// <returns>The updated customer model.</returns>
-        public static CustomerModel UpdateCustomer( CustomerModel customerModel )
+        public static CustomerModel UpdateCustomer(CustomerModel customerModel)
         {
             return customerModel;
         }
@@ -43,7 +44,7 @@ namespace Nano.Demo
         /// </summary>
         /// <param name="personId">The person identifier.</param>
         /// <returns>Person.</returns>
-        public static Person GetPerson( int personId )
+        public static Person GetPerson(int personId)
         {
             return new Person
             {
@@ -79,7 +80,7 @@ namespace Nano.Demo
         /// </summary>
         /// <param name="customerNbr">The customer number.</param>
         /// <returns>Customer object.</returns>
-        public static object GetCustomer( int customerNbr )
+        public static object GetCustomer(int customerNbr)
         {
             return new
             {
@@ -94,12 +95,35 @@ namespace Nano.Demo
         /// </summary>
         /// <param name="nanoContext">The nano context.</param>
         /// <returns>NanoContext stuff.</returns>
-        public static object GetContext( dynamic nanoContext )
+        public static object GetContext(dynamic nanoContext)
         {
+            Func<System.Collections.Specialized.NameValueCollection, Dictionary<string,object>> nameValueCollectionToDictionary = collection =>
+            {
+                Dictionary<string, object> dictionary = new Dictionary<string, object>();
+
+                foreach ( string parameterName in collection )
+                {
+                    dictionary.Add( parameterName, collection[ parameterName ]);
+                }
+
+                return dictionary;
+            };
+
             return new
             {
-                nanoContext.Request.Url,
-                nanoContext.Request.HttpMethod
+                Request = new
+                {
+                    nanoContext.Request.HttpMethod,
+                    QueryStringParameters = nameValueCollectionToDictionary(nanoContext.Request.QueryStringParameters),
+                    FormBodyParameters = nameValueCollectionToDictionary( nanoContext.Request.FormBodyParameters ),
+                    HeaderParameters = nameValueCollectionToDictionary(nanoContext.Request.HeaderParameters )
+                },
+                NanoConfiguration = new
+                {
+                    ApplicationRootFolderPath = nanoContext.NanoConfiguration.ApplicationRootFolderPath,
+                    BackgroundTasks = nanoContext.NanoConfiguration.BackgroundTasks,
+                    RequestHandlers = nanoContext.NanoConfiguration.RequestHandlers,
+                }
             };
         }
 
@@ -109,7 +133,7 @@ namespace Nano.Demo
         /// <returns>The correlation identifier.</returns>
         public static string GetCorrelationId()
         {
-            var correlationId = CallContext.LogicalGetData( "X-CorrelationId" );
+            var correlationId = CallContext.LogicalGetData("X-CorrelationId");
 
             return correlationId == null ? "No CorrelationId found" : correlationId.ToString();
         }
@@ -124,7 +148,7 @@ namespace Nano.Demo
         /// <param name="firstName">First name.</param>
         /// <param name="lastName">Last name.</param>
         /// <returns>Customer.</returns>
-        public static CustomerModel CreatePendingCustomer( string firstName, string lastName = null )
+        public static CustomerModel CreatePendingCustomer(string firstName, string lastName = null)
         {
             return new CustomerModel
             {
@@ -135,11 +159,23 @@ namespace Nano.Demo
         }
 
         /// <summary>
+        /// Delays a response by a given number of seconds.
+        /// </summary>
+        /// <param name="delayInSeconds">Number of seconds to delay before responding.</param>
+        /// <returns>Delay in seconds.</returns>
+        public static int DelayedResponse(int delayInSeconds = 3)
+        {
+            Thread.Sleep(delayInSeconds * 1000);
+
+            return delayInSeconds;
+        }
+
+        /// <summary>
         /// Creates a customer.
         /// </summary>
         /// <param name="customer">Customer model.</param>
         /// <returns>Customer.</returns>
-        public static dynamic CreateDynamicCustomer( dynamic customer )
+        public static dynamic CreateDynamicCustomer(dynamic customer)
         {
             return new
             {
@@ -154,7 +190,7 @@ namespace Nano.Demo
         /// </summary>
         /// <param name="nanoContext">The Nano context.</param>
         /// <param name="customerId">The customer id.</param>
-        public static Stream DownloadCustomerExcelReport( dynamic nanoContext, int customerId )
+        public static Stream DownloadCustomerExcelReport(dynamic nanoContext, int customerId)
         {
             var htmlTable = @"
 <table>
@@ -177,7 +213,7 @@ namespace Nano.Demo
 
             nanoContext.Response.ContentType = "application/vnd.ms-excel";
             nanoContext.Response.HeaderParameters.Add("Content-Disposition", "attachment; filename=CustomerReport-" + customerId + ".xls");
-            return new MemoryStream( System.Text.Encoding.UTF8.GetBytes( htmlTable ) );
+            return new MemoryStream(Encoding.UTF8.GetBytes(htmlTable));
         }
 
         /// <summary>
@@ -261,6 +297,29 @@ namespace Nano.Demo
             /// The zip code.
             /// </summary>
             public string ZipCode;
+        }
+    }
+
+    /// <summary>
+    /// This is an example of a near duplicate class to test that the ApiExplorer
+    /// will properly handle duplicate method names within different classes.
+    /// </summary>
+    public class Customer2
+    {
+        /// <summary>
+        /// Creates the customer.
+        /// </summary>
+        /// <param name="firstName">The first name.</param>
+        /// <param name="lastName">The last name.</param>
+        /// <returns>Customer.</returns>
+        public static Customer.CustomerModel CreateCustomer(string firstName, string lastName)
+        {
+            return new Customer.CustomerModel
+            {
+                CustomerId = 1,
+                FirstName = firstName,
+                LastName = lastName
+            };
         }
     }
 }
