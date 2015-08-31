@@ -1,4 +1,5 @@
 The MIT License (MIT)
+------------------------
 
 Nano is a .NET cross-platform micro web framework for building web-based HTTP services and websites.
 
@@ -24,3 +25,30 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
+Open Source Attributions
+------------------------
+Nano made use of substantial portions and/or was heavily influenced by the following open source software:
+
+ - Nancy: https://github.com/NancyFx/Nancy
+
+        The MIT License
+        Copyright (c) 2010 Andreas Håkansson, Steven Robbins and contributors
+        License available at: https://github.com/NancyFx/Nancy/blob/master/license.txt
+
+ - Katana Project: http://katanaproject.codeplex.com/
+
+        Apache License
+        Copyright (c) Microsoft Open Technologies, Inc. All rights reserved.
+        License available at: http://katanaproject.codeplex.com/SourceControl/latest#LICENSE.txt
+
+ - DynamicDictionary: https://github.com/randyburden/DynamicDictionary
+
+        The MIT License
+        Copyright (c) 2014 Randy Burden ( http://randyburden.com ) All rights reserved.
+        License available at: https://github.com/randyburden/DynamicDictionary/blob/master/LICENSE
+
+ - JSON.NET: https://github.com/JamesNK/Newtonsoft.Json
+
+        The MIT License
+        Copyright (c) 2007 James Newton-King
+        License available at: https://github.com/JamesNK/Newtonsoft.Json/blob/master/LICENSE.md
