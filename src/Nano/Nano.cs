@@ -919,7 +919,7 @@ namespace Nano.Web.Core
             using ( var md5 = System.Security.Cryptography.MD5.Create() )
             {
                 byte[] hash = md5.ComputeHash( bytes );
-                var eTag = BitConverter.ToString( hash ).Replace( "-", string.Empty );
+                var eTag = "\"" + BitConverter.ToString( hash ).Replace( "-", string.Empty) + "\"";
                 nanoContext.Response.HeaderParameters[ "ETag" ] = eTag;
 
                 var requestETag = nanoContext.Request.HeaderParameters[ "If-None-Match" ];

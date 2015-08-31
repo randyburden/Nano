@@ -695,6 +695,29 @@ namespace Nano.Tests.RequestHandlers
         }
 
         [Test]
+        public void Return_A_Quoted_ETag_Header_When_An_Http_200_Response_Is_Returned()
+        {
+            using (var server = NanoTestServer.Start())
+            {
+                // Arrange
+                server.NanoConfiguration.AddMethods<ETagTestsApi>();
+
+                // Act
+                string eTag;
+                using (var response = HttpHelper.GetHttpWebResponse(server.GetUrl() + "/api/ETagTestsApi/GetPerson?id=1"))
+                {
+                    eTag = response.GetResponseHeader("ETag");
+                }
+
+                // Visual Assertion
+                Trace.WriteLine("ETag Header Value: " + eTag);
+
+                // Assert
+                Assert.That( eTag.StartsWith( "\"") && eTag.EndsWith( "\"" ) );
+            }
+        }
+
+        [Test]
         public void Return_Not_Modified_Http_Status_Code_304_When_Request_ETag_Matches_File_ETag()
         {
             using( var server = NanoTestServer.Start() )
