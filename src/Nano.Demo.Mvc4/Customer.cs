@@ -171,6 +171,39 @@ namespace Nano.Demo
         }
 
         /// <summary>
+        /// Throws the given number of nested exceptions. The default is 3.
+        /// </summary>
+        /// <param name="numberOfInnerExceptions">Number of nested exceptions to throw.</param>
+        /// <returns>This method always throws an exception.</returns>
+        public static int ThrowException( int numberOfInnerExceptions = 3 )
+        {
+            if ( numberOfInnerExceptions < 1 )
+                numberOfInnerExceptions = 1;
+
+            Exception exception = null;
+
+            if ( numberOfInnerExceptions >= 1 )
+            {
+                for ( int i = 1; i <= numberOfInnerExceptions; i++ )
+                {
+                    try
+                    {
+                        if ( exception != null )
+                            throw new Exception( "This is exception number " + i, exception );
+
+                        throw new Exception( "This is exception number " + i );
+                    }
+                    catch ( Exception e )
+                    {
+                        exception = e;
+                    }
+                }
+            }
+
+            throw exception;
+        }
+
+        /// <summary>
         /// Creates a customer.
         /// </summary>
         /// <param name="customer">Customer model.</param>

@@ -25,7 +25,8 @@ namespace Nano.Demo.SelfHost
             // When the Debugger is attached, map two folders up so that you can live edit files in Visual Studio without having to restart
             // your application to get the files copied to your bin directory.
             config.AddDirectory( "/", Debugger.IsAttached ? "../../www" : "www", returnHttp404WhenFileWasNotFound: true );
-            config.AddMethods<Customer>( "/api/customer/" );
+            config.AddMethods<Customer>();
+            config.AddMethods<Customer2>();
             config.AddFunc( "/hi", context => "Hello World!" );
             
             config.AddBackgroundTask( "Test", 30000, () =>

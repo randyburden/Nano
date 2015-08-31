@@ -90,20 +90,24 @@ namespace Nano.Web.Core
         /// <summary>The optional request handler to invoke when a request was not handled by any other request or event handler.</summary>
         public IRequestHandler UnhandledRequestHandler;
 
-        /// <summary>The background tasks</summary>
+        /// <summary>The background tasks.</summary>
         public IList<BackgroundTask> BackgroundTasks = new List<BackgroundTask>();
 
         /// <summary>The serialization service used to serialize/deserialize requests and responses.</summary>
-        public ISerializationService SerializationService;
+        public ISerializationService SerializationService = new JsonNetSerializer();
 
         /// <summary>Gets the default method url path. Defaulted to: '/api/' + type.Name</summary>
         public Func<Type, string> GetDefaultMethodUrlPath = type => "/api/" + type.Name;
 
+        /// <summary>Determines whether errors are logged to the operating system event log.</summary>
+        public bool LogErrorsToEventLog = true;
+
+        /// <summary>Application name.</summary>
+        public string ApplicationName = AppDomain.CurrentDomain.FriendlyName;
+
         /// <summary>Initializes a new instance of the <see cref="NanoConfiguration" /> class.</summary>
-        /// <param name="serializationService">The optional serialization service used to serialize/deserialize requests and responses.</param>
-        public NanoConfiguration( ISerializationService serializationService = null )
+        public NanoConfiguration()
         {
-            SerializationService = serializationService ?? new JsonNetSerializer();
             RequestHandlers.Add( new MetadataRequestHandler( "/metadata/GetNanoMetadata", DefaultEventHandler ) );
             this.EnableCorrelationId();
         }
@@ -631,7 +635,7 @@ namespace Nano.Web.Core
             public static string NotFound404 = "<html><head><title>Page Not Found</title></head><body><h3>Page Not Found: Error 404</h3><p>Oops, the page you requested was not found.</p></body></html>";
 
             /// <summary>500 Internal Server Error custom error response.</summary>
-            public static string InternalServerError500 = "<html><head><title>Internal Server Error</title></head><body><h3>Internal Server Error: Error 500</h3><p>Oops, an internal error occurred.</p></body></html>";
+            public static string InternalServerError500 = "<html><head><title>Internal Server Error</title></head><body><h3>Internal Server Error: Error 500</h3><p>Oops, an internal error occurred.</p><!--ErrorMessage--></body></html>";
         }
     }
 
@@ -831,7 +835,7 @@ namespace Nano.Web.Core
                         }
 
                         Thread.Sleep( backgroundTaskContext.BackgroundTask.MillisecondInterval );
-                    }
+                    } // ReSharper disable once FunctionNeverReturns
                 } );
             }
         }
@@ -858,6 +862,21 @@ namespace Nano.Web.Core
                 backgroundTaskContext.BackgroundTask.BackgroundTaskEventHandler.InvokePostInvokeHandlers( backgroundTaskContext );
                 backgroundTaskContext.EndDateTime = DateTime.Now;
             }
+        }
+    }
+
+    /// <summary><see cref="NanoConfiguration" /> extensions.</summary>
+    public static class NanoConfigurationExtensions
+    {
+        /// <summary>
+        /// Writes an error message to the operating system event log.
+        /// </summary>
+        /// <param name="nanoConfiguration">The Nano configuration.</param>
+        /// <param name="errorMessage">The error message to write.</param>
+        /// <returns>Indicates whether the error message successfully wrote to the event log.</returns>
+        public static bool WriteErrorToEventLog( this NanoConfiguration nanoConfiguration, string errorMessage )
+        {
+            return EventLogHelper.WriteErrorToEventLog( nanoConfiguration.ApplicationName, errorMessage );
         }
     }
 
@@ -938,6 +957,32 @@ namespace Nano.Web.Core
             nanoContext.Response.ResponseStreamWriter = nanoContext.WriteErrorsToStream;
         }
 
+        private static void GenerateHtmlErrorMessage( Exception exception, StringBuilder stringBuilder, int recursionLevel )
+        {
+            if ( recursionLevel > 25 )
+                return; // Something has most likely went very wrong so return early to avoid a stack overflow
+
+            if ( recursionLevel > 0 )
+            {
+                int marginLeft = recursionLevel * 4;
+                stringBuilder.AppendFormat( "<p style=\"margin-left:{0}px;\"><b>Inner Exception Error Message:</b></p>", marginLeft ).AppendLine();
+                stringBuilder.AppendFormat( "<p style=\"margin-left:{0}px;\">{1}</p>", marginLeft, exception.Message ).AppendLine();
+                stringBuilder.AppendFormat( "<p style=\"margin-left:{0}px;\"><b>Inner Exception Stack Trace:</b></p>", marginLeft ).AppendLine();
+                stringBuilder.AppendFormat( "<p style=\"margin-left:{0}px;\">{1}</p>", marginLeft, exception.StackTrace ).AppendLine();
+            }
+            else
+            {
+                stringBuilder.AppendLine( "<hr />" );
+                stringBuilder.AppendLine( "<p><b>Error Message:</b></p>" );
+                stringBuilder.AppendFormat( "<p>{0}</p>", exception.Message ).AppendLine();
+                stringBuilder.AppendLine( "<p><b>Stack Trace:</b></p>" );
+                stringBuilder.AppendFormat( "<p>{0}</p>", exception.StackTrace ).AppendLine();
+            }
+
+            if (exception.InnerException != null)
+                GenerateHtmlErrorMessage(exception.InnerException, stringBuilder, ++recursionLevel);
+        }
+
         /// <summary>Writes any errors to the response stream.</summary>
         /// <param name="nanoContext">The nano context.</param>
         /// <param name="stream">The stream.</param>
@@ -945,32 +990,32 @@ namespace Nano.Web.Core
         {
             nanoContext.Response.ContentType = "text/html";
 
-            if( Debugger.IsAttached )
+            if ( nanoContext.NanoConfiguration.LogErrorsToEventLog )
             {
-                string errorString = "<html><head><title>Internal Server Error</title></head><body><h3>Internal Server Error: Error 500</h3><p>Oops, an internal error occurred.</p>{{CustomErrorToken}}</body></html>";
+                var textErrorMessageBuilder = new StringBuilder();
+                textErrorMessageBuilder.AppendLine( "Nano Error:" );
+                textErrorMessageBuilder.AppendLine( "*************" ).AppendLine();
+                textErrorMessageBuilder.AppendLine( "URL: " + nanoContext.Request.Url ).AppendLine();
 
-                string customErrorToken = "";
+                foreach ( Exception exception in nanoContext.Errors )
+                    EventLogHelper.GenerateTextErrorMessage( exception, textErrorMessageBuilder, 0 );
 
-                foreach( Exception exception in nanoContext.Errors )
-                {
-                    string msg = "<hr />";
-                    msg += "<p><b>Error Message:</b></p>";
-                    msg += "<p>" + exception.Message + "</p>";
-                    msg += "<p><b>Inner Exception:</b></p>";
-                    msg += "<p>" + exception.InnerException + "</p>";
-                    msg += "<p><b>Stack Trace:</b></p>";
-                    msg += "<p>" + exception.StackTrace + "</p>";
-
-                    customErrorToken += msg;
-                }
-
-                errorString = errorString.Replace( "{{CustomErrorToken}}", customErrorToken );
-                stream.Write( errorString );
+                nanoContext.NanoConfiguration.WriteErrorToEventLog( textErrorMessageBuilder.ToString() );
             }
-            else
+
+            if ( Debugger.IsAttached )
             {
-                stream.Write( Constants.CustomErrorResponse.InternalServerError500 );
+                var htmlErrorMessageBuilder = new StringBuilder();
+
+                foreach ( Exception exception in nanoContext.Errors )
+                    GenerateHtmlErrorMessage( exception, htmlErrorMessageBuilder, 0 );
+
+                var errorMessage = Constants.CustomErrorResponse.InternalServerError500.Replace( "<!--ErrorMessage-->", htmlErrorMessageBuilder.ToString() );
+                stream.Write( errorMessage );
+                return;
             }
+
+            stream.Write( Constants.CustomErrorResponse.InternalServerError500 );
         }
 
         /// <summary>Returns a file if it exists.</summary>
@@ -1562,6 +1607,17 @@ namespace Nano.Web.Core
                 httpListenerConfiguration.HttpListener.Start();
                 var server = new HttpListenerNanoServer( nanoConfiguration, httpListenerConfiguration );
                 httpListenerConfiguration.HttpListener.BeginGetContext( server.BeginGetContextCallback, server );
+
+                httpListenerConfiguration.UnhandledExceptionHandler = exception =>
+                {
+                    var errorMessage = new StringBuilder()
+                        .AppendLine( "Nano Error:" )
+                        .AppendLine( "*************" ).AppendLine();
+
+                    EventLogHelper.GenerateTextErrorMessage(exception, errorMessage, 0);
+                    nanoConfiguration.WriteErrorToEventLog( errorMessage.ToString() );
+                };
+
                 BackgroundTaskRunner.Start( nanoConfiguration );
                 return server;
             }
@@ -1858,14 +1914,9 @@ namespace Nano.Web.Core
 
             /// <summary>
             /// Invoked on unhandled exceptions that occur during the HttpListenerContext to NanoContext mapping. Note: These will
-            /// *not* be called for normal Nano exceptions which are handled by the Nano event handlers. Defaults to writing to Trace
-            /// output.
+            /// *not* be called for normal Nano exceptions which are handled by the Nano event handlers.
             /// </summary>
-            public Action<Exception> UnhandledExceptionHandler = exception =>
-            {
-                string message = string.Format( "---\n{0}\n---\n", exception );
-                Trace.Write( message );
-            };
+            public Action<Exception> UnhandledExceptionHandler;
 
             /// <summary>
             /// Gets or sets a property that determines if localhost uris are rewritten to htp://+:port/ style uris to allow for
@@ -2048,6 +2099,9 @@ namespace Nano.Web.Core
                 }
                 catch( Exception e )
                 {
+                    if ( e is TargetInvocationException && e.InnerException != null )
+                        e = e.InnerException; // Hide Nano's outer 'TargetInvocationException' and just use the inner exception which is what almost everyone is going to desire
+
                     nanoContext.Errors.Add( e );
                     nanoContext.ReturnHttp500InternalServerError();
 
@@ -2597,8 +2651,9 @@ namespace Nano.Web.Core
                 if( nanoContext.Response.ResponseObject == null || nanoContext.Response.ResponseObject == nanoContext )
                     return nanoContext;
 
-                if (string.IsNullOrWhiteSpace(nanoContext.Response.ContentType)) ;
-                nanoContext.Response.ContentType = "application/json";
+                if ( string.IsNullOrWhiteSpace( nanoContext.Response.ContentType ) )
+                    nanoContext.Response.ContentType = "application/json";
+
                 nanoContext.WriteResponseObjectToResponseStream();
                 return nanoContext;
             }
@@ -4024,6 +4079,72 @@ namespace Nano.Web.Core
                     : base( message, innerException )
                 {
                 }
+            }
+        }
+
+        /// <summary>Provides helper methods for writing to the operating system event log.</summary>
+        public static class EventLogHelper
+        {
+            /// <summary>Writes an error message to the operating system event log.</summary>
+            /// <param name="applicationName">The application name.</param>
+            /// <param name="errorMessage">The error message to write.</param>
+            /// <returns>Indicates whether the error message successfully wrote to the event log.</returns>
+            public static bool WriteErrorToEventLog( string applicationName, string errorMessage )
+            {
+                bool successfullyWroteToEventLog = true;
+
+                try
+                {
+                    if ( !EventLog.SourceExists( applicationName ) )
+                        EventLog.CreateEventSource( applicationName, "Application" );
+
+                    if (errorMessage.Length > 31788)
+                        errorMessage = errorMessage.Substring(0, 31788) + " ...Log Message Truncated. Maximum length is 31839.";
+
+                    EventLog.WriteEntry( applicationName, errorMessage, EventLogEntryType.Error );
+                }
+                catch ( Exception )
+                {
+                    successfullyWroteToEventLog = false;
+                }
+
+                if ( Environment.UserInteractive )
+                    Console.WriteLine( errorMessage );
+
+                return successfullyWroteToEventLog;
+            }
+
+            /// <summary>Generates a text-based error message.</summary>
+            /// <param name="exception">The exception to generate the error message from.</param>
+            /// <param name="stringBuilder">StringBuilder instance to append the error message to.</param>
+            /// <param name="recursionLevel">The number of iterations this method has been called recursively.</param>
+            public static void GenerateTextErrorMessage(Exception exception, StringBuilder stringBuilder, int recursionLevel)
+            {
+                if ( recursionLevel > 25 )
+                    return; // Something has most likely went very wrong so return early to avoid a stack overflow
+
+                if (recursionLevel > 0)
+                {
+                    string prefix = "";
+
+                    for (int i = 0; i < recursionLevel; i++)
+                        prefix += "  ";
+
+                    stringBuilder.AppendLine(prefix + "Inner Exception Error Message:");
+                    stringBuilder.AppendLine(prefix + exception.Message).AppendLine();
+                    stringBuilder.AppendLine(prefix + "Inner Exception Stack Trace:");
+                    stringBuilder.AppendLine(prefix + exception.StackTrace).AppendLine();
+                }
+                else
+                {
+                    stringBuilder.AppendLine("Exception Error Message:");
+                    stringBuilder.AppendLine(exception.Message).AppendLine();
+                    stringBuilder.AppendLine("Exception Stack Trace:");
+                    stringBuilder.AppendLine(exception.StackTrace).AppendLine();
+                }
+
+                if (exception.InnerException != null)
+                    GenerateTextErrorMessage(exception.InnerException, stringBuilder, ++recursionLevel);
             }
         }
     }

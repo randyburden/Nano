@@ -15,6 +15,10 @@ namespace Nano.Demo.Mvc4
             {
             } );
 
+            config.GlobalEventHandler.UnhandledExceptionHandlers.Add((exception, context) =>
+            {
+            });
+
             var eventHandler = new EventHandler();
             eventHandler.PreInvokeHandlers.Add( context =>
             {
@@ -29,6 +33,7 @@ namespace Nano.Demo.Mvc4
             } );
 
             config.AddMethods<Customer>(); // methods will be added under '/api/customer/'
+            config.AddMethods<Customer2>();
 
             config.AddFile( "/home", @"\www\home\index.html" );
 
@@ -36,7 +41,7 @@ namespace Nano.Demo.Mvc4
             
             config.AddFunc( "/howdy", x =>
             {
-                var model = x.Bind<Person>( "person" );
+                var model = x.Bind<Person>( "person" ); // Looks for a complex request parameter named 'person' to bind to a 'Person' class
                 return model;
             } );
 

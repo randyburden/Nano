@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Text;
 using Nano.Web.Core;
 using Nano.Web.Core.Host.HttpListener;
 using Topshelf;
@@ -51,36 +50,15 @@ namespace Nano.Demo.TopshelfSelfHost
                 var validatedUrls = ValidateUrls( urls );
 
                 var config = new NanoConfiguration();
+                config.ApplicationName = _applicationName;
 
                 // When the Debugger is attached, map two folders up so that you can live edit files in Visual Studio without having to restart
                 // your application to get the files copied to your bin directory.
                 config.AddDirectory( "/", Debugger.IsAttached ? "../../www" : "www", returnHttp404WhenFileWasNotFound: true );
+
                 config.AddMethods<Customer>( "/api/customer/" );
                 config.AddFunc( "/hi", context => "Hello World!" );
-                
-                config.GlobalEventHandler.UnhandledExceptionHandlers.Add( ( exception, context ) =>
-                {
-                    try
-                    {
-                        if ( !EventLog.SourceExists( _applicationName ) )
-                            EventLog.CreateEventSource( _applicationName, "Application" );
-
-                        var msg = new StringBuilder()
-                            .AppendLine( "Nano Error:" )
-                            .AppendLine( "-----------" ).AppendLine()
-                            .AppendLine( "URL: " + context.Request.Url ).AppendLine()
-                            .AppendLine( "Message: " + exception.Message ).AppendLine()
-                            .AppendLine( "StackTrace:" )
-                            .AppendLine( exception.StackTrace )
-                            .ToString();
-
-                        EventLog.WriteEntry( _applicationName, msg, EventLogEntryType.Error );
-                    }
-                    catch ( Exception )
-                    {
-                        // Gulp: Never throw an exception in the unhandled exception handler
-                    }
-                } );
+                config.EnableCors();
 
                 _server = HttpListenerNanoServer.Start( config, validatedUrls );
                 _server.HttpListenerConfiguration.ApplicationPath = "YourOptionalVirtualAppPathName";

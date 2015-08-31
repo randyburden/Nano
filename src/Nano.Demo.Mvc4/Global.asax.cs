@@ -5,6 +5,7 @@ using System.Web.Mvc;
 using System.Web.Routing;
 
 #pragma warning disable 1591
+
 namespace Nano.Demo.Mvc4
 {
     // Note: For instructions on enabling IIS6 or IIS7 classic mode, 
@@ -27,7 +28,11 @@ namespace Nano.Demo.Mvc4
 
         protected void Application_BeginRequest( object sender, EventArgs e )
         {
-            
+
+        }
+
+        void Application_Error( object sender, EventArgs e )
+        {
         }
     }
 }
