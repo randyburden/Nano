@@ -4,15 +4,16 @@ Nano
 <a href="https://www.nuget.org/packages/Nano"><img src="https://img.shields.io/nuget/v/Nano.svg" alt="NuGet Version" /></a> 
 <a href="https://www.nuget.org/packages/Nano"><img src="https://img.shields.io/nuget/dt/Nano.svg" alt="NuGet Download Count" /></a>
 
-AppVeyor ( Windows ):
-<a href="https://ci.appveyor.com/project/AmbitEnergyLabs/nano">
-	<img src="https://ci.appveyor.com/api/projects/status/github/ambitenergylabs/nano?svg=true" alt="AppVeyor Windows Build Status" />
-</a>
+**Build Status**
 
-Travis CI ( Linux ):
-<a href="https://travis-ci.org/AmbitEnergyLabs/Nano">
-	<img src="https://travis-ci.org/AmbitEnergyLabs/Nano.svg" alt="Travis CI Linux Build Status" />
-</a>
+| Windows             | Linux             |
+| ------------------- | ------------------|
+| [![windows][1]][2]  | [![linux][3]][4]  |
+
+[1]: https://ci.appveyor.com/api/projects/status/github/ambitenergylabs/nano?svg=true
+[2]: https://ci.appveyor.com/project/AmbitEnergyLabs/nano
+[3]: https://travis-ci.org/AmbitEnergyLabs/Nano.svg
+[4]: https://travis-ci.org/AmbitEnergyLabs/Nano
 
 Nano is a .NET cross-platform micro web framework for building web-based HTTP services and websites.
 
