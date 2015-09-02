@@ -8,6 +8,7 @@ using System.Threading;
 using Nano.Web.Core;
 
 // ReSharper disable once CheckNamespace
+
 namespace Nano.Demo
 {
     /// <summary>
@@ -21,7 +22,7 @@ namespace Nano.Demo
         /// <param name="firstName">The first name.</param>
         /// <param name="lastName">The last name.</param>
         /// <returns>Customer.</returns>
-        public static CustomerModel CreateCustomer(string firstName, string lastName)
+        public static CustomerModel CreateCustomer( string firstName, string lastName )
         {
             return new CustomerModel
             {
@@ -36,8 +37,11 @@ namespace Nano.Demo
         /// </summary>
         /// <param name="customerModel">The customer model.</param>
         /// <returns>The updated customer model.</returns>
-        public static CustomerModel UpdateCustomer(CustomerModel customerModel)
+        public static CustomerModel UpdateCustomer( CustomerModel customerModel )
         {
+            if ( customerModel == null )
+                throw new ArgumentNullException( "customerModel" );
+
             return customerModel;
         }
 
@@ -46,7 +50,7 @@ namespace Nano.Demo
         /// </summary>
         /// <param name="personId">The person identifier.</param>
         /// <returns>Person.</returns>
-        public static Person GetPerson(int personId)
+        public static Person GetPerson( int personId )
         {
             return new Person
             {
@@ -82,7 +86,7 @@ namespace Nano.Demo
         /// </summary>
         /// <param name="customerNbr">The customer number.</param>
         /// <returns>Customer object.</returns>
-        public static object GetCustomer(int customerNbr)
+        public static object GetCustomer( int customerNbr )
         {
             return new
             {
@@ -97,15 +101,15 @@ namespace Nano.Demo
         /// </summary>
         /// <param name="nanoContext">The nano context.</param>
         /// <returns>NanoContext stuff.</returns>
-        public static object GetContext(dynamic nanoContext)
+        public static object GetContext( dynamic nanoContext )
         {
-            Func<System.Collections.Specialized.NameValueCollection, Dictionary<string,object>> nameValueCollectionToDictionary = collection =>
+            Func<System.Collections.Specialized.NameValueCollection, Dictionary<string, object>> nameValueCollectionToDictionary = collection =>
             {
                 Dictionary<string, object> dictionary = new Dictionary<string, object>();
 
                 foreach ( string parameterName in collection )
                 {
-                    dictionary.Add( parameterName, collection[ parameterName ]);
+                    dictionary.Add( parameterName, collection[ parameterName ] );
                 }
 
                 return dictionary;
@@ -116,9 +120,9 @@ namespace Nano.Demo
                 Request = new
                 {
                     nanoContext.Request.HttpMethod,
-                    QueryStringParameters = nameValueCollectionToDictionary(nanoContext.Request.QueryStringParameters),
+                    QueryStringParameters = nameValueCollectionToDictionary( nanoContext.Request.QueryStringParameters ),
                     FormBodyParameters = nameValueCollectionToDictionary( nanoContext.Request.FormBodyParameters ),
-                    HeaderParameters = nameValueCollectionToDictionary(nanoContext.Request.HeaderParameters )
+                    HeaderParameters = nameValueCollectionToDictionary( nanoContext.Request.HeaderParameters )
                 },
                 NanoConfiguration = new
                 {
@@ -135,7 +139,7 @@ namespace Nano.Demo
         /// <returns>The correlation identifier.</returns>
         public static string GetCorrelationId()
         {
-            var correlationId = CallContext.LogicalGetData("X-CorrelationId");
+            var correlationId = CallContext.LogicalGetData( "X-CorrelationId" );
 
             return correlationId == null ? "No CorrelationId found" : correlationId.ToString();
         }
@@ -150,7 +154,7 @@ namespace Nano.Demo
         /// <param name="firstName">First name.</param>
         /// <param name="lastName">Last name.</param>
         /// <returns>Customer.</returns>
-        public static CustomerModel CreatePendingCustomer(string firstName, string lastName = null)
+        public static CustomerModel CreatePendingCustomer( string firstName, string lastName = null )
         {
             return new CustomerModel
             {
@@ -165,9 +169,9 @@ namespace Nano.Demo
         /// </summary>
         /// <param name="delayInSeconds">Number of seconds to delay before responding.</param>
         /// <returns>Delay in seconds.</returns>
-        public static int DelayedResponse(int delayInSeconds = 3)
+        public static int DelayedResponse( int delayInSeconds = 3 )
         {
-            Thread.Sleep(delayInSeconds * 1000);
+            Thread.Sleep( delayInSeconds * 1000 );
 
             return delayInSeconds;
         }
@@ -210,8 +214,11 @@ namespace Nano.Demo
         /// </summary>
         /// <param name="customer">Customer model.</param>
         /// <returns>Customer.</returns>
-        public static dynamic CreateDynamicCustomer(dynamic customer)
+        public static dynamic CreateDynamicCustomer( dynamic customer )
         {
+            if ( customer == null )
+                throw new ArgumentNullException( "customer" );
+
             return new
             {
                 customer.CustomerId,
@@ -252,16 +259,16 @@ namespace Nano.Demo
         /// <param name="nanoContext">The Nano context.</param>
         public static void EchoUploadedFile( NanoContext nanoContext )
         {
-            if (nanoContext.Request.Files.Count == 0)
-                throw new Exception("No file uploaded");
+            if ( nanoContext.Request.Files.Count == 0 )
+                throw new Exception( "No file uploaded" );
 
             var file = nanoContext.Request.Files.FirstOrDefault();
 
-            if (file== null)
-                throw new Exception("No file uploaded");
+            if ( file == null )
+                throw new Exception( "No file uploaded" );
 
             nanoContext.Response.ContentType = file.ContentType;
-            nanoContext.Response.HeaderParameters.Add("Content-Disposition", "attachment; filename=" + file.FileName );
+            nanoContext.Response.HeaderParameters.Add( "Content-Disposition", "attachment; filename=" + file.FileName );
             nanoContext.Response.ResponseStreamWriter = stream =>
             {
                 file.Value.CopyTo( stream );
@@ -273,7 +280,7 @@ namespace Nano.Demo
         /// </summary>
         /// <param name="nanoContext">The Nano context.</param>
         /// <param name="customerId">The customer id.</param>
-        public static Stream DownloadCustomerExcelReport(dynamic nanoContext, int customerId)
+        public static Stream DownloadCustomerExcelReport( dynamic nanoContext, int customerId )
         {
             var htmlTable = @"
 <table>
@@ -295,8 +302,8 @@ namespace Nano.Demo
 ";
 
             nanoContext.Response.ContentType = "application/vnd.ms-excel";
-            nanoContext.Response.HeaderParameters.Add("Content-Disposition", "attachment; filename=CustomerReport-" + customerId + ".xls");
-            return new MemoryStream(Encoding.UTF8.GetBytes(htmlTable));
+            nanoContext.Response.HeaderParameters.Add( "Content-Disposition", "attachment; filename=CustomerReport-" + customerId + ".xls" );
+            return new MemoryStream( Encoding.UTF8.GetBytes( htmlTable ) );
         }
 
         /// <summary>
@@ -395,7 +402,7 @@ namespace Nano.Demo
         /// <param name="firstName">The first name.</param>
         /// <param name="lastName">The last name.</param>
         /// <returns>Customer.</returns>
-        public static Customer.CustomerModel CreateCustomer(string firstName, string lastName)
+        public static Customer.CustomerModel CreateCustomer( string firstName, string lastName )
         {
             return new Customer.CustomerModel
             {

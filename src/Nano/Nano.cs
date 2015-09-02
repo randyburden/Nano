@@ -3121,7 +3121,7 @@ namespace Nano.Web.Core
                         }
 
                         // Handle nullable parameters
-                        if( Nullable.GetUnderlyingType( methodParameter.Type ) != null )
+                        if( Nullable.GetUnderlyingType( methodParameter.Type ) != null || ( !methodParameter.Type.IsValueType ) )
                         {
                             methodInvokationParameters.Add( null );
                             continue;
