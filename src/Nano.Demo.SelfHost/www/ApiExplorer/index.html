@@ -499,6 +499,7 @@ body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line
                 '        {',
                 '           if ( obj is string ) return obj.ToString();',
                 '           if ( obj == null ) return null;',
+                '           if (obj is DateTime) return Newtonsoft.Json.JsonConvert.SerializeObject(obj).Replace("\\"", "");',
                 '           return Newtonsoft.Json.JsonConvert.SerializeObject( obj );',
                 '        };',
                 '',
