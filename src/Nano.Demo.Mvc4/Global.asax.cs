@@ -28,7 +28,6 @@ namespace Nano.Demo.Mvc4
 
         protected void Application_BeginRequest( object sender, EventArgs e )
         {
-
         }
 
         void Application_Error( object sender, EventArgs e )

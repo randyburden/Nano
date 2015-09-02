@@ -62,6 +62,7 @@
     <Content Include="www\home\index.html" />
     <Content Include="www\index.html" />
     <Content Include="www\JsonPostTester\index.html" />
+    <Content Include="www\MultipartTester\index.html" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
@@ -72,7 +73,7 @@
     <PostBuildEvent Condition=" '$(OS)' == 'Windows_NT' ">
     	xcopy "$(ProjectDir)www\*.*" "$(TargetDir)www" /Y /I /E
 	</PostBuildEvent>
-	<PostBuildEvent Condition=" '$(OS)' != 'Windows_NT' ">
+    <PostBuildEvent Condition=" '$(OS)' != 'Windows_NT' ">
 		mkdir -p $(TargetDir)www;
     	cp -rf $(ProjectDir)www\* $(TargetDir)www
 	</PostBuildEvent>

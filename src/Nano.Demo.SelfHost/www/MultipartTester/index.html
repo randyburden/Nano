@@ -1,0 +1,30 @@
+﻿<!DOCTYPE html>
+<html>
+<body>
+
+    <h3>Api/Customer/CreateCustomer</h3>
+
+    <form action="/api/customer/createcustomer" method="post" enctype="multipart/form-data">
+        First Name: <input type="text" name="firstName"><br>
+        Last Name: <input type="text" name="lastName"><br>
+        <input type="submit" value="Submit">
+    </form>
+
+    <h3>Api/Customer/GetUploadedFilesDetails</h3>
+
+    <form action="/api/customer/GetUploadedFilesDetails" method="post" enctype="multipart/form-data">
+        Upload Any File: <input type="file" name="uploadedFile1"><br>
+        Upload Any File: <input type="file" name="uploadedFile2"><br>
+        Upload Any File: <input type="file" name="uploadedFile3"><br>
+        <input type="submit" value="Submit">
+    </form>
+
+    <h3>Api/Customer/EchoUploadedFile</h3>
+
+    <form action="/api/customer/EchoUploadedFile" method="post" enctype="multipart/form-data">
+        Upload Any File: <input type="file" name="uploadedFile"><br>
+        <input type="submit" value="Submit">
+    </form>
+
+</body>
+</html>

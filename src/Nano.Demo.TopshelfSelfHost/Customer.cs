@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Runtime.Remoting.Messaging;
 using System.Text;
 using System.Threading;
+using Nano.Web.Core;
 
 // ReSharper disable once CheckNamespace
 namespace Nano.Demo
@@ -215,6 +217,54 @@ namespace Nano.Demo
                 customer.CustomerId,
                 customer.FirstName,
                 customer.LastName
+            };
+        }
+
+        /// <summary>
+        /// Returns the details of the files uploaded.
+        /// </summary>
+        /// <param name="nanoContext">The Nano context.</param>
+        /// <returns>Uploaded file details.</returns>
+        public static dynamic GetUploadedFilesDetails( NanoContext nanoContext )
+        {
+            if ( nanoContext.Request.Files.Count == 0 )
+                throw new Exception( "No file uploaded" );
+
+            var results = new List<object>();
+
+            foreach ( var file in nanoContext.Request.Files )
+            {
+                results.Add( new
+                {
+                    file.ContentType,
+                    file.FileName,
+                    file.Name,
+                    FileLength = file.Value.Length
+                } );
+            }
+
+            return results;
+        }
+
+        /// <summary>
+        /// Echos back the uploaded file to the client.
+        /// </summary>
+        /// <param name="nanoContext">The Nano context.</param>
+        public static void EchoUploadedFile( NanoContext nanoContext )
+        {
+            if (nanoContext.Request.Files.Count == 0)
+                throw new Exception("No file uploaded");
+
+            var file = nanoContext.Request.Files.FirstOrDefault();
+
+            if (file== null)
+                throw new Exception("No file uploaded");
+
+            nanoContext.Response.ContentType = file.ContentType;
+            nanoContext.Response.HeaderParameters.Add("Content-Disposition", "attachment; filename=" + file.FileName );
+            nanoContext.Response.ResponseStreamWriter = stream =>
+            {
+                file.Value.CopyTo( stream );
             };
         }
 

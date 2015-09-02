@@ -59,6 +59,7 @@
     <Content Include="www\index.html" />
     <Content Include="www\JavaScriptProxyTester\index.html" />
     <Content Include="www\JsonPostTester\index.html" />
+    <Content Include="www\MultipartTester\index.html" />
   </ItemGroup>
   <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
