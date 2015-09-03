@@ -9,3 +9,4 @@ Authors
  - Robert Rudduck - https://github.com/rrudduck
  - Michael Rudduck - https://github.com/mrudduck
  - Rahul Rumalla - https://github.com/xizmark
+ - Andrew McClellen - https://github.com/acmc

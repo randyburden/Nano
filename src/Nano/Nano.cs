@@ -1,5 +1,5 @@
 /*
-    Nano v0.12.0
+    Nano v0.13.0
     
     Nano is a .NET cross-platform micro web framework for building web-based HTTP services and websites.
 
@@ -1076,7 +1076,7 @@ namespace Nano.Web.Core
                 Version = fvi.FileVersion;
             }
             else
-                Version = "0.12.0.0";
+                Version = "0.13.0.0";
         }
 
         /// <summary>Custom error responses.</summary>
