@@ -14,6 +14,20 @@ namespace Nano.Tests
 	[TestFixture]
 	public class ProxyTests
 	{
+	    [Test]
+	    public void Can_Handle_Void_Methods()
+	    {
+            // Arrange
+            var config = new NanoConfiguration();
+            config.AddMethods<Customer2>();
+
+	        using ( HttpListenerNanoServer.Start( config, ApiProxy.Configuration.BaseApiUrl ) )
+	        {
+                // Act and Assert
+                ApiProxy.Customer2.DoNothing(); // Just ensure we don't blow up
+            }
+	    }
+
 		[Test]
 		public void Test_Proxy_Generated_Code()
 		{
@@ -89,6 +103,7 @@ namespace Nano.Tests
             {
                 if (obj is string) return obj.ToString();
                 if (obj == null) return null;
+                if (obj is DateTime) return Newtonsoft.Json.JsonConvert.SerializeObject(obj).Replace("\"", "");
                 return Newtonsoft.Json.JsonConvert.SerializeObject(obj);
             };
 
@@ -178,12 +193,34 @@ namespace Nano.Tests
                 return PostJson<Int32>(Configuration.BaseApiUrl + "/api/Customer/DelayedResponse", parameters, correlationId);
             }
 
+            /// <summary>Throws the given number of nested exceptions. The default is 3.</summary>
+            /// <param name="numberOfInnerExceptions">Number of nested exceptions to throw.</param>
+            public static Int32 ThrowException(Int32 numberOfInnerExceptions, object correlationId = null)
+            {
+                var parameters = new System.Collections.Specialized.NameValueCollection { { "numberOfInnerExceptions", Configuration.Serialize(numberOfInnerExceptions) } };
+                return PostJson<Int32>(Configuration.BaseApiUrl + "/api/Customer/ThrowException", parameters, correlationId);
+            }
+
             /// <summary>Creates a customer.</summary>
             /// <param name="customer">Customer model.</param>
             public static Object CreateDynamicCustomer(Object customer, object correlationId = null)
             {
                 var parameters = new System.Collections.Specialized.NameValueCollection { { "customer", Configuration.Serialize(customer) } };
                 return PostJson<Object>(Configuration.BaseApiUrl + "/api/Customer/CreateDynamicCustomer", parameters, correlationId);
+            }
+
+            /// <summary>Returns the details of the files uploaded.</summary>
+            public static Object GetUploadedFilesDetails(object correlationId = null)
+            {
+                var parameters = new System.Collections.Specialized.NameValueCollection { };
+                return PostJson<Object>(Configuration.BaseApiUrl + "/api/Customer/GetUploadedFilesDetails", parameters, correlationId);
+            }
+
+            /// <summary>Echos back the uploaded file to the client.</summary>
+            public static void EchoUploadedFile(object correlationId = null)
+            {
+                var parameters = new System.Collections.Specialized.NameValueCollection { };
+                PostJson<object>(Configuration.BaseApiUrl + "/api/Customer/EchoUploadedFile", parameters, correlationId);
             }
 
             /// <summary>Downloads the customer Excel report.</summary>
@@ -204,6 +241,13 @@ namespace Nano.Tests
             {
                 var parameters = new System.Collections.Specialized.NameValueCollection { { "firstName", Configuration.Serialize(firstName) }, { "lastName", Configuration.Serialize(lastName) } };
                 return PostJson<CustomerModel>(Configuration.BaseApiUrl + "/api/Customer2/CreateCustomer", parameters, correlationId);
+            }
+
+            /// <summary>This is a void method with no inputs that does nothing.</summary>
+            public static void DoNothing(object correlationId = null)
+            {
+                var parameters = new System.Collections.Specialized.NameValueCollection { };
+                PostJson<object>(Configuration.BaseApiUrl + "/api/Customer2/DoNothing", parameters, correlationId);
             }
         }
 

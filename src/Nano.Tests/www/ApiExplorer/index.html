@@ -614,9 +614,20 @@ body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line
 
                         var method = methodTemplate;
 
-                        var operationDescription = replaceAllOccurrences(operation.Description, "\n", "\n        /// "); // Handle <summary> descriptions with line breaks
+                        var operationDescription = "";
+                        if (operation.Description !== null)
+                            operationDescription = replaceAllOccurrences(operation.Description, "\n", "\n        /// "); // Handle <summary> descriptions with line breaks
+
                         method = replaceAllOccurrences(method, "{{Summary}}", operationDescription);
-                        method = replaceAllOccurrences(method, "{{ReturnType}}", operation.ReturnParameterType);
+
+                        if (operation.ReturnParameterType === "Void") {
+                            method = replaceAllOccurrences(method, "return ", ""); // Remove return statement
+                            method = replaceAllOccurrences(method, "static {{ReturnType}}", "static void"); // Change return type to 'void'
+                            method = replaceAllOccurrences(method, "<{{ReturnType}}>", "<object>"); // Change generic type to 'object' as this will serialize the empty server response to null safely
+                        } else {
+                            method = replaceAllOccurrences(method, "{{ReturnType}}", operation.ReturnParameterType);
+                        }
+                        
                         method = replaceAllOccurrences(method, "{{MethodName}}", operation.Name);
                         method = replaceAllOccurrences(method, "{{UrlPath}}", operation.UrlPath);
 
@@ -628,7 +639,11 @@ body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line
                             var inputParameter = operation.InputParameters[j];
                             inputParameterList += inputParameter.Type + " " + inputParameter.Name + ", ";
                             nameValueCollectionParameterList += '{"' + inputParameter.Name + '", Configuration.Serialize(' + inputParameter.Name + ')}, ';
-                            var inputParameterDescription = replaceAllOccurrences(inputParameter.Description, "\n", "\n        /// "); // Handle <param> descriptions with line breaks
+
+                            var inputParameterDescription = "";
+                            if (inputParameter.Description !== null)
+                                inputParameterDescription = replaceAllOccurrences(inputParameter.Description, "\n", "\n        /// "); // Handle <param> descriptions with line breaks
+
                             commentParameterList += '\n        /// <param name="{{ParameterName}}">{{Description}}</param>'.replace('{{ParameterName}}', inputParameter.Name).replace('{{Description}}', inputParameterDescription);
                         }   
 

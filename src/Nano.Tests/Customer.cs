@@ -411,5 +411,13 @@ namespace Nano.Demo
                 LastName = lastName
             };
         }
+        
+        /// <summary>
+        /// This is a void method with no inputs that does nothing.
+        /// </summary>
+        public static void DoNothing()
+        {
+            // Do nothing to test a void method
+        }
     }
 }
