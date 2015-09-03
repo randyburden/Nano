@@ -6,7 +6,7 @@
     <title>Nano</title>
     <authors>Randy Burden, David Whitlark and contributors</authors>
     <owners>Randy Burden, David Whitlark and contributors</owners>
-    <licenseUrl>https://github.com/AmbitEnergyLabs/Nano/blob/master/LICENSE</licenseUrl>
+    <licenseUrl>https://github.com/AmbitEnergyLabs/Nano/blob/master/LICENSE.md</licenseUrl>
     <projectUrl>https://github.com/AmbitEnergyLabs/Nano</projectUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <description>Nano is a micro web framework for building web-based HTTP services and websites for .NET.</description>
