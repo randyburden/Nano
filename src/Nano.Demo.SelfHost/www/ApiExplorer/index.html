@@ -35,7 +35,7 @@ body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line
             <style>
                 #NanoLogoSvg {
                     float:left;
-                    width:75px;
+                    width:82px;
                 }
                 .header-text {
                     float:left;
@@ -68,8 +68,9 @@ body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line
                 </svg>
                 <h3 class="header-text" style="font-size: 24px;">Api Explorer v.0.7.0</h3></td>
             <td style="text-align: right;">
-                <select id="DropdownFeatures">
-                    <option>Api Explorer Features</option>
+                <strong>Api Explorer Features:</strong>
+                <select id="DropdownFeatures" style="width:175px;height:21px;">
+                    <option selected>Select...</option>
                     <optgroup label="Proxy Generators">
                         <option value="GenerateCSharpProxy">C#</option>
                         <option value="GenerateJavascriptProxy">JavaScript</option>
@@ -109,7 +110,7 @@ body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line
         line-height: 190px;
         text-align: center;
         font-family: 'Orbitron', sans-serif;
-        font-size: 30px;
+        font-size: 55px;
         font-weight: bold;
         letter-spacing: 6px;
         fill: orange;
@@ -128,7 +129,7 @@ body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line
 
     #NanoLogoSvg:hover > #NanoText {
         fill: orange;
-        font-size: 46px;
+        font-size: 65px;
         text-shadow: 0 0 10px orange;
     }
 </style>
@@ -152,7 +153,7 @@ body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line
             var urlPath = getBaseUrl() + data.Path;
 
             // Generate Sample Link Row
-            var tbody = '<tr><td colspan="4"></td><td rowspan="' + (data.InputParameters.length + 1) + '"><input type="button" class="btn" value="Generate Link" onclick="$(this).next().show();$(this).hide();" /><a href="#" data-path="' + urlPath + '" id="' + getSampleLinkId(data) + '" target="_blank" style="display:none;">' + urlPath + '</a></td></tr>';
+            var tbody = '<tr><td colspan="4"></td><td rowspan="' + (data.InputParameters.length + 1) + '" style="vertical-align:top"><input type="button" class="btn generatedBtn" value="Show Generated Link" onclick="clickGenerateLinkButton(this);" /><p style="display:none;"><a href="#" data-path="' + urlPath + '" id="' + getSampleLinkId(data) + '" target="_blank">' + urlPath + '</a></p></td></tr>';
 
             // Generate Form Input Parameter Rows
             for (var i = 0; i < data.InputParameters.length; i++) {
@@ -945,8 +946,19 @@ body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line
                 }
             });
 
-
         });
+
+
+    //sets "Show Generated URL" buttons to show/hide URLs, changes text
+        function clickGenerateLinkButton(btn) {
+            $(btn).next().toggle();
+            if ($(btn).val() == "Show Generated Link") {
+                $(btn).val("Hide Generated Link");
+            }
+            else {
+                $(btn).val("Show Generated Link");
+            }
+        }
 
     </script>
 
