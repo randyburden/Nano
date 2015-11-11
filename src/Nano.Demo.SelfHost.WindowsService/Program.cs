@@ -107,11 +107,20 @@ namespace Nano.Demo.SelfHost.WindowsService
         }
     }
 
+    /// <summary>
+    /// Windows Service.
+    /// </summary>
     public class WindowsService : System.ServiceProcess.ServiceBase
     {
         private readonly Action _onStart;
         private readonly Action _onStop;
 
+        /// <summary>
+        /// Windows Service.
+        /// </summary>
+        /// <param name="serviceName">Service name.</param>
+        /// <param name="onStart">Function to execute on start of Windows Service.</param>
+        /// <param name="onStop">Function to execute on stop of Windows Service.</param>
         public WindowsService(string serviceName, Action onStart, Action onStop)
         {
             SetCurrentDirectory();
@@ -122,16 +131,29 @@ namespace Nano.Demo.SelfHost.WindowsService
             CanStop = true;
         }
 
+        /// <summary>
+        /// Executed on start.
+        /// </summary>
+        /// <param name="args">Arguments supplied upon execution.</param>
         protected override void OnStart(string[] args)
         {
             _onStart();
         }
 
+        /// <summary>
+        /// Executed on stop.
+        /// </summary>
         protected override void OnStop()
         {
             _onStop();
         }
 
+        /// <summary>
+        /// Starts the Windows Service.
+        /// </summary>
+        /// <param name="serviceName">Service name.</param>
+        /// <param name="onStart">Function to execute on start of Windows Service.</param>
+        /// <param name="onStop">Function to execute on stop of Windows Service.</param>
         public static void Start(string serviceName, Action onStart, Action onStop)
         {
             if (!Environment.UserInteractive)

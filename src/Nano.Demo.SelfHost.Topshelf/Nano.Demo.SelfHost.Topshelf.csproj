@@ -34,6 +34,10 @@
     <DocumentationFile>bin\Release\Nano.Demo.SelfHost.Topshelf.XML</DocumentationFile>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Newtonsoft.Json, Version=7.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>..\packages\Newtonsoft.Json.7.0.1\lib\net45\Newtonsoft.Json.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -44,6 +48,7 @@
     <Reference Include="System.Xml" />
     <Reference Include="Topshelf, Version=3.2.150.0, Culture=neutral, PublicKeyToken=b800c4cfcdeea87b, processorArchitecture=MSIL">
       <HintPath>..\packages\Topshelf.3.2.0\lib\net40-full\Topshelf.dll</HintPath>
+      <SpecificVersion>False</SpecificVersion>
       <Private>True</Private>
     </Reference>
   </ItemGroup>
@@ -52,8 +57,12 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="App.config" />
-    <None Include="packages.config" />
+    <None Include="App.config">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="packages.config">
+      <SubType>Designer</SubType>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Content Include="www\admin\secret\backdoor\home\footer\index.html" />

@@ -8,7 +8,7 @@ namespace Nano.Demo.SelfHost.Topshelf
 {
     internal class Program
     {
-        private static void Main( string[] args )
+        internal static void Main( string[] args )
         {
             string uris = "http://localhost:4545";
 
@@ -29,7 +29,7 @@ namespace Nano.Demo.SelfHost.Topshelf
             } );
         }
 
-        public class Startup
+        internal class Startup
         {
             private readonly string _applicationName;
 
