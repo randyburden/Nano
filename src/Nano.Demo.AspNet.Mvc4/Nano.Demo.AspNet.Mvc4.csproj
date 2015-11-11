@@ -228,4 +228,10 @@
     <PostBuildEvent Condition=" '$(OS)' != 'Windows_NT' ">mkdir -p $(TargetDir)www;
 cp -rf $(ProjectDir)www\* $(TargetDir)www</PostBuildEvent>
   </PropertyGroup>
+  <PropertyGroup>
+    <PostBuildEvent>
+      if not exist "$(WebProjectOutputDir)\bin\Roslyn" md "$(WebProjectOutputDir)\bin\Roslyn"
+      start /MIN xcopy /s /y /R "$(OutDir)roslyn\*.*" "$(WebProjectOutputDir)\bin\Roslyn"
+    </PostBuildEvent>
+  </PropertyGroup>
 </Project>
