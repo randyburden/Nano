@@ -18,15 +18,12 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nano.Demo.AspNet.Mvc4", "Na
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nano.Demo.SelfHost.Console", "Nano.Demo.SelfHost.Console\Nano.Demo.SelfHost.Console.csproj", "{BC4A8CF3-32A6-4DDE-A0F3-9822A982A122}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nano.Demo.SelfHost.Topshelf", "Nano.Demo.SelfHost.Topshelf\Nano.Demo.SelfHost.Topshelf.csproj", "{4AC28B98-5986-447B-8159-9AB33FCDF481}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nano.Demo.SelfHost.WindowsService", "Nano.Demo.SelfHost.WindowsService\Nano.Demo.SelfHost.WindowsService.csproj", "{31D43968-AEDE-4977-A518-A6CEA67DE9F7}"
 EndProject
 Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "Nano.Demo", "Nano.Demo\Nano.Demo.shproj", "{04369193-FD70-4478-8005-4DEBD41760F8}"
 EndProject
 Global
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
-		Nano.Demo\Nano.Demo.projitems*{4ac28b98-5986-447b-8159-9ab33fcdf481}*SharedItemsImports = 4
 		Nano.Demo\Nano.Demo.projitems*{04369193-fd70-4478-8005-4debd41760f8}*SharedItemsImports = 13
 		Nano.Demo\Nano.Demo.projitems*{bc4a8cf3-32a6-4dde-a0f3-9822a982a122}*SharedItemsImports = 4
 		Nano.Demo\Nano.Demo.projitems*{31d43968-aede-4977-a518-a6cea67de9f7}*SharedItemsImports = 4
@@ -54,10 +51,6 @@ Global
 		{BC4A8CF3-32A6-4DDE-A0F3-9822A982A122}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{BC4A8CF3-32A6-4DDE-A0F3-9822A982A122}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{BC4A8CF3-32A6-4DDE-A0F3-9822A982A122}.Release|Any CPU.Build.0 = Release|Any CPU
-		{4AC28B98-5986-447B-8159-9AB33FCDF481}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{4AC28B98-5986-447B-8159-9AB33FCDF481}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{4AC28B98-5986-447B-8159-9AB33FCDF481}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{4AC28B98-5986-447B-8159-9AB33FCDF481}.Release|Any CPU.Build.0 = Release|Any CPU
 		{31D43968-AEDE-4977-A518-A6CEA67DE9F7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{31D43968-AEDE-4977-A518-A6CEA67DE9F7}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{31D43968-AEDE-4977-A518-A6CEA67DE9F7}.Release|Any CPU.ActiveCfg = Release|Any CPU

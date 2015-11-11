@@ -73,10 +73,8 @@
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PostBuildEvent Condition=" '$(OS)' == 'Windows_NT' ">xcopy "$(ProjectDir)www\*.*" "$(TargetDir)www" /Y /I /E</PostBuildEvent>
-    <PostBuildEvent Condition=" '$(OS)' != 'Windows_NT' ">mkdir -p $(TargetDir)www;
+    <PostBuildEvent Condition=" '$(OS)' != 'Windows_NT' ">
+mkdir -p $(TargetDir)www;
 cp -rf $(ProjectDir)www\* $(TargetDir)www</PostBuildEvent>
-  </PropertyGroup>
-  <PropertyGroup>
-    <PostBuildEvent>xcopy "$(ProjectDir)www\*.*" "$(TargetDir)www" /Y /I /E</PostBuildEvent>
   </PropertyGroup>
 </Project>
