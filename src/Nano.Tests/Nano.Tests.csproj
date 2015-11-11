@@ -48,7 +48,6 @@
     <Reference Include="Microsoft.CSharp" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Customer.cs" />
     <Compile Include="Host\HttpListener\HttpListenerConfigurationShould.cs" />
     <Compile Include="Host\HttpListener\HttpListenerNanoServer\HttpListenerNanoServerShould.cs" />
     <Compile Include="Host\HttpListener\HttpListenerNanoServer\ParseFormBodyParametersShould.cs" />
@@ -79,6 +78,7 @@
   <ItemGroup>
     <None Include="packages.config" />
   </ItemGroup>
+  <Import Project="..\Nano.Demo\Nano.Demo.projitems" Label="Shared" />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Import Project="$(SolutionDir)\.nuget\NuGet.targets" Condition="Exists('$(SolutionDir)\.nuget\NuGet.targets')" />
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">

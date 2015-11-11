@@ -32,7 +32,7 @@ namespace Nano.Tests
 		public void Test_Proxy_Generated_Code()
 		{
 			var config = new NanoConfiguration();
-			config.AddMethods<Customer>( "/api/customer/" );
+			config.AddMethods<Customer>();
 
 			using ( HttpListenerNanoServer.Start( config, ApiProxy.Configuration.BaseApiUrl ) )
 			{
@@ -98,6 +98,9 @@ namespace Nano.Tests
             /// <summary>Gets or sets the length of time, in milliseconds, before the request times out. The default value is 300,000 milliseconds (5 minutes).</summary>
             public static int Timeout = 300000;
 
+            /// <summary>Indicates whether to request to the server a persistent connection.</summary>
+            public static bool KeepAlive = false;
+
             /// <summary>Serializes the given object to a string.</summary>
             public static Func<object, string> Serialize = obj =>
             {
@@ -120,6 +123,13 @@ namespace Nano.Tests
                 {
                     WebRequest webRequest = base.GetWebRequest(uri);
                     webRequest.Timeout = Timeout;
+
+                    HttpWebRequest request = webRequest as HttpWebRequest;
+                    if (request != null)
+                    {
+                        request.KeepAlive = KeepAlive;
+                    }
+
                     return webRequest;
                 }
             }
@@ -232,6 +242,23 @@ namespace Nano.Tests
             }
         }
 
+        public static class Time
+        {
+            /// <summary>Gets the current date and time.</summary>
+            public static DateTime GetCurrentDateAndTime(object correlationId = null)
+            {
+                var parameters = new System.Collections.Specialized.NameValueCollection { };
+                return PostJson<DateTime>(Configuration.BaseApiUrl + "/api/Time/GetCurrentDateAndTime", parameters, correlationId);
+            }
+
+            /// <summary>Gets the curent day of the week.</summary>
+            public static String GetDayOfWeek(object correlationId = null)
+            {
+                var parameters = new System.Collections.Specialized.NameValueCollection { };
+                return PostJson<String>(Configuration.BaseApiUrl + "/api/Time/GetDayOfWeek", parameters, correlationId);
+            }
+        }
+
         public static class Customer2
         {
             /// <summary>Creates the customer.</summary>
@@ -250,7 +277,6 @@ namespace Nano.Tests
                 PostJson<object>(Configuration.BaseApiUrl + "/api/Customer2/DoNothing", parameters, correlationId);
             }
         }
-
 
         private static T PostJson<T>(string url, System.Collections.Specialized.NameValueCollection parameters, object correlationId = null)
         {

@@ -1,5 +1,5 @@
 /*
-    Nano v0.13.0
+    Nano v0.14.0
     
     Nano is a .NET cross-platform micro web framework for building web-based HTTP services and websites.
 
@@ -114,6 +114,8 @@ namespace Nano.Web.Core
         {
             RequestHandlers.Add( new MetadataRequestHandler( "/metadata/GetNanoMetadata", DefaultEventHandler ) );
             this.EnableCorrelationId();
+            this.DisableKeepAlive();
+            this.EnableElapsedMillisecondsResponseHeader();
         }
 
         /// <summary>Adds all public static methods in the given type.</summary>
@@ -223,6 +225,9 @@ namespace Nano.Web.Core
     /// <summary>The context of the current web request.</summary>
     public class NanoContext : IDisposable
     {
+        /// <summary>Correlation / request identifier.</summary>
+        public string CorrelationId;
+
         /// <summary>The current user.</summary>
         public IUserIdentity CurrentUser;
 
@@ -251,6 +256,9 @@ namespace Nano.Web.Core
         /// <summary>The <see cref="IRequestHandler" /> for this context.</summary>
         public IRequestHandler RequestHandler;
 
+        /// <summary>The initial timestamp of the current HTTP request.</summary>
+        public DateTime RequestTimestamp;
+
         /// <summary>The outgoing response.</summary>
         public NanoResponse Response;
 
@@ -262,18 +270,20 @@ namespace Nano.Web.Core
         /// Flag to indicate if a dispose has been called already
         /// </summary>
         private bool _disposed;
-        
+
         /// <summary>Initializes a new instance of the <see cref="NanoContext" /> class.</summary>
         /// <param name="nanoRequest">The nano request.</param>
         /// <param name="nanoResponse">The nano response.</param>
         /// <param name="nanoConfiguration">The nano configuration.</param>
-        public NanoContext( NanoRequest nanoRequest, NanoResponse nanoResponse, NanoConfiguration nanoConfiguration )
+        /// <param name="requestTimestamp">The initial timestamp of the current HTTP request.</param>
+        public NanoContext( NanoRequest nanoRequest, NanoResponse nanoResponse, NanoConfiguration nanoConfiguration, DateTime requestTimestamp )
         {
             nanoRequest.NanoContext = this;
             Request = nanoRequest;
             nanoResponse.NanoContext = this;
             Response = nanoResponse;
             NanoConfiguration = nanoConfiguration;
+            RequestTimestamp = requestTimestamp;
         }
 
         /// <summary>Disposes any disposable items in the <see cref="Items" /> dictionary.</summary>
@@ -309,6 +319,9 @@ namespace Nano.Web.Core
     /// <summary>Holds properties associated with the current HTTP request.</summary>
     public class NanoRequest
     {
+        /// <summary>IP address of the client.</summary>
+        public string ClientIpAddress;
+
         /// <summary>The files sent by the client in a multipart message.</summary>
         public IList<HttpFile> Files;
 
@@ -338,7 +351,8 @@ namespace Nano.Web.Core
         /// <param name="formBodyParameters">The HTTP form body parameters sent by the client.</param>
         /// <param name="headerParameters">The HTTP header parameters sent by the client.</param>
         /// <param name="files">The files sent by the client in a multipart message.</param>
-        public NanoRequest( string httpMethod, Url url, RequestStream requestStream, NameValueCollection queryStringParameters, NameValueCollection formBodyParameters, NameValueCollection headerParameters, IList<HttpFile> files )
+        /// <param name="clientIpAddress">IP address of the client.</param>
+        public NanoRequest( string httpMethod, Url url, RequestStream requestStream, NameValueCollection queryStringParameters, NameValueCollection formBodyParameters, NameValueCollection headerParameters, IList<HttpFile> files, string clientIpAddress )
         {
             HttpMethod = httpMethod;
             Url = url;
@@ -967,7 +981,7 @@ namespace Nano.Web.Core
         }
     }
 
-    /// <summary>Enables CorrelationId support which passes through or creates new CorrelationIds per request in order to support request tracking.</summary>
+    /// <summary>Enables / disables CorrelationId support which passes through or creates new CorrelationIds per request in order to support request tracking.</summary>
     public static class CorrelationIdHelper
     {
         /// <summary>Enables CorrelationId support which passes through or creates new CorrelationIds per request in order to support request tracking.</summary>
@@ -1008,9 +1022,109 @@ namespace Nano.Web.Core
             if ( string.IsNullOrWhiteSpace( correlationId ) )
                 correlationId = Guid.NewGuid().ToString();
 
+            nanoContext.CorrelationId = correlationId;
             nanoContext.Response.HeaderParameters.Add( Constants.CorrelationIdRequestParameterName, correlationId );
-            nanoContext.Items.Add( Constants.CorrelationIdRequestParameterName, correlationId );
             System.Runtime.Remoting.Messaging.CallContext.LogicalSetData( Constants.CorrelationIdRequestParameterName, correlationId );
+        }
+    }
+
+    /// <summary>Enables / disables Keep-Alive ( persistent connection ) support.</summary>
+    public static class KeepAliveHelper
+    {
+        private const string KeepAliveIsDisabled = "KeepAliveIsDisabled";
+
+        /// <summary>Enables Keep-Alive ( persistent connection ) support.</summary>
+        /// <param name="nanoConfiguration">The nano configuration.</param>
+        public static void EnableKeepAlive( this NanoConfiguration nanoConfiguration )
+        {
+            nanoConfiguration.GlobalEventHandler.EnableKeepAlive();
+        }
+
+        /// <summary>Disables Keep-Alive ( persistent connection ) support. Note that in a modern web hosting environment applications are typically hosted behind a load balancer and in order to get proper web traffic distribution "Keep Alive" should be disabled.</summary>
+        /// <param name="nanoConfiguration">The nano configuration.</param>
+        public static void DisableKeepAlive( this NanoConfiguration nanoConfiguration )
+        {
+            nanoConfiguration.GlobalEventHandler.DisableKeepAlive();
+        }
+
+        /// <summary>Enables Keep-Alive ( persistent connection ) support.</summary>
+        /// <param name="eventHandler">The event handler.</param>
+        public static void EnableKeepAlive( this EventHandler eventHandler )
+        {
+            eventHandler.PreInvokeHandlers.Remove( DisableKeepAlivePreInvokeHandler );
+        }
+
+        /// <summary>Disables Keep-Alive ( persistent connection ) support. Note that in a modern web hosting environment applications are typically hosted behind a load balancer and in order to get proper web traffic distribution "Keep Alive" should be disabled.</summary>
+        /// <param name="eventHandler">The event handler.</param>
+        public static void DisableKeepAlive( this EventHandler eventHandler )
+        {
+            if ( eventHandler.PreInvokeHandlers.Contains( DisableKeepAlivePreInvokeHandler ) == false )
+                eventHandler.PreInvokeHandlers.Add( DisableKeepAlivePreInvokeHandler );
+        }
+
+        /// <summary>Enables Keep-Alive ( persistent connection ) support.</summary>
+        /// <param name="nanoContext">The nano context.</param>
+        public static void DisableKeepAlivePreInvokeHandler( NanoContext nanoContext )
+        {
+            nanoContext.Items.Add( KeepAliveIsDisabled, null );
+        }
+
+        /// <summary>Determines if the 'ElapsedMilliseconds" response header is enabled.</summary>
+        /// <param name="nanoContext">The nano context.</param>
+        /// <returns>True if enabled.</returns>
+        public static bool IsKeepAliveDisabled( this NanoContext nanoContext )
+        {
+            return nanoContext.Items.ContainsKey( KeepAliveIsDisabled );
+        }
+    }
+
+    /// <summary>Enables / disables adding an 'ElapsedMilliseconds" response header per request.</summary>
+    public static class ElapsedMillisecondsHelper
+    {
+        private const string ElapsedMillisecondsResponseHeaderIsEnabled = "ElapsedMillisecondsResponseHeaderIsEnabled";
+
+        /// <summary>Enables adding an 'ElapsedMilliseconds" response header per request.</summary>
+        /// <param name="nanoConfiguration">The nano configuration.</param>
+        public static void EnableElapsedMillisecondsResponseHeader( this NanoConfiguration nanoConfiguration )
+        {
+            nanoConfiguration.GlobalEventHandler.EnableElapsedMillisecondsResponseHeader();
+        }
+
+        /// <summary>Disables adding an 'ElapsedMilliseconds" response header per request.</summary>
+        /// <param name="nanoConfiguration">The nano configuration.</param>
+        public static void DisableElapsedMillisecondsResponseHeader( this NanoConfiguration nanoConfiguration )
+        {
+            nanoConfiguration.GlobalEventHandler.DisableElapsedMillisecondsResponseHeader();
+        }
+
+        /// <summary>Enables adding an 'ElapsedMilliseconds" response header per request.</summary>
+        /// <param name="eventHandler">The event handler.</param>
+        public static void EnableElapsedMillisecondsResponseHeader( this EventHandler eventHandler )
+        {
+            if ( eventHandler.PreInvokeHandlers.Contains( EnableElapsedMillisecondsResponseHeaderPostInvokeHandler ) == false )
+                eventHandler.PreInvokeHandlers.Add( EnableElapsedMillisecondsResponseHeaderPostInvokeHandler );
+        }
+
+        /// <summary>Disables adding an 'ElapsedMilliseconds" response header per request.</summary>
+        /// <param name="eventHandler">The event handler.</param>
+        public static void DisableElapsedMillisecondsResponseHeader( this EventHandler eventHandler )
+        {
+            eventHandler.PreInvokeHandlers.Remove( EnableElapsedMillisecondsResponseHeaderPostInvokeHandler );
+        }
+
+        /// <summary>Enables adding an 'ElapsedMilliseconds" response header per request.</summary>
+        /// <param name="nanoContext">The nano context.</param>
+        public static void EnableElapsedMillisecondsResponseHeaderPostInvokeHandler( NanoContext nanoContext )
+        {
+            nanoContext.Items.Add( ElapsedMillisecondsResponseHeaderIsEnabled, null );
+        }
+
+        /// <summary>Determines if the 'ElapsedMilliseconds" response header is enabled.</summary>
+        /// <param name="nanoContext">The nano context.</param>
+        /// <returns>True if enabled.</returns>
+        public static bool IsElapsedMillisecondsResponseHeaderEnabled( this NanoContext nanoContext )
+        {
+            return nanoContext.Items.ContainsKey( ElapsedMillisecondsResponseHeaderIsEnabled );
         }
     }
 
@@ -1066,6 +1180,9 @@ namespace Nano.Web.Core
         /// <summary>CorrelationId request parameter name.</summary>
         public static string CorrelationIdRequestParameterName = "X-CorrelationId";
 
+        /// <summary>Elapsed milliseconds response header name.</summary>
+        public static string ElapsedMillisecondsResponseHeaderName = "X-Nano-ElapsedMilliseconds";
+
         static Constants()
         {
             Assembly assembly = Assembly.GetExecutingAssembly();
@@ -1076,7 +1193,7 @@ namespace Nano.Web.Core
                 Version = fvi.FileVersion;
             }
             else
-                Version = "0.13.0.0";
+                Version = "0.14.0.0";
         }
 
         /// <summary>Custom error responses.</summary>
@@ -1252,7 +1369,8 @@ namespace Nano.Web.Core
             foreach ( BackgroundTask backgroundTask in nanoConfiguration.BackgroundTasks )
             {
                 BackgroundTask task = backgroundTask;
-                Task.Factory.StartNew( () =>
+                
+                Task.Run( () =>
                 {
                     while ( true )
                     {
@@ -1261,7 +1379,7 @@ namespace Nano.Web.Core
                         try
                         {
                             if ( backgroundTaskContext.BackgroundTask.AllowOverlappingRuns )
-                                Task.Factory.StartNew( () => Run( backgroundTaskContext ) ); // Run async
+                                Task.Run( () => Run( backgroundTaskContext ) ); // Run async
                             else
                                 Run( backgroundTaskContext ); // Run sync
                         }
@@ -1925,15 +2043,16 @@ namespace Nano.Web.Core
             /// <param name="eventArgs">The <see cref="EventArgs" /> instance containing the event data.</param>
             public void HttpApplicationOnBeginRequest( dynamic httpApplication, EventArgs eventArgs )
             {
-                HandleRequest( httpApplication.Context, NanoConfiguration );
+                HandleRequest( httpApplication.Context, NanoConfiguration, DateTime.UtcNow );
             }
 
             /// <summary>Handles a System.Web request.</summary>
             /// <param name="httpContext">System.Web.HttpContext.</param>
             /// <param name="nanoConfiguration">The <see cref="NanoConfiguration" />.</param>
-            public static void HandleRequest( dynamic httpContext, NanoConfiguration nanoConfiguration )
+            /// <param name="requestTimestamp">The initial timestamp of the current HTTP request.</param>
+            public static void HandleRequest( dynamic httpContext, NanoConfiguration nanoConfiguration, DateTime requestTimestamp )
             {
-                NanoContext nanoContext = MapHttpContextBaseToNanoContext( httpContext, nanoConfiguration );
+                NanoContext nanoContext = MapHttpContextBaseToNanoContext( httpContext, nanoConfiguration, requestTimestamp );
                 nanoContext = RequestRouter.RouteRequest( nanoContext );
 
                 if( nanoContext.RequestHandler == null || nanoContext.Handled == false )
@@ -1948,10 +2067,16 @@ namespace Nano.Web.Core
 
                 foreach( string headerName in nanoContext.Response.HeaderParameters )
                     httpContext.Response.Headers.Add( headerName, nanoContext.Response.HeaderParameters[headerName] );
+                
+                if ( nanoContext.IsElapsedMillisecondsResponseHeaderEnabled() )
+                {
+                    var elapsedTime = DateTime.UtcNow - nanoContext.RequestTimestamp;
+                    httpContext.Response.Headers.Add( Constants.ElapsedMillisecondsResponseHeaderName, elapsedTime.TotalMilliseconds.ToString() );
+                }
 
-                foreach( dynamic cookie in nanoContext.Response.Cookies )
+                foreach ( dynamic cookie in nanoContext.Response.Cookies )
                     httpContext.Response.Headers.Add( "Set-Cookie", cookie.ToString() );
-
+                
                 httpContext.Response.StatusCode = nanoContext.Response.HttpStatusCode;
                 httpContext.Response.End();
             }
@@ -1959,8 +2084,9 @@ namespace Nano.Web.Core
             /// <summary>Maps a System.Web.HttpContext to a NanoContext.</summary>
             /// <param name="httpContext">System.Web.HttpContext.</param>
             /// <param name="nanoConfiguration">The <see cref="NanoConfiguration" />.</param>
+            /// <param name="requestTimestamp">The initial timestamp of the current HTTP request.</param>
             /// <returns>Mapped <see cref="NanoContext" />.</returns>
-            public static NanoContext MapHttpContextBaseToNanoContext( dynamic httpContext, NanoConfiguration nanoConfiguration )
+            public static NanoContext MapHttpContextBaseToNanoContext( dynamic httpContext, NanoConfiguration nanoConfiguration, DateTime requestTimestamp )
             {
                 dynamic httpMethod = httpContext.Request.HttpMethod;
 
@@ -1980,8 +2106,8 @@ namespace Nano.Web.Core
 
                 RequestStream requestStream = RequestStream.FromStream( httpContext.Request.InputStream, httpContext.Request.Headers[ "Content-Length" ] );
                 var results = RequestBodyParser.ParseRequestBody( httpContext.Request.Headers[ "Content-Type" ], httpContext.Request.ContentEncoding, requestStream, nanoConfiguration.RequestParameterLimit );
-                var nanoRequest = new NanoRequest( httpMethod, url, requestStream, httpContext.Request.QueryString, httpContext.Request.Form, httpContext.Request.Headers, results.Files );
-                var nanoContext = new NanoContext( nanoRequest, new NanoResponse(), nanoConfiguration ) { HostContext = httpContext, RootFolderPath = nanoConfiguration.ApplicationRootFolderPath };
+                var nanoRequest = new NanoRequest( httpMethod, url, requestStream, httpContext.Request.QueryString, httpContext.Request.Form, httpContext.Request.Headers, results.Files, httpContext.Request.UserHostAddress );
+                var nanoContext = new NanoContext( nanoRequest, new NanoResponse(), nanoConfiguration, requestTimestamp ) { HostContext = httpContext, RootFolderPath = nanoConfiguration.ApplicationRootFolderPath };
                 return nanoContext;
             }
         }
@@ -2061,13 +2187,15 @@ namespace Nano.Web.Core
             /// <param name="asyncResult">The asynchronous result.</param>
             public void BeginGetContextCallback( IAsyncResult asyncResult )
             {
+                DateTime requestTimestamp = DateTime.UtcNow;
+
                 try
                 {
                     if ( HttpListenerConfiguration == null || HttpListenerConfiguration.HttpListener == null || HttpListenerConfiguration.HttpListener.IsListening == false )
                         return;
                     HttpListenerContext httpListenerContext = HttpListenerConfiguration.HttpListener.EndGetContext( asyncResult );
                     HttpListenerConfiguration.HttpListener.BeginGetContext( BeginGetContextCallback, this );
-                    HandleRequest( httpListenerContext, this );
+                    HandleRequest( httpListenerContext, this, requestTimestamp );
                 }
                 catch( Exception e )
                 {
@@ -2080,11 +2208,12 @@ namespace Nano.Web.Core
             /// <summary>Handles the request.</summary>
             /// <param name="httpListenerContext">The HTTP listener context.</param>
             /// <param name="server">The server.</param>
-            public static void HandleRequest( HttpListenerContext httpListenerContext, HttpListenerNanoServer server )
+            /// <param name="requestTimestamp">The initial timestamp of the current HTTP request.</param>
+            public static void HandleRequest( HttpListenerContext httpListenerContext, HttpListenerNanoServer server, DateTime requestTimestamp )
             {
                 try
                 {
-                    NanoContext nanoContext = MapHttpListenerContextToNanoContext( httpListenerContext, server );
+                    NanoContext nanoContext = MapHttpListenerContextToNanoContext( httpListenerContext, server, requestTimestamp );
 
                     nanoContext = RequestRouter.RouteRequest( nanoContext );
 
@@ -2094,10 +2223,21 @@ namespace Nano.Web.Core
                     httpListenerContext.Response.ContentEncoding = nanoContext.Response.ContentEncoding;
                     httpListenerContext.Response.ContentType = nanoContext.Response.ContentType;
 
+                    if ( nanoContext.IsKeepAliveDisabled() )
+                    {
+                        httpListenerContext.Response.KeepAlive = false;
+                    }
+
                     foreach ( string headerName in nanoContext.Response.HeaderParameters )
                     {
                         if ( !IgnoredHeaders.IsIgnored( headerName ) )
                             httpListenerContext.Response.Headers.Add( headerName, nanoContext.Response.HeaderParameters[ headerName ] );
+                    }
+                    
+                    if ( nanoContext.IsElapsedMillisecondsResponseHeaderEnabled() )
+                    {
+                        var elapsedTime = DateTime.UtcNow - nanoContext.RequestTimestamp;
+                        httpListenerContext.Response.Headers.Add( Constants.ElapsedMillisecondsResponseHeaderName, elapsedTime.TotalMilliseconds.ToString() );
                     }
 
                     foreach ( NanoCookie cookie in nanoContext.Response.Cookies )
@@ -2150,8 +2290,9 @@ namespace Nano.Web.Core
             /// <summary>Maps a <see cref="System.Net.HttpListenerContext" /> to <see cref="NanoContext" />.</summary>
             /// <param name="httpListenerContext">The HTTP listener context.</param>
             /// <param name="server">The server.</param>
+            /// <param name="requestTimestamp">The initial timestamp of the current HTTP request.</param>
             /// <returns>Mapped <see cref="NanoContext" />.</returns>
-            public static NanoContext MapHttpListenerContextToNanoContext( HttpListenerContext httpListenerContext, HttpListenerNanoServer server )
+            public static NanoContext MapHttpListenerContextToNanoContext( HttpListenerContext httpListenerContext, HttpListenerNanoServer server, DateTime requestTimestamp )
             {
                 string httpMethod = httpListenerContext.Request.HttpMethod;
                 string basePath = String.Empty;
@@ -2177,8 +2318,8 @@ namespace Nano.Web.Core
                 
                 RequestStream requestStream = RequestStream.FromStream( httpListenerContext.Request.InputStream, httpListenerContext.Request.Headers["Content-Length"] );
                 var results = RequestBodyParser.ParseRequestBody( httpListenerContext.Request.Headers[ "Content-Type" ], httpListenerContext.Request.ContentEncoding, requestStream, server.NanoConfiguration.RequestParameterLimit );
-                var nanoRequest = new NanoRequest( httpMethod, url, requestStream, httpListenerContext.Request.QueryString, results.FormBodyParameters, httpListenerContext.Request.Headers, results.Files );
-                var nanoContext = new NanoContext( nanoRequest, new NanoResponse(), server.NanoConfiguration ) { HostContext = httpListenerContext, RootFolderPath = server.NanoConfiguration.ApplicationRootFolderPath };
+                var nanoRequest = new NanoRequest( httpMethod, url, requestStream, httpListenerContext.Request.QueryString, results.FormBodyParameters, httpListenerContext.Request.Headers, results.Files, httpListenerContext.Request.RemoteEndPoint == null ? null : httpListenerContext.Request.RemoteEndPoint.Address.ToString() );
+                var nanoContext = new NanoContext( nanoRequest, new NanoResponse(), server.NanoConfiguration, requestTimestamp ) { HostContext = httpListenerContext, RootFolderPath = server.NanoConfiguration.ApplicationRootFolderPath };
                 return nanoContext;
             }
 
