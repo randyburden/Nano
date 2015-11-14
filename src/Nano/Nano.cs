@@ -2758,7 +2758,7 @@ namespace Nano.Web.Core
 
                 if ( IsCaseSensitiveFileSystem ) fullFileSystemPath = GetPathCaseSensitive( fullFileSystemPath );
 
-                if ( !string.IsNullOrWhiteSpace( fullFileSystemPath ) && fullFileSystemPath.IndexOfAny( Path.GetInvalidPathChars() ) < 0 )
+                if ( !string.IsNullOrWhiteSpace( fullFileSystemPath ) && fullFileSystemPath.IndexOfAny( Path.GetInvalidFileNameChars() ) < 0 )
                 {
                     if ( nanoContext.TryReturnFile( new FileInfo( fullFileSystemPath ) ) ) return nanoContext;
 
