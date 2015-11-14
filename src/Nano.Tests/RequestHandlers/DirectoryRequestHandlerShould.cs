@@ -66,6 +66,27 @@ namespace Nano.Tests.RequestHandlers
             }
         }
 
+        [TestCase( "/*/" )]
+        [TestCase( "/Random/Path<" )]
+        public void Return_An_Http_404_When_The_Requested_Path_Contains_Invalid_Chars_And_The_returnHttp404WhenFileWasNotFound_Parameter_Was_Set_To_True( string path )
+        {
+            using ( var server = NanoTestServer.Start() )
+            {
+                // Arrange
+                server.NanoConfiguration.AddDirectory( "/", "www", returnHttp404WhenFileWasNotFound: true );
+
+                // Act
+                using ( var response = HttpHelper.GetHttpWebResponse( server.GetUrl() + path ) )
+                {
+                    // Visual Assertion
+                    Trace.WriteLine( response.GetResponseString() );
+
+                    // Assert
+                    Assert.That( response.StatusCode == HttpStatusCode.NotFound );
+                }
+            }
+        }
+
         [Test]
         public void Return_An_Http_200_When_The_Requested_Path_Does_Not_Exist_And_The_returnHttp404WhenFileWasNotFound_Parameter_Was_Set_To_False()
         {
