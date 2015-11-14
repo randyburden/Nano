@@ -2756,39 +2756,39 @@ namespace Nano.Web.Core
                 string encodedPartialRequestPath = partialRequestPath.Replace( "/", Constants.DirectorySeparatorString ).TrimStart( Constants.DirectorySeparatorChar );
                 string fullFileSystemPath = Path.Combine( nanoContext.RootFolderPath, FileSystemPath, encodedPartialRequestPath );
 
-				if ( IsCaseSensitiveFileSystem ) fullFileSystemPath = GetPathCaseSensitive( fullFileSystemPath );
+                if ( IsCaseSensitiveFileSystem ) fullFileSystemPath = GetPathCaseSensitive( fullFileSystemPath );
 
-				if ( !String.IsNullOrWhiteSpace( fullFileSystemPath ) )
-				{					
-					if ( nanoContext.TryReturnFile( new FileInfo( fullFileSystemPath ) ) ) return nanoContext;
-                
-					var directoryInfo = new DirectoryInfo( fullFileSystemPath );			
+                if ( !string.IsNullOrWhiteSpace( fullFileSystemPath ) && fullFileSystemPath.IndexOfAny( Path.GetInvalidPathChars() ) < 0 )
+                {
+                    if ( nanoContext.TryReturnFile( new FileInfo( fullFileSystemPath ) ) ) return nanoContext;
 
-					if ( directoryInfo.Exists )
-					{
-						// If the URL does not end with a forward slash then redirect to the same URL with a forward slash
-						// so that relative URLs will work correctly
-						if ( nanoContext.Request.Url.Path.EndsWith( "/", StringComparison.Ordinal ) == false )
-						{
-							string url = nanoContext.Request.Url.BasePath + nanoContext.Request.Url.Path + "/" + nanoContext.Request.Url.Query;
-							nanoContext.Response.Redirect( url );
-							return nanoContext;
-						}
+                    var directoryInfo = new DirectoryInfo( fullFileSystemPath );
 
-						foreach ( string defaultDocument in DefaultDocuments )
-						{
-							string path = Path.Combine( fullFileSystemPath, defaultDocument );
+                    if ( directoryInfo.Exists )
+                    {
+                        // If the URL does not end with a forward slash then redirect to the same URL with a forward slash
+                        // so that relative URLs will work correctly
+                        if ( nanoContext.Request.Url.Path.EndsWith( "/", StringComparison.Ordinal ) == false )
+                        {
+                            string url = nanoContext.Request.Url.BasePath + nanoContext.Request.Url.Path + "/" + nanoContext.Request.Url.Query;
+                            nanoContext.Response.Redirect( url );
+                            return nanoContext;
+                        }
 
-							if ( IsCaseSensitiveFileSystem )
-								path = GetPathCaseSensitive( path );
+                        foreach ( string defaultDocument in DefaultDocuments )
+                        {
+                            string path = Path.Combine( fullFileSystemPath, defaultDocument );
 
-							if ( nanoContext.TryReturnFile( new FileInfo( path ) ) )
-								return nanoContext;
-						}
-					}
-				}
+                            if ( IsCaseSensitiveFileSystem )
+                                path = GetPathCaseSensitive( path );
 
-                if( ReturnHttp404WhenFileWasNoFound ) return nanoContext.ReturnHttp404NotFound();
+                            if ( nanoContext.TryReturnFile( new FileInfo( path ) ) )
+                                return nanoContext;
+                        }
+                    }
+                }
+
+                if ( ReturnHttp404WhenFileWasNoFound ) return nanoContext.ReturnHttp404NotFound();
 
                 return nanoContext;
             }
