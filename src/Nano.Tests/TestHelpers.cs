@@ -25,7 +25,8 @@ namespace Nano.Tests
             var nanoConfiguration = new NanoConfiguration();
             ( ( JsonNetSerializer ) nanoConfiguration.SerializationService ).JsonSerializerSettings.Formatting = Formatting.None;
             const string url = "http://localhost:4545/";
-            return HttpListenerNanoServer.Start( nanoConfiguration, url );
+            var server = HttpListenerNanoServer.Start( nanoConfiguration, url );
+            return server;
         }
     }
 

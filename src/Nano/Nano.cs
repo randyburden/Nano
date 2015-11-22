@@ -1544,10 +1544,12 @@ namespace Nano.Web.Core
                 var textErrorMessageBuilder = new StringBuilder();
                 textErrorMessageBuilder.AppendLine( "Nano Error:" );
                 textErrorMessageBuilder.AppendLine( "*************" ).AppendLine();
-                textErrorMessageBuilder.AppendLine( "URL: " + nanoContext.Request.Url ).AppendLine();
 
                 foreach ( Exception exception in nanoContext.Errors )
+                {
+                    nanoContext.WriteNanoContextDataToExceptionData( exception );
                     EventLogHelper.GenerateTextErrorMessage( exception, textErrorMessageBuilder, 0 );
+                }
 
                 nanoContext.NanoConfiguration.WriteErrorToEventLog( textErrorMessageBuilder.ToString() );
             }
@@ -1565,6 +1567,14 @@ namespace Nano.Web.Core
             }
 
             stream.Write( Constants.CustomErrorResponse.InternalServerError500 );
+        }
+
+        /// <summary>Writes NanoContext data to the exceptions key/value pair Data property.</summary>
+        /// <param name="nanoContext">The <see cref="NanoContext"/>.</param>
+        /// <param name="exception">The <see cref="Exception"/> to write data to.</param>
+        public static void WriteNanoContextDataToExceptionData( this NanoContext nanoContext, Exception exception )
+        {
+            exception.Data[ "Request URL" ] = nanoContext.Request.Url.ToString();
         }
 
         /// <summary>Returns a file if it exists.</summary>
@@ -2211,9 +2221,11 @@ namespace Nano.Web.Core
             /// <param name="requestTimestamp">The initial timestamp of the current HTTP request.</param>
             public static void HandleRequest( HttpListenerContext httpListenerContext, HttpListenerNanoServer server, DateTime requestTimestamp )
             {
+                NanoContext nanoContext = null;
+
                 try
                 {
-                    NanoContext nanoContext = MapHttpListenerContextToNanoContext( httpListenerContext, server, requestTimestamp );
+                    nanoContext = MapHttpListenerContextToNanoContext( httpListenerContext, server, requestTimestamp );
 
                     nanoContext = RequestRouter.RouteRequest( nanoContext );
 
@@ -2258,7 +2270,7 @@ namespace Nano.Web.Core
                             nanoContext.Response.ResponseStreamWriter( httpListenerContext.Response.OutputStream );
                     }
                 }
-                catch ( Exception  e )
+                catch ( Exception exception )
                 {
                     try
                     {
@@ -2269,9 +2281,14 @@ namespace Nano.Web.Core
                          /* Gulp */
                     }
 
-                    if ( e.GetType() == typeof ( HttpListenerException ) && server.HttpListenerConfiguration.IgnoreHttpListenerExceptions )
+                    if ( exception.GetType() == typeof ( HttpListenerException ) && server.HttpListenerConfiguration.IgnoreHttpListenerExceptions )
                     {
                         return;
+                    }
+
+                    if ( nanoContext != null )
+                    {
+                        nanoContext.WriteNanoContextDataToExceptionData( exception );
                     }
 
                     throw;
@@ -4625,29 +4642,35 @@ namespace Nano.Web.Core
             /// <param name="exception">The exception to generate the error message from.</param>
             /// <param name="stringBuilder">StringBuilder instance to append the error message to.</param>
             /// <param name="recursionLevel">The number of iterations this method has been called recursively.</param>
-            public static void GenerateTextErrorMessage(Exception exception, StringBuilder stringBuilder, int recursionLevel)
+            public static void GenerateTextErrorMessage( Exception exception, StringBuilder stringBuilder, int recursionLevel )
             {
-                if ( recursionLevel > 25 )
-                    return; // Something has most likely went very wrong so return early to avoid a stack overflow
+                if ( recursionLevel > 25 ) return; // Something has most likely went very wrong so return early to avoid a stack overflow
 
-                if (recursionLevel > 0)
+                string prefix = "";
+
+                if ( recursionLevel > 0 )
                 {
-                    string prefix = "";
-
-                    for (int i = 0; i < recursionLevel; i++)
+                    for ( int i = 0; i < recursionLevel; i++ )
                         prefix += "  ";
 
-                    stringBuilder.AppendLine(prefix + "Inner Exception Error Message:");
-                    stringBuilder.AppendLine(prefix + exception.Message).AppendLine();
-                    stringBuilder.AppendLine(prefix + "Inner Exception Stack Trace:");
-                    stringBuilder.AppendLine(prefix + exception.StackTrace).AppendLine();
+                    prefix += "Inner ";
                 }
-                else
+
+                stringBuilder.AppendFormat( "{0}Exception Information:", prefix ).AppendLine();
+                stringBuilder.AppendFormat( "  {0}Exception Type: {1}", prefix, exception.GetType() ).AppendLine();
+                stringBuilder.AppendFormat( "  {0}Exception Message: {1}", prefix, exception.Message ).AppendLine();
+                stringBuilder.AppendLine( exception.StackTrace ).AppendLine();
+
+                if ( exception.Data.Keys.Count > 0 )
                 {
-                    stringBuilder.AppendLine("Exception Error Message:");
-                    stringBuilder.AppendLine(exception.Message).AppendLine();
-                    stringBuilder.AppendLine("Exception Stack Trace:");
-                    stringBuilder.AppendLine(exception.StackTrace).AppendLine();
+                    stringBuilder.AppendFormat( "{0}Additional Information:", prefix ).AppendLine();
+
+                    foreach ( DictionaryEntry dictionaryEntry in exception.Data )
+                    {
+                        stringBuilder.AppendFormat("  {0}{1}: {2}", prefix, dictionaryEntry.Key, dictionaryEntry.Value ).AppendLine();
+                    }
+
+                    stringBuilder.AppendLine();
                 }
 
                 if (exception.InnerException != null)
