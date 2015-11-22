@@ -1,7 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Text;
 using System.Threading;
 using Nano.Web.Core;
 
@@ -13,7 +11,7 @@ namespace Nano.Demo
     public static class NanoConfigurationHelper
     {
         /// <summary>
-        /// Get's the <see cref="NanoConfiguration"/> used by all of the demo projects.
+        /// Gets the <see cref="NanoConfiguration"/> used by all of the demo projects.
         /// </summary>
         /// <returns><see cref="NanoConfiguration"/> instance.</returns>
         public static NanoConfiguration GetNanoConfiguration()
