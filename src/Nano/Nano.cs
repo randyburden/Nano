@@ -2209,7 +2209,8 @@ namespace Nano.Web.Core
                 }
                 catch( Exception e )
                 {
-                    if ( HttpListenerConfiguration == null || HttpListenerConfiguration.UnhandledExceptionHandler == null )
+                    if ( HttpListenerConfiguration == null || HttpListenerConfiguration.HttpListener == null || HttpListenerConfiguration.HttpListener.IsListening == false
+                         || HttpListenerConfiguration.UnhandledExceptionHandler == null || ( e.GetType() == typeof ( HttpListenerException ) ) && HttpListenerConfiguration.IgnoreHttpListenerExceptions )
                         return;
                     HttpListenerConfiguration.UnhandledExceptionHandler( e );
                 }
