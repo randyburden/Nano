@@ -15,6 +15,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nano.Tests", "Nano.Tests\Na
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nano.Demo.SelfHost.Topshelf", "Nano.Demo.SelfHost.Topshelf\Nano.Demo.SelfHost.Topshelf.csproj", "{30E1B565-CD66-4A1E-A0B4-5D8418433310}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nano.Demo.AspNet4.5", "Nano.Demo.AspNet4.5\Nano.Demo.AspNet4.5.csproj", "{55C48312-18A9-45C3-B4F4-0AE244C30D9E}"
+EndProject
 Global
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
 		Nano.Demo\Nano.Demo.projitems*{1230418d-8ed5-47ef-9678-0a8fcecab738}*SharedItemsImports = 4
@@ -22,6 +24,7 @@ Global
 		Nano.Demo\Nano.Demo.projitems*{117d91c6-84c7-4302-b7fe-7cbdd2ca0bc0}*SharedItemsImports = 13
 		Nano.Demo\Nano.Demo.projitems*{c7841c99-d4db-4bc3-bf5b-0432ef36f1a2}*SharedItemsImports = 4
 		Nano.Demo\Nano.Demo.projitems*{94dd7f98-9fe6-43bd-8cf0-24e62a043d0e}*SharedItemsImports = 4
+		Nano.Demo\Nano.Demo.projitems*{55c48312-18a9-45c3-b4f4-0ae244c30d9e}*SharedItemsImports = 4
 	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -48,6 +51,10 @@ Global
 		{30E1B565-CD66-4A1E-A0B4-5D8418433310}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{30E1B565-CD66-4A1E-A0B4-5D8418433310}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{30E1B565-CD66-4A1E-A0B4-5D8418433310}.Release|Any CPU.Build.0 = Release|Any CPU
+		{55C48312-18A9-45C3-B4F4-0AE244C30D9E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{55C48312-18A9-45C3-B4F4-0AE244C30D9E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{55C48312-18A9-45C3-B4F4-0AE244C30D9E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{55C48312-18A9-45C3-B4F4-0AE244C30D9E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -63,11 +63,11 @@
   </ItemGroup>
   <Import Project="..\Nano.Demo\Nano.Demo.projitems" Label="Shared" />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
-       Other similar extension points exist, see Microsoft.Common.targets.
-  <Target Name="BeforeBuild">
-  </Target>
-  <Target Name="AfterBuild">
-  </Target>
-  -->
+  <PropertyGroup>
+    <PostBuildEvent Condition=" '$(OS)' == 'Windows_NT' ">xcopy "$(ProjectDir)www\*.*" "$(TargetDir)www" /Y /I /E</PostBuildEvent>
+    <PostBuildEvent Condition=" '$(OS)' != 'Windows_NT' ">
+      mkdir -p $(TargetDir)www;
+      cp -rf $(ProjectDir)www\* $(TargetDir)www
+    </PostBuildEvent>
+  </PropertyGroup>
 </Project>
