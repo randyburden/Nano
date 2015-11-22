@@ -2258,13 +2258,21 @@ namespace Nano.Web.Core
                             nanoContext.Response.ResponseStreamWriter( httpListenerContext.Response.OutputStream );
                     }
                 }
-                catch ( Exception )
+                catch ( Exception  e )
                 {
                     try
                     {
-                        httpListenerContext.Response.OutputStream.Write(Constants.CustomErrorResponse.InternalServerError500); // Attempt to write an error message
+                        httpListenerContext.Response.OutputStream.Write( Constants.CustomErrorResponse.InternalServerError500 ); // Attempt to write an error message
                     }
-                    catch (Exception) { /* Gulp */ }
+                    catch ( Exception )
+                    {
+                         /* Gulp */
+                    }
+
+                    if ( e.GetType() == typeof ( HttpListenerException ) && server.HttpListenerConfiguration.IgnoreHttpListenerExceptions )
+                    {
+                        return;
+                    }
 
                     throw;
                 }
@@ -2417,6 +2425,10 @@ namespace Nano.Web.Core
             /// </summary>
             public Action<Exception> UnhandledExceptionHandler;
 
+            /// <summary>Ignore all <see cref="HttpListenerException"/>s that occur. Defaults to <see langword="true"/>.</summary>
+            /// <remarks>The most common scenario is when the underlying client connection closes but the server is still trying to send a response. In this case there is nothing that can be done except ignore the exception which is the intent of this configuration setting.</remarks>
+            public bool IgnoreHttpListenerExceptions = true;
+
             /// <summary>
             /// Gets or sets a property that determines if localhost uris are rewritten to htp://+:port/ style uris to allow for
             /// listening on all ports, but requiring either a url reservation, or admin access Defaults to false.
@@ -2440,6 +2452,7 @@ namespace Nano.Web.Core
             public HttpListenerConfiguration( IList<Uri> uris, bool rewriteLocalhost = false )
             {
                 HttpListener = new System.Net.HttpListener();
+                HttpListener.IgnoreWriteExceptions = true;
                 RewriteLocalhost = rewriteLocalhost;
                 AddPrefixes( uris );
             }
