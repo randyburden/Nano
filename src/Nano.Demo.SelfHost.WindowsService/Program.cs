@@ -22,7 +22,7 @@ namespace Nano.Demo.SelfHost.WindowsService
             var applicationName = args.GetArgumentValue( "ServiceName" ) ?? args.GetArgumentValue( "ApplicationName" ) ?? AppDomain.CurrentDomain.FriendlyName;
             var url = args.GetArgumentValue( "Url" ) ?? args.GetArgumentValue( "Uri" ) ?? "http://localhost:4545";
 
-            WindowsService.Start( applicationName, () => Startup.Start( url, applicationName ), Startup.Stop );
+            WindowsServiceHelper.Start( applicationName, () => Startup.Start( url, applicationName ), Startup.Stop );
         }
 
         private static class Startup
@@ -31,11 +31,12 @@ namespace Nano.Demo.SelfHost.WindowsService
 
             public static void Start( string url, string applicationName )
             {
+                // Get NanoConfiguration used by the demo projects. Replace this with your own code.
                 var config = NanoConfigurationHelper.GetNanoConfiguration();
-
+                
                 // Specify your application name. A reasonable default is automatically used if not 
                 // supplied but it's definitely recommended to supply one.
-                config.ApplicationName = applicationName ?? "Nano.Demo.SelfHost.WindowsService";
+                config.ApplicationName = "Nano.Demo.SelfHost.WindowsService";
 
                 _server = HttpListenerNanoServer.Start( config, url );
 
@@ -108,9 +109,9 @@ namespace Nano.Demo.SelfHost.WindowsService
     }
 
     /// <summary>
-    /// Windows Service.
+    /// Windows Service Helper.
     /// </summary>
-    public class WindowsService : System.ServiceProcess.ServiceBase
+    public class WindowsServiceHelper : System.ServiceProcess.ServiceBase
     {
         private readonly Action _onStart;
         private readonly Action _onStop;
@@ -121,7 +122,7 @@ namespace Nano.Demo.SelfHost.WindowsService
         /// <param name="serviceName">Service name.</param>
         /// <param name="onStart">Function to execute on start of Windows Service.</param>
         /// <param name="onStop">Function to execute on stop of Windows Service.</param>
-        public WindowsService(string serviceName, Action onStart, Action onStop)
+        public WindowsServiceHelper(string serviceName, Action onStart, Action onStop)
         {
             SetCurrentDirectory();
             _onStart = onStart;
@@ -159,7 +160,7 @@ namespace Nano.Demo.SelfHost.WindowsService
             if (!Environment.UserInteractive)
             {
                 // Running as a Windows Service
-                using (var service = new WindowsService(serviceName, onStart, onStop))
+                using (var service = new WindowsServiceHelper(serviceName, onStart, onStop))
                 {
                     System.ServiceProcess.ServiceBase.Run(service);
                 }
@@ -175,7 +176,16 @@ namespace Nano.Demo.SelfHost.WindowsService
                     exitEvent.Set();
                 };
 
-                onStart();
+                try
+                {
+                    onStart();
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine("A fatal error occurred!" + Environment.NewLine);
+                    Console.WriteLine(e);
+                    throw;
+                }
 
                 Console.WriteLine("Press Ctrl+C to exit.");
                 exitEvent.WaitOne();
