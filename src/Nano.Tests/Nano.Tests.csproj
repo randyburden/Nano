@@ -1,19 +1,16 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{1EAAA93D-3BA3-49FF-A50A-6DB0D6D232EF}</ProjectGuid>
+    <ProjectGuid>{94DD7F98-9FE6-43BD-8CF0-24E62A043D0E}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Nano.Tests</RootNamespace>
     <AssemblyName>Nano.Tests</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
-    <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\</SolutionDir>
-    <RestorePackages>true</RestorePackages>
-    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -23,7 +20,6 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
-    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -32,7 +28,6 @@
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
-    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Newtonsoft.Json, Version=7.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
@@ -45,55 +40,51 @@
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Host\HttpListener\HttpListenerConfigurationShould.cs" />
     <Compile Include="Host\HttpListener\HttpListenerNanoServer\HttpListenerNanoServerShould.cs" />
     <Compile Include="Host\HttpListener\HttpListenerNanoServer\ParseFormBodyParametersShould.cs" />
     <Compile Include="ModelBinder\GetRequestParameterValueShould.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="ProxyTests.cs" />
-    <Compile Include="RequestHandlers\FileRequestHandlerShould.cs" />
     <Compile Include="RequestHandlers\DirectoryRequestHandlerShould.cs" />
+    <Compile Include="RequestHandlers\FileRequestHandlerShould.cs" />
     <Compile Include="RequestHandlers\FuncRequestHandlerShould.cs" />
     <Compile Include="RequestHandlers\MethodRequestHandlerShould.cs" />
-    <Compile Include="TestHelpers.cs" />
-    <Compile Include="Tests.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SpeedTests\DirectorySpeedTest.cs" />
     <Compile Include="SpeedTests\FileSpeedTest.cs" />
     <Compile Include="SpeedTests\FuncSpeedTest.cs" />
     <Compile Include="SpeedTests\MethodSpeedTest.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\Nano\Nano.csproj">
-      <Project>{3e238cb3-21e8-4b80-a874-2bc86fdc82d0}</Project>
-      <Name>Nano</Name>
-    </ProjectReference>
+    <Compile Include="TestHelpers.cs" />
+    <Compile Include="Tests.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="www\ApiExplorer\index.html" />
     <Content Include="www\index.html" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Nano\Nano.csproj">
+      <Project>{88df38e2-9d22-4177-b8b5-b05f2de5dca4}</Project>
+      <Name>Nano</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
     <None Include="packages.config" />
   </ItemGroup>
   <Import Project="..\Nano.Demo\Nano.Demo.projitems" Label="Shared" />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <Import Project="$(SolutionDir)\.nuget\NuGet.targets" Condition="Exists('$(SolutionDir)\.nuget\NuGet.targets')" />
-  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
-    <PropertyGroup>
-      <ErrorText>This project references NuGet package(s) that are missing on this computer. Enable NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
-    </PropertyGroup>
-    <Error Condition="!Exists('$(SolutionDir)\.nuget\NuGet.targets')" Text="$([System.String]::Format('$(ErrorText)', '$(SolutionDir)\.nuget\NuGet.targets'))" />
-  </Target>
   <PropertyGroup>
-    <PostBuildEvent Condition=" '$(OS)' == 'Windows_NT' ">
-    	xcopy "$(ProjectDir)www\*.*" "$(TargetDir)www" /Y /I /E
-	</PostBuildEvent>
+    <PostBuildEvent Condition=" '$(OS)' == 'Windows_NT' ">xcopy "$(ProjectDir)www\*.*" "$(TargetDir)www" /Y /I /E</PostBuildEvent>
     <PostBuildEvent Condition=" '$(OS)' != 'Windows_NT' ">
-		mkdir -p $(TargetDir)www;
-    	cp -rf $(ProjectDir)www\* $(TargetDir)www
-	</PostBuildEvent>
+      mkdir -p $(TargetDir)www;
+      cp -rf $(ProjectDir)www\* $(TargetDir)www
+    </PostBuildEvent>
   </PropertyGroup>
 </Project>

@@ -44,6 +44,7 @@ namespace Nano.Demo.SelfHost.Topshelf
             {
                 var validatedUrls = ValidateUrls( urls );
 
+                // Get NanoConfiguration used by the demo projects. Replace this with your own code.
                 var config = NanoConfigurationHelper.GetNanoConfiguration();
 
                 // Specify your application name. A reasonable default is automatically used if not 

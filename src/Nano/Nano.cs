@@ -1,5 +1,5 @@
 /*
-    Nano v0.14.0
+    Nano v0.14.99
     
     Nano is a .NET cross-platform micro web framework for building web-based HTTP services and websites.
 
@@ -41,6 +41,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Net;
+using System.Net.NetworkInformation;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -361,6 +362,7 @@ namespace Nano.Web.Core
             FormBodyParameters = formBodyParameters ?? new NameValueCollection();
             HeaderParameters = headerParameters ?? new NameValueCollection();
             Files = files ?? new List<HttpFile>();
+            ClientIpAddress = clientIpAddress;
         }
 
         /// <summary>Gets a <see cref="RequestStream"/> that can be used to read the incoming HTTP body</summary>
@@ -1193,7 +1195,7 @@ namespace Nano.Web.Core
                 Version = fvi.FileVersion;
             }
             else
-                Version = "0.14.0.0";
+                Version = "0.14.99.0";
         }
 
         /// <summary>Custom error responses.</summary>
@@ -1506,7 +1508,7 @@ namespace Nano.Web.Core
             nanoContext.Response.ResponseStreamWriter = nanoContext.WriteErrorsToStream;
         }
 
-        private static void GenerateHtmlErrorMessage( Exception exception, StringBuilder stringBuilder, int recursionLevel )
+        private static void GenerateHtmlErrorMessage( Exception exception, StringBuilder stringBuilder, int recursionLevel = 0 )
         {
             if ( recursionLevel > 25 )
                 return; // Something has most likely went very wrong so return early to avoid a stack overflow
@@ -1544,20 +1546,25 @@ namespace Nano.Web.Core
                 var textErrorMessageBuilder = new StringBuilder();
                 textErrorMessageBuilder.AppendLine( "Nano Error:" );
                 textErrorMessageBuilder.AppendLine( "*************" ).AppendLine();
-                textErrorMessageBuilder.AppendLine( "URL: " + nanoContext.Request.Url ).AppendLine();
 
                 foreach ( Exception exception in nanoContext.Errors )
-                    EventLogHelper.GenerateTextErrorMessage( exception, textErrorMessageBuilder, 0 );
+                {
+                    nanoContext.WriteNanoContextDataToExceptionData( exception );
+                    EventLogHelper.GenerateTextErrorMessage( exception, textErrorMessageBuilder );
+                }
 
                 nanoContext.NanoConfiguration.WriteErrorToEventLog( textErrorMessageBuilder.ToString() );
             }
 
-            if ( Debugger.IsAttached )
+            var serverHostName = Dns.GetHostName();
+            var clientHostName = GetHostName( nanoContext.Request.ClientIpAddress );
+
+            if ( serverHostName == clientHostName )
             {
                 var htmlErrorMessageBuilder = new StringBuilder();
 
                 foreach ( Exception exception in nanoContext.Errors )
-                    GenerateHtmlErrorMessage( exception, htmlErrorMessageBuilder, 0 );
+                    GenerateHtmlErrorMessage( exception, htmlErrorMessageBuilder );
 
                 var errorMessage = Constants.CustomErrorResponse.InternalServerError500.Replace( "<!--ErrorMessage-->", htmlErrorMessageBuilder.ToString() );
                 stream.Write( errorMessage );
@@ -1565,6 +1572,38 @@ namespace Nano.Web.Core
             }
 
             stream.Write( Constants.CustomErrorResponse.InternalServerError500 );
+        }
+
+        /// <summary>Gets the host name for the given IP address.</summary>
+        /// <param name="ipAddressString">IP address.</param>
+        /// <returns>Host name.</returns>
+        private static string GetHostName( string ipAddressString )
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(ipAddressString))
+                    return "";
+                var ipAddress = IPAddress.Parse(ipAddressString);
+                var ipHostEntry = Dns.GetHostEntry(ipAddress);
+                var hostNames = ipHostEntry.HostName.Split('.').ToList();
+                return hostNames.FirstOrDefault();
+            }
+            catch ( Exception )
+            {
+                return "";
+            }
+        }
+
+        /// <summary>Writes NanoContext data to the exceptions key/value pair Data property.</summary>
+        /// <param name="nanoContext">The <see cref="NanoContext"/>.</param>
+        /// <param name="exception">The <see cref="Exception"/> to write data to.</param>
+        public static void WriteNanoContextDataToExceptionData( this NanoContext nanoContext, Exception exception )
+        {
+            exception.Data[ "Request URL" ] = nanoContext.Request.Url.ToString();
+            exception.Data[ "Request CorrelationId" ] = nanoContext.CorrelationId;
+            exception.Data[ "Request Timestamp" ] = nanoContext.RequestTimestamp.ToLocalTime();
+            exception.Data[ "Client IP Address" ] = nanoContext.Request.ClientIpAddress;
+            exception.Data[ "Current User" ] = nanoContext.CurrentUser == null ? "" : nanoContext.CurrentUser.UserName;
         }
 
         /// <summary>Returns a file if it exists.</summary>
@@ -2164,7 +2203,7 @@ namespace Nano.Web.Core
                         .AppendLine( "Nano Error:" )
                         .AppendLine( "*************" ).AppendLine();
 
-                    EventLogHelper.GenerateTextErrorMessage(exception, errorMessage, 0);
+                    EventLogHelper.GenerateTextErrorMessage( exception, errorMessage );
                     nanoConfiguration.WriteErrorToEventLog( errorMessage.ToString() );
                 };
 
@@ -2199,7 +2238,8 @@ namespace Nano.Web.Core
                 }
                 catch( Exception e )
                 {
-                    if ( HttpListenerConfiguration == null || HttpListenerConfiguration.UnhandledExceptionHandler == null )
+                    if ( HttpListenerConfiguration == null || HttpListenerConfiguration.HttpListener == null || HttpListenerConfiguration.HttpListener.IsListening == false
+                         || HttpListenerConfiguration.UnhandledExceptionHandler == null || ( e.GetType() == typeof ( HttpListenerException ) ) && HttpListenerConfiguration.IgnoreHttpListenerExceptions )
                         return;
                     HttpListenerConfiguration.UnhandledExceptionHandler( e );
                 }
@@ -2211,9 +2251,11 @@ namespace Nano.Web.Core
             /// <param name="requestTimestamp">The initial timestamp of the current HTTP request.</param>
             public static void HandleRequest( HttpListenerContext httpListenerContext, HttpListenerNanoServer server, DateTime requestTimestamp )
             {
+                NanoContext nanoContext = null;
+
                 try
                 {
-                    NanoContext nanoContext = MapHttpListenerContextToNanoContext( httpListenerContext, server, requestTimestamp );
+                    nanoContext = MapHttpListenerContextToNanoContext( httpListenerContext, server, requestTimestamp );
 
                     nanoContext = RequestRouter.RouteRequest( nanoContext );
 
@@ -2258,13 +2300,26 @@ namespace Nano.Web.Core
                             nanoContext.Response.ResponseStreamWriter( httpListenerContext.Response.OutputStream );
                     }
                 }
-                catch ( Exception )
+                catch ( Exception exception )
                 {
                     try
                     {
-                        httpListenerContext.Response.OutputStream.Write(Constants.CustomErrorResponse.InternalServerError500); // Attempt to write an error message
+                        httpListenerContext.Response.OutputStream.Write( Constants.CustomErrorResponse.InternalServerError500 ); // Attempt to write an error message
                     }
-                    catch (Exception) { /* Gulp */ }
+                    catch ( Exception )
+                    {
+                         /* Gulp */
+                    }
+
+                    if ( exception.GetType() == typeof ( HttpListenerException ) && server.HttpListenerConfiguration.IgnoreHttpListenerExceptions )
+                    {
+                        return;
+                    }
+
+                    if ( nanoContext != null )
+                    {
+                        nanoContext.WriteNanoContextDataToExceptionData( exception );
+                    }
 
                     throw;
                 }
@@ -2417,6 +2472,10 @@ namespace Nano.Web.Core
             /// </summary>
             public Action<Exception> UnhandledExceptionHandler;
 
+            /// <summary>Ignore all <see cref="HttpListenerException"/>s that occur. Defaults to <see langword="true"/>.</summary>
+            /// <remarks>The most common scenario is when the underlying client connection closes but the server is still trying to send a response. In this case there is nothing that can be done except ignore the exception which is the intent of this configuration setting.</remarks>
+            public bool IgnoreHttpListenerExceptions = true;
+
             /// <summary>
             /// Gets or sets a property that determines if localhost uris are rewritten to htp://+:port/ style uris to allow for
             /// listening on all ports, but requiring either a url reservation, or admin access Defaults to false.
@@ -2440,6 +2499,7 @@ namespace Nano.Web.Core
             public HttpListenerConfiguration( IList<Uri> uris, bool rewriteLocalhost = false )
             {
                 HttpListener = new System.Net.HttpListener();
+                HttpListener.IgnoreWriteExceptions = true;
                 RewriteLocalhost = rewriteLocalhost;
                 AddPrefixes( uris );
             }
@@ -2585,11 +2645,11 @@ namespace Nano.Web.Core
             {
                 try
                 {
-                    if( EventHandler != null )
+                    nanoContext.NanoConfiguration.GlobalEventHandler.InvokePreInvokeHandlers(nanoContext);
+
+                    if ( EventHandler != null )
                         EventHandler.InvokePreInvokeHandlers( nanoContext );
-
-                    nanoContext.NanoConfiguration.GlobalEventHandler.InvokePreInvokeHandlers( nanoContext );
-
+                    
                     if( nanoContext.Handled )
                         return nanoContext;
 
@@ -2611,10 +2671,10 @@ namespace Nano.Web.Core
                 }
                 finally
                 {
-                    if( EventHandler != null )
-                        EventHandler.InvokePostInvokeHandlers( nanoContext );
+                    nanoContext.NanoConfiguration.GlobalEventHandler.InvokePostInvokeHandlers(nanoContext);
 
-                    nanoContext.NanoConfiguration.GlobalEventHandler.InvokePostInvokeHandlers( nanoContext );
+                    if ( EventHandler != null )
+                        EventHandler.InvokePostInvokeHandlers( nanoContext );
                 }
 
                 return nanoContext;
@@ -2911,6 +2971,7 @@ namespace Nano.Web.Core
             {
                 nanoContext.Handled = true;
                 var apiMetadata = new ApiMetadata();
+                apiMetadata.ApplicationName = nanoContext.NanoConfiguration.ApplicationName;
 
                 foreach( MethodRequestHandler methodRequestHandler in nanoContext.NanoConfiguration.RequestHandlers.OfType<MethodRequestHandler>() )
                 {
@@ -2939,6 +3000,7 @@ namespace Nano.Web.Core
 
                     var returnParameterType = metadataProvider.GetOperationReturnParameterType( nanoContext, methodRequestHandler );
                     metadata.ReturnParameterType = GetTypeName( returnParameterType );
+
                     AddModels( apiMetadata, returnParameterType );
                     apiMetadata.Operations.Add( metadata );
                 }
@@ -2954,17 +3016,32 @@ namespace Nano.Web.Core
             /// <param name="type">Type to crawl.</param>
             public static void AddModels( ApiMetadata apiMetadata, Type type )
             {
+                if ( type == null || type.FullName == null )
+                    return;
+
                 var nestedUserTypes = new List<Type>();
 
                 if( type.IsGenericType )
                 {
-                    type = type.GetGenericArguments().FirstOrDefault();
+                    type = type.GetGenericTypeDefinition();
+
+                    var types = type.GetGenericArguments();
+                    foreach ( var t in types )
+                    {
+                        if ( t.FullName == null )
+                            continue;
+
+                        nestedUserTypes.Add( t );
+                    }
+
+                    foreach ( Type nestedUserType in nestedUserTypes )
+                        AddModels( apiMetadata, nestedUserType );
                 }
 
                 // Adding all user types as "Models"
                 if ( type != null && IsUserType( type ) && apiMetadata.Models.Any( x => x.Type == type.Name ) == false )
                 {
-                    var modelMetadata = new ModelMetadata { Type = type.Name, Description = GetDescription( type ) };
+                    var modelMetadata = new ModelMetadata { Type = GetTypeName( type ), Description = GetDescription( type ) };
                     FieldInfo[] fields = type.GetFields();
 
                     foreach( FieldInfo field in fields )
@@ -3056,45 +3133,45 @@ namespace Nano.Web.Core
                                          type.Namespace.StartsWith( "System" ) == false &&
                                          type.Namespace.StartsWith( "Microsoft" ) == false );
             }
-
-            /// <summary>Determines if a type is a nested User Type meaning it is not a standard .NET type.</summary>
-            /// <param name="type">Type.</param>
-            /// <returns>Boolean value.</returns>
-            public static bool IsNestedUserType( Type type )
-            {
-                if( type.IsGenericType )
-                {
-                    type = type.GetGenericArguments().FirstOrDefault();
-                }
-
-                return IsUserType( type );
-            }
-
-            /// <summary>Gets the type name.</summary>
+            
+            /// <summary>
+            /// Gets the type name.
+            /// </summary>
             /// <param name="type">Type.</param>
             /// <returns>Type name.</returns>
             public static string GetTypeName( Type type )
             {
+                if ( type == null )
+                    return "";
+
+                if ( type.FullName == null )
+                    return type.Name;
+
+                string name = type.Name.Replace( '+', '.' );
+
                 if ( type.IsGenericType )
                 {
-                    var genericArgument = type.GetGenericArguments().FirstOrDefault();
+                    int backtickIndex = name.IndexOf( '`' );
 
-                    var genericIndex = type.FullName.IndexOf( "`1", StringComparison.Ordinal );
-
-                    if ( genericArgument != null && genericIndex > 1 )
+                    if ( backtickIndex > 0 )
                     {
-                        var typeName = type.FullName.Substring( 0, genericIndex );
-
-                        return typeName + "<" + genericArgument.Name + ">";
+                        name = name.Remove( backtickIndex ); // Get string before backtick. ie. "Nullable`1" becomes "Nullable"
                     }
+
+                    name += "<";
+
+                    var typeParameters = type.GetGenericArguments();
+
+                    for ( var i = 0; i < typeParameters.Length; ++i )
+                    {
+                        string typeParameterName = GetTypeName( typeParameters[ i ] );
+                        name += ( i == 0 ? typeParameterName : "," + typeParameterName );
+                    }
+
+                    name += ">";
                 }
 
-                Type underlyingType = Nullable.GetUnderlyingType( type );
-
-                if( underlyingType != null )
-                    return "Nullable<" + underlyingType.Name + ">";
-
-                return type.Name;
+                return name;
             }
         }
 
@@ -3412,7 +3489,10 @@ namespace Nano.Web.Core
         public class ApiMetadata
         {
             /// <summary>Api metadata version.</summary>
-            public string Version = "0.2.0";
+            public string Version = "0.3.0";
+
+            /// <summary>Application name..</summary>
+            public string ApplicationName = AppDomain.CurrentDomain.FriendlyName;
 
             /// <summary>The API models.</summary>
             public IList<ModelMetadata> Models = new List<ModelMetadata>();
@@ -4610,35 +4690,64 @@ namespace Nano.Web.Core
 
             /// <summary>Generates a text-based error message.</summary>
             /// <param name="exception">The exception to generate the error message from.</param>
-            /// <param name="stringBuilder">StringBuilder instance to append the error message to.</param>
+            /// <param name="sb">StringBuilder instance to append the error message to.</param>
             /// <param name="recursionLevel">The number of iterations this method has been called recursively.</param>
-            public static void GenerateTextErrorMessage(Exception exception, StringBuilder stringBuilder, int recursionLevel)
+            public static void GenerateTextErrorMessage( Exception exception, StringBuilder sb, int recursionLevel = 0 )
             {
                 if ( recursionLevel > 25 )
                     return; // Something has most likely went very wrong so return early to avoid a stack overflow
 
-                if (recursionLevel > 0)
-                {
-                    string prefix = "";
+                string prefix = "";
 
-                    for (int i = 0; i < recursionLevel; i++)
+                if ( recursionLevel > 0 )
+                {
+                    for ( int i = 0; i < recursionLevel; i++ )
                         prefix += "  ";
 
-                    stringBuilder.AppendLine(prefix + "Inner Exception Error Message:");
-                    stringBuilder.AppendLine(prefix + exception.Message).AppendLine();
-                    stringBuilder.AppendLine(prefix + "Inner Exception Stack Trace:");
-                    stringBuilder.AppendLine(prefix + exception.StackTrace).AppendLine();
-                }
-                else
-                {
-                    stringBuilder.AppendLine("Exception Error Message:");
-                    stringBuilder.AppendLine(exception.Message).AppendLine();
-                    stringBuilder.AppendLine("Exception Stack Trace:");
-                    stringBuilder.AppendLine(exception.StackTrace).AppendLine();
+                    prefix += "Inner ";
                 }
 
-                if (exception.InnerException != null)
-                    GenerateTextErrorMessage(exception.InnerException, stringBuilder, ++recursionLevel);
+                sb.AppendSection( prefix, "Exception Information" );
+                sb.AppendDetails( prefix, "Exception Type", exception.GetType().ToString() );
+                sb.AppendDetails( prefix, "Exception Message", exception.Message );
+                sb.AppendLine( exception.StackTrace ).AppendLine();
+
+                using ( var currentProcess = Process.GetCurrentProcess() )
+                {
+                    var ipGlobalProperties = IPGlobalProperties.GetIPGlobalProperties();
+
+                    sb.AppendSection( prefix, "Application Information" );
+                    sb.AppendDetails( prefix, "Machine Name", ipGlobalProperties.HostName + "." + ipGlobalProperties.DomainName );
+                    sb.AppendDetails( prefix, "Domain User", Environment.UserDomainName + "\\" + Environment.UserName );
+                    sb.AppendDetails( prefix, "Application Domain Name", AppDomain.CurrentDomain.FriendlyName );
+                    sb.AppendDetails( prefix, "Process Name", currentProcess.ProcessName );
+                    sb.AppendDetails( prefix, "Process Id", currentProcess.Id.ToString() );
+                }
+
+                if ( exception.Data.Keys.Count > 0 )
+                {
+                    sb.AppendLine().AppendSection( prefix, "Additional Information" );
+
+                    foreach ( DictionaryEntry dictionaryEntry in exception.Data )
+                    {
+                        sb.AppendDetails( prefix, dictionaryEntry.Key.ToString(), dictionaryEntry.Value == null ? "" : dictionaryEntry.Value.ToString() );
+                    }
+
+                    sb.AppendLine();
+                }
+
+                if ( exception.InnerException != null )
+                    GenerateTextErrorMessage( exception.InnerException, sb, ++recursionLevel );
+            }
+
+            private static StringBuilder AppendSection(this StringBuilder sb, string prefix, string sectionName )
+            {
+                return sb.AppendFormat( "{0}{1}:", prefix, sectionName ).AppendLine();
+            }
+
+            private static StringBuilder AppendDetails( this StringBuilder sb, string prefix, string detailName, string detailValue )
+            {
+                return sb.AppendFormat("{0}  {1}: {2}", prefix, detailName, detailValue ).AppendLine();
             }
         }
 
