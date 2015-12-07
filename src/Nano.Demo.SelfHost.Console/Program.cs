@@ -19,6 +19,7 @@ namespace Nano.Demo.SelfHost.Console
                 exitEvent.Set();
             };
 
+            // Get NanoConfiguration used by the demo projects. Replace this with your own code.
             var config = NanoConfigurationHelper.GetNanoConfiguration();
 
             // Specify your application name. A reasonable default is automatically used if not 

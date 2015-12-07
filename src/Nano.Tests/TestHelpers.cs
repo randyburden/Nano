@@ -6,6 +6,8 @@ using System.Net;
 using System.Text;
 using Nano.Web.Core;
 using Nano.Web.Core.Host.HttpListener;
+using Nano.Web.Core.Serialization;
+using Newtonsoft.Json;
 
 namespace Nano.Tests
 {
@@ -21,8 +23,10 @@ namespace Nano.Tests
         public static HttpListenerNanoServer Start()
         {
             var nanoConfiguration = new NanoConfiguration();
+            ( ( JsonNetSerializer ) nanoConfiguration.SerializationService ).JsonSerializerSettings.Formatting = Formatting.None;
             const string url = "http://localhost:4545/";
-            return HttpListenerNanoServer.Start( nanoConfiguration, url );
+            var server = HttpListenerNanoServer.Start( nanoConfiguration, url );
+            return server;
         }
     }
 

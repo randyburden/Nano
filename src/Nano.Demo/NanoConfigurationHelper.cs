@@ -1,7 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Text;
+using System.Net;
 using System.Threading;
 using Nano.Web.Core;
 
@@ -13,7 +12,7 @@ namespace Nano.Demo
     public static class NanoConfigurationHelper
     {
         /// <summary>
-        /// Get's the <see cref="NanoConfiguration"/> used by all of the demo projects.
+        /// Gets the <see cref="NanoConfiguration"/> used by all of the demo projects.
         /// </summary>
         /// <returns><see cref="NanoConfiguration"/> instance.</returns>
         public static NanoConfiguration GetNanoConfiguration()
@@ -57,10 +56,10 @@ namespace Nano.Demo
             // Let's add a custom header as a demonstration.
             eventHandler.PreInvokeHandlers.Add( context =>
             {
-                context.Response.HeaderParameters.Add( "X-Message", "Hello World!" );
+                context.Response.HeaderParameters.Add( "X-Server-HostName", Dns.GetHostName() );
             });
 
-            // Add all static methods in the Time class as well as specify to use custom event handler
+            // Add all static methods in the Time class as well as use custom event handler
             config.AddMethods<Time>( eventHandler: eventHandler );
 
             // Handles all requests for URL: /hi

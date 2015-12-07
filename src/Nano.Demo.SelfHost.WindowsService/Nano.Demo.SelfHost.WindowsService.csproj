@@ -1,10 +1,10 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{31D43968-AEDE-4977-A518-A6CEA67DE9F7}</ProjectGuid>
+    <ProjectGuid>{C7841C99-D4DB-4BC3-BF5B-0432EF36F1A2}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Nano.Demo.SelfHost.WindowsService</RootNamespace>
@@ -50,7 +50,12 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
-    <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Nano\Nano.csproj">
+      <Project>{88df38e2-9d22-4177-b8b5-b05f2de5dca4}</Project>
+      <Name>Nano</Name>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <Content Include="www\admin\secret\backdoor\home\footer\index.html" />
@@ -60,17 +65,13 @@
     <Content Include="www\JsonPostTester\index.html" />
     <Content Include="www\MultipartTester\index.html" />
   </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\Nano\Nano.csproj">
-      <Project>{3e238cb3-21e8-4b80-a874-2bc86fdc82d0}</Project>
-      <Name>Nano</Name>
-    </ProjectReference>
-  </ItemGroup>
   <Import Project="..\Nano.Demo\Nano.Demo.projitems" Label="Shared" />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PostBuildEvent Condition=" '$(OS)' == 'Windows_NT' ">xcopy "$(ProjectDir)www\*.*" "$(TargetDir)www" /Y /I /E</PostBuildEvent>
-    <PostBuildEvent Condition=" '$(OS)' != 'Windows_NT' ">mkdir -p $(TargetDir)www;
-cp -rf $(ProjectDir)www\* $(TargetDir)www</PostBuildEvent>
+    <PostBuildEvent Condition=" '$(OS)' != 'Windows_NT' ">
+      mkdir -p $(TargetDir)www;
+      cp -rf $(ProjectDir)www\* $(TargetDir)www
+    </PostBuildEvent>
   </PropertyGroup>
 </Project>
