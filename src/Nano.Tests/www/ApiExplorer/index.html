@@ -282,9 +282,9 @@ body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line
                             var parametersTableId = getParametersTableId(rowData);
                             $('#' + parametersTableId).hide();
                         }
+                        attachChildRowBehavior(rowData);
                     }
                     $('div.slider', row.child()).slideDown('fast', function () {
-                        attachChildRowBehavior(rowData);
                     });
                 }
             });
