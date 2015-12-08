@@ -1605,7 +1605,7 @@ namespace Nano.Web.Core
             exception.Data[ "Client IP Address" ] = nanoContext.Request.ClientIpAddress;
             exception.Data[ "Current User" ] = nanoContext.CurrentUser == null ? "" : nanoContext.CurrentUser.UserName;
         }
-
+        
         /// <summary>Returns a file if it exists.</summary>
         /// <param name="nanoContext">The <see cref="NanoContext" />.</param>
         /// <param name="fileInfo">The file to return.</param>
@@ -2805,7 +2805,7 @@ namespace Nano.Web.Core
             /// <summary>Gets or sets the default documents.</summary>
             /// <value>The default documents.</value>
             public IList<string> DefaultDocuments { get; set; }
-
+            
             /// <summary>Handles the request.</summary>
             /// <param name="nanoContext">The <see cref="NanoContext" />.</param>
             /// <returns>Handled <see cref="NanoContext" />.</returns>
@@ -2818,9 +2818,20 @@ namespace Nano.Web.Core
 
                 if ( IsCaseSensitiveFileSystem ) fullFileSystemPath = GetPathCaseSensitive( fullFileSystemPath );
 
-                if ( !string.IsNullOrWhiteSpace( fullFileSystemPath ) && fullFileSystemPath.IndexOfAny( Path.GetInvalidFileNameChars() ) < 0 )
+                if ( !string.IsNullOrWhiteSpace( fullFileSystemPath ) && !ContainsInvalidPathCharacters( fullFileSystemPath ) )
                 {
-                    if ( nanoContext.TryReturnFile( new FileInfo( fullFileSystemPath ) ) ) return nanoContext;
+                    FileInfo fileInfo = null;
+
+                    try
+                    {
+                        fileInfo = new FileInfo(fullFileSystemPath);
+                    }
+                    catch ( ArgumentException )
+                    {
+                        return nanoContext.ReturnHttp404NotFound();
+                    }
+
+                    if ( nanoContext.TryReturnFile( fileInfo ) ) return nanoContext;
 
                     var directoryInfo = new DirectoryInfo( fullFileSystemPath );
 
@@ -2851,6 +2862,23 @@ namespace Nano.Web.Core
                 if ( ReturnHttp404WhenFileWasNoFound ) return nanoContext.ReturnHttp404NotFound();
 
                 return nanoContext;
+            }
+
+            /// <summary>Determines if the path contains invalid characters.</summary>
+            /// <remarks>This method is intended to prevent ArgumentException's from being thrown when creating a new FileInfo on a file path with invalid characters.</remarks>
+            /// <param name="filePath">File path.</param>
+            /// <returns>True if file path contains invalid characters.</returns>
+            private static bool ContainsInvalidPathCharacters(string filePath)
+            {
+                for (var i = 0; i < filePath.Length; i++)
+                {
+                    int c = filePath[i];
+                    
+                    if (c == '\"' || c == '<' || c == '>' || c == '|' || c == '*' || c == '?' || c < 32)
+                        return true;
+                }
+
+                return false;
             }
 
             /// <summary>
