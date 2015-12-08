@@ -804,7 +804,7 @@ body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line
                 '                   if (value !== null && typeof value === "object") {',
                 '                       value = JSON.stringify(value);',
                 '                   }',
-                '                   queryString += (queryString.length === 0 ? "" : "&") + propertyName + "=" + encodeURIComponent(value); ',
+                '                   queryString += (queryString.length === 0 ? "" : "&") + propertyName + "=" + (value == null ? "" : encodeURIComponent(value)); ',
                 '               }',
                 '           }',
                 '       }',
