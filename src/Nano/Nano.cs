@@ -2647,34 +2647,38 @@ namespace Nano.Web.Core
                 {
                     nanoContext.NanoConfiguration.GlobalEventHandler.InvokePreInvokeHandlers(nanoContext);
 
-                    if ( EventHandler != null )
-                        EventHandler.InvokePreInvokeHandlers( nanoContext );
-                    
-                    if( nanoContext.Handled )
+                    if (EventHandler != null)
+                        EventHandler.InvokePreInvokeHandlers(nanoContext);
+
+                    if (nanoContext.Handled)
                         return nanoContext;
 
-                    nanoContext = HandleRequest( nanoContext );
+                    nanoContext = HandleRequest(nanoContext);
                     return nanoContext;
                 }
-                catch( Exception e )
+                catch (Exception e)
                 {
-                    if ( e is TargetInvocationException && e.InnerException != null )
-                        e = e.InnerException; // Hide Nano's outer 'TargetInvocationException' and just use the inner exception which is what almost everyone is going to desire
+                    if (e is TargetInvocationException && e.InnerException != null)
+                        e = e.InnerException;
+                            // Hide Nano's outer 'TargetInvocationException' and just use the inner exception which is what almost everyone is going to desire
 
-                    nanoContext.Errors.Add( e );
+                    nanoContext.Errors.Add(e);
                     nanoContext.ReturnHttp500InternalServerError();
 
-                    if( EventHandler != null )
-                        EventHandler.InvokeUnhandledExceptionHandlers( e, nanoContext );
+                    nanoContext.NanoConfiguration.GlobalEventHandler.InvokeUnhandledExceptionHandlers(e, nanoContext);
 
-                    nanoContext.NanoConfiguration.GlobalEventHandler.InvokeUnhandledExceptionHandlers( e, nanoContext );
+                    if (EventHandler != null)
+                        EventHandler.InvokeUnhandledExceptionHandlers(e, nanoContext);
                 }
                 finally
                 {
                     nanoContext.NanoConfiguration.GlobalEventHandler.InvokePostInvokeHandlers(nanoContext);
 
-                    if ( EventHandler != null )
-                        EventHandler.InvokePostInvokeHandlers( nanoContext );
+                    if (EventHandler != null)
+                        EventHandler.InvokePostInvokeHandlers(nanoContext);
+
+                    if ( nanoContext.Response.ResponseStreamWriter == null )
+                        nanoContext.WriteResponseObjectToResponseStream();
                 }
 
                 return nanoContext;
@@ -2975,8 +2979,7 @@ namespace Nano.Web.Core
 
                 if ( string.IsNullOrWhiteSpace( nanoContext.Response.ContentType ) )
                     nanoContext.Response.ContentType =  "application/json";
-
-                nanoContext.WriteResponseObjectToResponseStream();
+                
                 return nanoContext;
             }
         }
@@ -3035,7 +3038,6 @@ namespace Nano.Web.Core
 
                 nanoContext.Response.ResponseObject = apiMetadata;
                 nanoContext.Response.ContentType = "application/json";
-                nanoContext.WriteResponseObjectToResponseStream();
                 return nanoContext;
             }
 
@@ -3257,8 +3259,7 @@ namespace Nano.Web.Core
 
                 if ( string.IsNullOrWhiteSpace( nanoContext.Response.ContentType ) )
                     nanoContext.Response.ContentType = "application/json";
-
-                nanoContext.WriteResponseObjectToResponseStream();
+                
                 return nanoContext;
             }
 
