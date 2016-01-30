@@ -5,6 +5,7 @@ using System.Dynamic;
 using System.Net;
 using Newtonsoft.Json;
 using NUnit.Framework;
+using System.Threading.Tasks;
 
 namespace Nano.Tests.RequestHandlers
 {
@@ -407,7 +408,270 @@ namespace Nano.Tests.RequestHandlers
             }
         }
 
-       
+        [Test]
+        public void Return_The_String_Result_Of_A_Task_Of_Type_String()
+        {
+            using (var server = NanoTestServer.Start())
+            {
+                // Arrange
+                server.NanoConfiguration.AddMethods<Echo>();
+                var someString = "I am a string";
+
+                // Act
+                var response = HttpHelper.GetResponseString(server.GetUrl() + "/api/Echo/EchoStringAsync?someString=" + someString);
+
+                // Visual Assertion
+                Trace.WriteLine(response);
+
+                // Assert
+                Assert.AreEqual(string.Concat("\"", someString, "\""), response);
+            }
+        }
+
+        [Test]
+        public void Return_The_Int_Result_Of_A_Task_Of_Type_Int()
+        {
+            using (var server = NanoTestServer.Start())
+            {
+                // Arrange
+                server.NanoConfiguration.AddMethods<Echo>();
+                var someInt = int.MaxValue;
+
+                // Act
+                var response = HttpHelper.GetResponseString(server.GetUrl() + "/api/Echo/EchoIntAsync?someInt=" + someInt);
+
+                // Visual Assertion
+                Trace.WriteLine(response);
+
+                // Assert
+                Assert.AreEqual(someInt.ToString(), response);
+            }
+        }
+
+        [Test]
+        public void Return_The_Long_Result_Of_A_Task_Of_Type_Long()
+        {
+            using (var server = NanoTestServer.Start())
+            {
+                // Arrange
+                server.NanoConfiguration.AddMethods<Echo>();
+                var someLong = long.MaxValue;
+
+                // Act
+                var response = HttpHelper.GetResponseString(server.GetUrl() + "/api/Echo/EchoLongAsync?someLong=" + someLong);
+
+                // Visual Assertion
+                Trace.WriteLine(response);
+
+                // Assert
+                Assert.AreEqual(someLong.ToString(), response);
+            }
+        }
+
+        [Test]
+        public void Return_The_Decimal_Result_Of_A_Task_Of_Type_Decimal()
+        {
+            using (var server = NanoTestServer.Start())
+            {
+                // Arrange
+                server.NanoConfiguration.AddMethods<Echo>();
+                var someDecimal = decimal.MaxValue;
+
+                // Act
+                var response = HttpHelper.GetResponseString(server.GetUrl() + "/api/Echo/EchoDecimalAsync?someDecimal=" + someDecimal);
+
+                // Visual Assertion
+                Trace.WriteLine(response);
+
+                // Assert
+                Assert.AreEqual(string.Concat(someDecimal.ToString(), ".0"), response);
+            }
+        }
+
+        [Test]
+        public void Return_The_Float_Result_Of_A_Task_Of_Type_Float()
+        {
+            using (var server = NanoTestServer.Start())
+            {
+                // Arrange
+                server.NanoConfiguration.AddMethods<Echo>();
+                var someFloat = "3.402823E+38";
+                var someFloatEncoded = System.Uri.EscapeDataString("3.402823E+38");
+
+                // Act
+                var response = HttpHelper.GetResponseString(server.GetUrl() + "/api/Echo/EchoFloatAsync?someFloat=" + someFloatEncoded);
+
+                // Visual Assertion
+                Trace.WriteLine(response);
+
+                // Assert
+                Assert.AreEqual(someFloat, response);
+            }
+        }
+
+        [Test]
+        public void Return_The_DateTime_Result_Of_A_Task_Of_Type_DateTime()
+        {
+            using (var server = NanoTestServer.Start())
+            {
+                // Arrange
+                server.NanoConfiguration.AddMethods<Echo>();
+                var someDateTimeString = "9999-12-31T23:59:59";
+                var someDateTime = DateTime.Parse(someDateTimeString);
+
+                // Act
+                var response = HttpHelper.GetResponseString(server.GetUrl() + "/api/Echo/EchoDateTimeAsync?someDateTime=" + someDateTime);
+
+                // Visual Assertion
+                Trace.WriteLine(response);
+
+                // Assert
+                Assert.AreEqual(string.Concat("\"", someDateTimeString, "\""), response);
+            }
+        }
+
+        [Test]
+        public void Return_The_Char_Result_Of_A_Task_Of_Type_Char()
+        {
+            using (var server = NanoTestServer.Start())
+            {
+                // Arrange
+                server.NanoConfiguration.AddMethods<Echo>();
+                const char someChar = 'R';
+
+                // Act
+                var response = HttpHelper.GetResponseString(server.GetUrl() + "/api/Echo/EchoCharAsync?someChar=" + someChar);
+
+                // Visual Assertion
+                Trace.WriteLine(response);
+
+                // Assert
+                Assert.AreEqual(string.Concat("\"", someChar.ToString(), "\""), response);
+            }
+        }
+
+        [Test]
+        public void Return_The_Guid_Result_Of_A_Task_Of_Type_Guid()
+        {
+            using (var server = NanoTestServer.Start())
+            {
+                // Arrange
+                server.NanoConfiguration.AddMethods<Echo>();
+                var someGuid = Guid.NewGuid();
+
+                // Act
+                var response = HttpHelper.GetResponseString(server.GetUrl() + "/api/Echo/EchoGuidAsync?someGuid=" + someGuid);
+
+                // Visual Assertion
+                Trace.WriteLine(response);
+
+                // Assert
+                Assert.AreEqual(string.Concat("\"", someGuid.ToString(), "\""), response);
+            }
+        }
+
+        [Test]
+        public void Return_The_Bool_Result_Of_A_Task_Of_Type_Bool()
+        {
+            using (var server = NanoTestServer.Start())
+            {
+                // Arrange
+                server.NanoConfiguration.AddMethods<Echo>();
+                var someBool = true.ToString().ToLower();
+
+                // Act
+                var response = HttpHelper.GetResponseString(server.GetUrl() + "/api/Echo/EchoBoolAsync?someBool=" + someBool);
+
+                // Visual Assertion
+                Trace.WriteLine(response);
+
+                // Assert
+                Assert.AreEqual(someBool, response);
+            }
+        }
+
+        [Test]
+        public void Return_The_Object_Result_Of_A_Task_Of_Type_Object()
+        {
+            using (var server = NanoTestServer.Start())
+            {
+                // Arrange
+                server.NanoConfiguration.AddMethods<Echo>();
+                var someObject = new { Name = "I am an object with a name property" };
+                var someObjectJson = JsonConvert.SerializeObject(someObject);
+
+                // Act
+                var response = HttpHelper.GetResponseString(server.GetUrl() + "/api/Echo/EchoObjectAsync?someObject=" + someObjectJson);
+
+                // Visual Assertion
+                Trace.WriteLine(response);
+
+                // Assert
+                Assert.AreEqual(someObjectJson, response);
+            }
+        }
+
+        [Test]
+        public void Return_The_Dynamic_Result_Of_A_Task_Of_Type_Dynamic()
+        {
+            using (var server = NanoTestServer.Start())
+            {
+                // Arrange
+                server.NanoConfiguration.AddMethods<Echo>();
+                dynamic someDynamic = new ExpandoObject();
+                someDynamic.Name = "I am a dynamic object with a name property";
+                string someDynamicJson = JsonConvert.SerializeObject(someDynamic);
+
+                // Act
+                var response = HttpHelper.GetResponseString(server.GetUrl() + "/api/Echo/EchoDynamicAsync?someDynamic=" + someDynamicJson);
+
+                // Visual Assertion
+                Trace.WriteLine(response);
+
+                // Assert
+                Assert.AreEqual(someDynamicJson, response);
+            }
+        }
+
+        [Test]
+        public void Return_The_ComplexType_Result_Of_A_Task_Of_ComplexType()
+        {
+            using (var server = NanoTestServer.Start())
+            {
+                // Arrange
+                server.NanoConfiguration.AddMethods<Echo>();
+                var complexType = new Echo.ComplexType { Id = 654, Name = "Some Name" };
+                string complexTypeJson = JsonConvert.SerializeObject(complexType);
+
+                // Act
+                var response = HttpHelper.GetResponseString(server.GetUrl() + "/api/Echo/EchoComplexTypeAsync?someComplexType=" + complexTypeJson);
+
+                // Visual Assertion
+                Trace.WriteLine(response);
+
+                // Assert
+                Assert.AreEqual(complexTypeJson, response);
+            }
+        }
+
+        [Test]
+        public void Return_The_ResponseStreamWriter_Result_Of_A_Void_Task()
+        {
+            using (var server = NanoTestServer.Start())
+            {
+                // Arrange
+                server.NanoConfiguration.AddMethods<Echo>();
+
+                // Act
+                var response = HttpHelper.GetResponseString(server.GetUrl() + "/api/Echo/EchoVoid");
+
+                // Visual Assertion
+                Trace.WriteLine(response);
+
+                // Assert
+                Assert.AreEqual("Void", response);
+            }
+        }
 
         [Test( Description = "This is to test that Nano can support a large number of parameters." )]
         public void Accept_Two_Through_Fifteen_Integers_As_Input()
@@ -766,9 +1030,28 @@ namespace Nano.Tests.RequestHandlers
 
     public class Echo
     {
+        public static async Task EchoVoid(Web.Core.NanoContext context)
+        {
+            context.Response.ResponseStreamWriter = stream =>
+            {
+                using (var writer = new System.IO.StreamWriter(stream, System.Text.Encoding.Default, 4096, leaveOpen: true))
+                {
+                    writer.Write("Void");
+                    writer.Flush();
+                }
+            };
+
+            await Task.Yield();
+        }
+
         public static string EchoString(string someString)
         {
             return someString;
+        }
+
+        public static Task<string> EchoStringAsync(string someString)
+        {
+            return Task.FromResult(someString);
         }
 
         public static int EchoInt(int someInt)
@@ -776,9 +1059,19 @@ namespace Nano.Tests.RequestHandlers
             return someInt;
         }
 
+        public static Task<int> EchoIntAsync(int someInt)
+        {
+            return Task.FromResult(someInt);
+        }
+
         public static long EchoLong(long someLong)
         {
             return someLong;
+        }
+
+        public static Task<long> EchoLongAsync(long someLong)
+        {
+            return Task.FromResult(someLong);
         }
 
         public static decimal EchoDecimal(decimal someDecimal)
@@ -786,9 +1079,19 @@ namespace Nano.Tests.RequestHandlers
             return someDecimal;
         }
 
+        public static Task<decimal> EchoDecimalAsync(decimal someDecimal)
+        {
+            return Task.FromResult(someDecimal);
+        }
+
         public static float EchoFloat(float someFloat)
         {
             return someFloat;
+        }
+
+        public static Task<float> EchoFloatAsync(float someFloat)
+        {
+            return Task.FromResult(someFloat);
         }
 
         public static DateTime EchoDateTime(DateTime someDateTime)
@@ -796,9 +1099,19 @@ namespace Nano.Tests.RequestHandlers
             return someDateTime;
         }
 
+        public static Task<DateTime> EchoDateTimeAsync(DateTime someDateTime)
+        {
+            return Task.FromResult(someDateTime);
+        }
+
         public static char EchoChar(char someChar)
         {
             return someChar;
+        }
+
+        public static Task<char> EchoCharAsync(char someChar)
+        {
+            return Task.FromResult(someChar);
         }
 
         public static Guid EchoGuid(Guid someGuid)
@@ -806,9 +1119,19 @@ namespace Nano.Tests.RequestHandlers
             return someGuid;
         }
 
+        public static Task<Guid> EchoGuidAsync(Guid someGuid)
+        {
+            return Task.FromResult(someGuid);
+        }
+
         public static bool EchoBool(bool someBool)
         {
             return someBool;
+        }
+
+        public static Task<bool> EchoBoolAsync(bool someBool)
+        {
+            return Task.FromResult(someBool);
         }
 
         public static object EchoObject(object someObject)
@@ -816,14 +1139,29 @@ namespace Nano.Tests.RequestHandlers
             return someObject;
         }
 
+        public static Task<object> EchoObjectAsync(object someObject)
+        {
+            return Task.FromResult(someObject);
+        }
+
         public static dynamic EchoDynamic(dynamic someDynamic)
         {
             return someDynamic;
         }
 
+        public static Task<dynamic> EchoDynamicAsync(dynamic someDynamic)
+        {
+            return Task.FromResult<dynamic>(someDynamic); // Explicit generic type must be specified for dynamic.
+        }
+
         public static ComplexType EchoComplexType(ComplexType someComplexType)
         {
             return someComplexType;
+        }
+
+        public static Task<ComplexType> EchoComplexTypeAsync(ComplexType someComplexType)
+        {
+            return Task.FromResult(someComplexType);
         }
 
         public static List<ComplexType> EchoComplexTypeList(List<ComplexType> someComplexTypeList)
