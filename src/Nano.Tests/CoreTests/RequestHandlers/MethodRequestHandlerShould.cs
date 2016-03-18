@@ -407,99 +407,7 @@ namespace Nano.Tests.RequestHandlers
             }
         }
 
-        public class Echo
-        {
-            public static string EchoString( string someString )
-            {
-                return someString;
-            }
-
-            public static int EchoInt( int someInt )
-            {
-                return someInt;
-            }
-
-            public static long EchoLong( long someLong )
-            {
-                return someLong;
-            }
-
-            public static decimal EchoDecimal( decimal someDecimal )
-            {
-                return someDecimal;
-            }
-
-            public static float EchoFloat( float someFloat )
-            {
-                return someFloat;
-            }
-
-            public static DateTime EchoDateTime( DateTime someDateTime )
-            {
-                return someDateTime;
-            }
-
-            public static char EchoChar( char someChar )
-            {
-                return someChar;
-            }
-
-            public static Guid EchoGuid( Guid someGuid )
-            {
-                return someGuid;
-            }
-
-            public static bool EchoBool( bool someBool )
-            {
-                return someBool;
-            }
-
-            public static object EchoObject( object someObject )
-            {
-                return someObject;
-            }
-
-            public static dynamic EchoDynamic( dynamic someDynamic )
-            {
-                return someDynamic;
-            }
-
-            public static ComplexType EchoComplexType( ComplexType someComplexType )
-            {
-                return someComplexType;
-            }
-
-            public static List<ComplexType> EchoComplexTypeList( List<ComplexType> someComplexTypeList )
-            {
-                return someComplexTypeList;
-            }
-
-            public static IList<ComplexType> EchoComplexTypeIList( IList<ComplexType> someComplexTypeList )
-            {
-                return someComplexTypeList;
-            }
-
-            public static ICollection<ComplexType> EchoComplexTypeICollection( ICollection<ComplexType> someComplexTypeList )
-            {
-                return someComplexTypeList;
-            }
-
-            public static Dictionary<string, string> EchoDictionaryOfStringString( Dictionary<string, string> dictionary )
-            {
-                return dictionary;
-            }
-
-            public static Dictionary<int, ComplexType> EchoDictionaryOfIntComplexType( Dictionary<int, ComplexType> dictionary )
-            {
-                return dictionary;
-            }
-
-            public class ComplexType
-            {
-                public int Id;
-                public string Name;
-            }
-        }
+       
 
         [Test( Description = "This is to test that Nano can support a large number of parameters." )]
         public void Accept_Two_Through_Fifteen_Integers_As_Input()
@@ -581,95 +489,11 @@ namespace Nano.Tests.RequestHandlers
             }
         }
 
-        public class AddIntegers
-        {
-            public static int AddTwoNumbers( int number1, int number2 )
-            {
-                return number1 + number2;
-            }
-
-            public static int AddThreeNumbers( int number1, int number2, int number3 )
-            {
-                return number1 + number2 + number3;
-            }
-
-            public static int AddFourNumbers( int number1, int number2, int number3, int number4 )
-            {
-                return number1 + number2 + number3 + number4;
-            }
-
-            public static int AddFiveNumbers( int number1, int number2, int number3, int number4, int number5 )
-            {
-                return number1 + number2 + number3 + number4 + number5;
-            }
-
-            public static int AddSixNumbers( int number1, int number2, int number3, int number4, int number5, int number6 )
-            {
-                return number1 + number2 + number3 + number4 + number5 + number6;
-            }
-
-            public static int AddSevenNumbers( int number1, int number2, int number3, int number4, int number5, int number6, int number7 )
-            {
-                return number1 + number2 + number3 + number4 + number5 + number6 + number7;
-            }
-
-            public static int AddEightNumbers( int number1, int number2, int number3, int number4, int number5, int number6, int number7, int number8 )
-            {
-                return number1 + number2 + number3 + number4 + number5 + number6 + number7 + number8;
-            }
-
-            public static int AddNineNumbers( int number1, int number2, int number3, int number4, int number5, int number6, int number7, int number8, int number9 )
-            {
-                return number1 + number2 + number3 + number4 + number5 + number6 + number7 + number8 + number9;
-            }
-
-            public static int AddTenNumbers( int number1, int number2, int number3, int number4, int number5, int number6, int number7, int number8, int number9, int number10 )
-            {
-                return number1 + number2 + number3 + number4 + number5 + number6 + number7 + number8 + number9 + number10;
-            }
-
-            public static int AddElevenNumbers( int number1, int number2, int number3, int number4, int number5, int number6, int number7, int number8, int number9, int number10, int number11 )
-            {
-                return number1 + number2 + number3 + number4 + number5 + number6 + number7 + number8 + number9 + number10 + number11;
-            }
-
-            public static int AddTwelveNumbers( int number1, int number2, int number3, int number4, int number5, int number6, int number7, int number8, int number9, int number10, int number11, int number12 )
-            {
-                return number1 + number2 + number3 + number4 + number5 + number6 + number7 + number8 + number9 + number10 + number11 + number12;
-            }
-
-            public static int AddThirteenNumbers( int number1, int number2, int number3, int number4, int number5, int number6, int number7, int number8, int number9, int number10, int number11, int number12, int number13 )
-            {
-                return number1 + number2 + number3 + number4 + number5 + number6 + number7 + number8 + number9 + number10 + number11 + number12 + number13;
-            }
-
-            public static int AddFourteenNumbers( int number1, int number2, int number3, int number4, int number5, int number6, int number7, int number8, int number9, int number10, int number11, int number12, int number13, int number14 )
-            {
-                return number1 + number2 + number3 + number4 + number5 + number6 + number7 + number8 + number9 + number10 + number11 + number12 + number13 + number14;
-            }
-
-            public static int AddFifteenNumbers( int number1, int number2, int number3, int number4, int number5, int number6, int number7, int number8, int number9, int number10, int number11, int number12, int number13, int number14, int number15 )
-            {
-                return number1 + number2 + number3 + number4 + number5 + number6 + number7 + number8 + number9 + number10 + number11 + number12 + number13 + number14 + number15;
-            }
-        }
+        
 
         #region ETag Tests
 
-        public class ETagTestsApi
-        {
-            public static Person GetPerson( int id )
-            {
-                return new Person { Id = id, FirstName = "Clark", LastName = "Kent" };
-            }
-
-            public class Person
-            {
-                public int Id;
-                public string FirstName;
-                public string LastName;
-            }
-        }
+        
 
         [Test]
         public void Return_An_ETag_Header_When_An_Http_200_Response_Is_Returned()
@@ -677,7 +501,7 @@ namespace Nano.Tests.RequestHandlers
             using( var server = NanoTestServer.Start() )
             {
                 // Arrange
-                server.NanoConfiguration.AddMethods<ETagTestsApi>();
+                server.NanoConfiguration.AddMethods<ETagTestsApi>("/api/ETagTestsApi");
 
                 // Act
                 string eTag;
@@ -700,7 +524,7 @@ namespace Nano.Tests.RequestHandlers
             using (var server = NanoTestServer.Start())
             {
                 // Arrange
-                server.NanoConfiguration.AddMethods<ETagTestsApi>();
+                server.NanoConfiguration.AddMethods<ETagTestsApi>("/api/ETagTestsApi");
 
                 // Act
                 string eTag;
@@ -723,7 +547,7 @@ namespace Nano.Tests.RequestHandlers
             using( var server = NanoTestServer.Start() )
             {
                 // Arrange
-                server.NanoConfiguration.AddMethods<ETagTestsApi>();
+                server.NanoConfiguration.AddMethods<ETagTestsApi>("/api/ETagTestsApi");
 
                 string initialETag;
                 using ( var initialResponse = HttpHelper.GetHttpWebResponse( server.GetUrl() + "/api/ETagTestsApi/GetPerson?id=1" ) )
@@ -755,7 +579,7 @@ namespace Nano.Tests.RequestHandlers
             using ( var server = NanoTestServer.Start() )
             {
                 // Arrange
-                server.NanoConfiguration.AddMethods<ETagTestsApi>();
+                server.NanoConfiguration.AddMethods<ETagTestsApi>("/api/ETagTestsApi");
 
                 string initialETag;
                 using ( var initialResponse = HttpHelper.GetHttpWebResponse( server.GetUrl() + "/api/ETagTestsApi/GetPerson?id=1" ) )
@@ -787,7 +611,7 @@ namespace Nano.Tests.RequestHandlers
             using( var server = NanoTestServer.Start() )
             {
                 // Arrange
-                server.NanoConfiguration.AddMethods<ETagTestsApi>();
+                server.NanoConfiguration.AddMethods<ETagTestsApi>("/api/ETagTestsApi");
 
                 string initialETag;
                 using ( var initialResponse = HttpHelper.GetHttpWebResponse( server.GetUrl() + "/api/ETagTestsApi/GetPerson?id=1" ) )
@@ -820,7 +644,7 @@ namespace Nano.Tests.RequestHandlers
             using( var server = NanoTestServer.Start() )
             {
                 // Arrange
-                server.NanoConfiguration.AddMethods<ETagTestsApi>();
+                server.NanoConfiguration.AddMethods<ETagTestsApi>("/api/ETagTestsApi");
 
                 string initialETag;
                 using ( var initialResponse = HttpHelper.GetHttpWebResponse( server.GetUrl() + "/api/ETagTestsApi/GetPerson?id=1" ) )
@@ -847,6 +671,190 @@ namespace Nano.Tests.RequestHandlers
             }
         }
 
+        public class ETagTestsApi
+        {
+            public static Person GetPerson(int id)
+            {
+                return new Person { Id = id, FirstName = "Clark", LastName = "Kent" };
+            }
+
+            public class Person
+            {
+                public int Id;
+                public string FirstName;
+                public string LastName;
+            }
+        }
+
         #endregion ETag Tests
+    }
+
+    
+
+    public class AddIntegers
+    {
+        public static int AddTwoNumbers(int number1, int number2)
+        {
+            return number1 + number2;
+        }
+
+        public static int AddThreeNumbers(int number1, int number2, int number3)
+        {
+            return number1 + number2 + number3;
+        }
+
+        public static int AddFourNumbers(int number1, int number2, int number3, int number4)
+        {
+            return number1 + number2 + number3 + number4;
+        }
+
+        public static int AddFiveNumbers(int number1, int number2, int number3, int number4, int number5)
+        {
+            return number1 + number2 + number3 + number4 + number5;
+        }
+
+        public static int AddSixNumbers(int number1, int number2, int number3, int number4, int number5, int number6)
+        {
+            return number1 + number2 + number3 + number4 + number5 + number6;
+        }
+
+        public static int AddSevenNumbers(int number1, int number2, int number3, int number4, int number5, int number6, int number7)
+        {
+            return number1 + number2 + number3 + number4 + number5 + number6 + number7;
+        }
+
+        public static int AddEightNumbers(int number1, int number2, int number3, int number4, int number5, int number6, int number7, int number8)
+        {
+            return number1 + number2 + number3 + number4 + number5 + number6 + number7 + number8;
+        }
+
+        public static int AddNineNumbers(int number1, int number2, int number3, int number4, int number5, int number6, int number7, int number8, int number9)
+        {
+            return number1 + number2 + number3 + number4 + number5 + number6 + number7 + number8 + number9;
+        }
+
+        public static int AddTenNumbers(int number1, int number2, int number3, int number4, int number5, int number6, int number7, int number8, int number9, int number10)
+        {
+            return number1 + number2 + number3 + number4 + number5 + number6 + number7 + number8 + number9 + number10;
+        }
+
+        public static int AddElevenNumbers(int number1, int number2, int number3, int number4, int number5, int number6, int number7, int number8, int number9, int number10, int number11)
+        {
+            return number1 + number2 + number3 + number4 + number5 + number6 + number7 + number8 + number9 + number10 + number11;
+        }
+
+        public static int AddTwelveNumbers(int number1, int number2, int number3, int number4, int number5, int number6, int number7, int number8, int number9, int number10, int number11, int number12)
+        {
+            return number1 + number2 + number3 + number4 + number5 + number6 + number7 + number8 + number9 + number10 + number11 + number12;
+        }
+
+        public static int AddThirteenNumbers(int number1, int number2, int number3, int number4, int number5, int number6, int number7, int number8, int number9, int number10, int number11, int number12, int number13)
+        {
+            return number1 + number2 + number3 + number4 + number5 + number6 + number7 + number8 + number9 + number10 + number11 + number12 + number13;
+        }
+
+        public static int AddFourteenNumbers(int number1, int number2, int number3, int number4, int number5, int number6, int number7, int number8, int number9, int number10, int number11, int number12, int number13, int number14)
+        {
+            return number1 + number2 + number3 + number4 + number5 + number6 + number7 + number8 + number9 + number10 + number11 + number12 + number13 + number14;
+        }
+
+        public static int AddFifteenNumbers(int number1, int number2, int number3, int number4, int number5, int number6, int number7, int number8, int number9, int number10, int number11, int number12, int number13, int number14, int number15)
+        {
+            return number1 + number2 + number3 + number4 + number5 + number6 + number7 + number8 + number9 + number10 + number11 + number12 + number13 + number14 + number15;
+        }
+    }
+
+    public class Echo
+    {
+        public static string EchoString(string someString)
+        {
+            return someString;
+        }
+
+        public static int EchoInt(int someInt)
+        {
+            return someInt;
+        }
+
+        public static long EchoLong(long someLong)
+        {
+            return someLong;
+        }
+
+        public static decimal EchoDecimal(decimal someDecimal)
+        {
+            return someDecimal;
+        }
+
+        public static float EchoFloat(float someFloat)
+        {
+            return someFloat;
+        }
+
+        public static DateTime EchoDateTime(DateTime someDateTime)
+        {
+            return someDateTime;
+        }
+
+        public static char EchoChar(char someChar)
+        {
+            return someChar;
+        }
+
+        public static Guid EchoGuid(Guid someGuid)
+        {
+            return someGuid;
+        }
+
+        public static bool EchoBool(bool someBool)
+        {
+            return someBool;
+        }
+
+        public static object EchoObject(object someObject)
+        {
+            return someObject;
+        }
+
+        public static dynamic EchoDynamic(dynamic someDynamic)
+        {
+            return someDynamic;
+        }
+
+        public static ComplexType EchoComplexType(ComplexType someComplexType)
+        {
+            return someComplexType;
+        }
+
+        public static List<ComplexType> EchoComplexTypeList(List<ComplexType> someComplexTypeList)
+        {
+            return someComplexTypeList;
+        }
+
+        public static IList<ComplexType> EchoComplexTypeIList(IList<ComplexType> someComplexTypeList)
+        {
+            return someComplexTypeList;
+        }
+
+        public static ICollection<ComplexType> EchoComplexTypeICollection(ICollection<ComplexType> someComplexTypeList)
+        {
+            return someComplexTypeList;
+        }
+
+        public static Dictionary<string, string> EchoDictionaryOfStringString(Dictionary<string, string> dictionary)
+        {
+            return dictionary;
+        }
+
+        public static Dictionary<int, ComplexType> EchoDictionaryOfIntComplexType(Dictionary<int, ComplexType> dictionary)
+        {
+            return dictionary;
+        }
+
+        public class ComplexType
+        {
+            public int Id;
+            public string Name;
+        }
     }
 }

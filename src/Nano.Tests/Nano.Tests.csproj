@@ -48,16 +48,17 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Host\HttpListener\HttpListenerConfigurationShould.cs" />
-    <Compile Include="Host\HttpListener\HttpListenerNanoServer\HttpListenerNanoServerShould.cs" />
-    <Compile Include="Host\HttpListener\HttpListenerNanoServer\ParseFormBodyParametersShould.cs" />
+    <Compile Include="CoreTests\Host\HttpListener\HttpListenerConfigurationShould.cs" />
+    <Compile Include="CoreTests\Host\HttpListener\HttpListenerNanoServer\HttpListenerNanoServerShould.cs" />
+    <Compile Include="CoreTests\Host\HttpListener\HttpListenerNanoServer\ParseFormBodyParametersShould.cs" />
+    <Compile Include="CoreTests\NanoConfigurationShould.cs" />
     <Compile Include="ModelBinder\GetRequestParameterValueShould.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="ProxyTests.cs" />
-    <Compile Include="RequestHandlers\DirectoryRequestHandlerShould.cs" />
-    <Compile Include="RequestHandlers\FileRequestHandlerShould.cs" />
-    <Compile Include="RequestHandlers\FuncRequestHandlerShould.cs" />
-    <Compile Include="RequestHandlers\MethodRequestHandlerShould.cs" />
+    <Compile Include="CoreTests\RequestHandlers\DirectoryRequestHandlerShould.cs" />
+    <Compile Include="CoreTests\RequestHandlers\FileRequestHandlerShould.cs" />
+    <Compile Include="CoreTests\RequestHandlers\FuncRequestHandlerShould.cs" />
+    <Compile Include="CoreTests\RequestHandlers\MethodRequestHandlerShould.cs" />
     <Compile Include="SpeedTests\DirectorySpeedTest.cs" />
     <Compile Include="SpeedTests\FileSpeedTest.cs" />
     <Compile Include="SpeedTests\FuncSpeedTest.cs" />
