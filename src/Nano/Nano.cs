@@ -1551,6 +1551,25 @@ namespace Nano.Web.Core
         {
             return EventLogHelper.WriteErrorToEventLog( nanoConfiguration.ApplicationName, errorMessage );
         }
+
+        /// <summary>
+        /// Adds a permanent redirect from one URL path to another.
+        /// </summary>
+        /// <param name="nanoConfiguration">The Nano configuration.</param>
+        /// <param name="urlPath">The source URL that should be redirected.</param>
+        /// <param name="targetUrlPath">The destionation URL that should be redirected to.</param>
+        /// <param name="eventHandler">The event handlers to invoke on requests.</param>
+        /// <returns>The Nano configuration.</returns>
+        public static NanoConfiguration AddRedirect( this NanoConfiguration nanoConfiguration, string urlPath, string targetUrlPath, EventHandler eventHandler = null )
+        {
+            nanoConfiguration.AddFunc( urlPath, context =>
+            {
+                context.Response.Redirect( targetUrlPath );
+                return (object)null;
+            }, eventHandler );
+
+            return nanoConfiguration;
+        }
     }
 
     /// <summary><see cref="NanoContext" /> extensions.</summary>
