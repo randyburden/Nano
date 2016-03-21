@@ -1,5 +1,5 @@
 /*
-    Nano v0.14.99
+    Nano v0.15.0
     
     Nano is a .NET cross-platform micro web framework for building web-based HTTP services and websites.
 
@@ -44,6 +44,7 @@ using System.Net;
 using System.Net.NetworkInformation;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -98,14 +99,20 @@ namespace Nano.Web.Core
         /// <summary>The serialization service used to serialize/deserialize requests and responses.</summary>
         public ISerializationService SerializationService = new JsonNetSerializer();
 
-        /// <summary>Gets the default method url path. Defaulted to: '/api/' + type.Name</summary>
-        public Func<Type, string> GetDefaultMethodUrlPath = type => "/api/" + type.Name;
+        /// <summary>Gets the default method url path. Defaulted to: '/api/' + path</summary>
+        public Func<string, string> GetDefaultMethodUrlPath = path => "/api/" + path ;
 
         /// <summary>Determines whether errors are logged to the operating system event log.</summary>
         public bool LogErrorsToEventLog = true;
 
+        /// <summary>Determines whether verbose errors are displayed for 500 errors.</summary>
+        public bool EnableVerboseErrors = false;
+
         /// <summary>Application name.</summary>
         public string ApplicationName = AppDomain.CurrentDomain.FriendlyName;
+
+        /// <summary>Startup Datetime.</summary>
+        public DateTime ApplicationStartDateTime = DateTime.Now;
 
         /// <summary>The limit on the number of query string variables, form fields, or multipart sections in a request. Default is 1,000. The reason to limit the number of parameters processed by the server is detailed in the following security notice regarding a particular 'Collisions in HashTable' denial-of-service (DoS) attack vector: http://www.ocert.org/advisories/ocert-2011-003.html </summary>
         public int RequestParameterLimit = 1000;
@@ -117,6 +124,8 @@ namespace Nano.Web.Core
             this.EnableCorrelationId();
             this.DisableKeepAlive();
             this.EnableElapsedMillisecondsResponseHeader();
+            this.EnableRequestCounter();
+            this.EnableErrorCounter();
         }
 
         /// <summary>Adds all public static methods in the given type.</summary>
@@ -128,7 +137,20 @@ namespace Nano.Web.Core
         public IList<MethodRequestHandler> AddMethods( Type type, string urlPath = null, EventHandler eventHandler = null, IApiMetaDataProvider metadataProvider = null )
         {
             MethodInfo[] methods = type.GetMethods( BindingFlags.Public | BindingFlags.Static );
-            urlPath = string.IsNullOrWhiteSpace( urlPath ) == false ? urlPath.TrimStart( '/' ).TrimEnd( '/' ) : GetDefaultMethodUrlPath( type ).TrimStart( '/' ).TrimEnd( '/' );
+            
+            string path = type.Name;
+
+            //Constructing URL path and prepending parent classes (subclass support)
+            if (string.IsNullOrWhiteSpace(urlPath))
+            {
+                while (type.DeclaringType != null)
+                {
+                    path = type.DeclaringType.Name + "/" + path;
+                    type = type.DeclaringType;
+                }
+            }
+
+            urlPath = string.IsNullOrWhiteSpace( urlPath ) == false ? urlPath.TrimStart( '/' ).TrimEnd( '/' ) : GetDefaultMethodUrlPath( path).TrimStart( '/' ).TrimEnd( '/' );
 
             IList<MethodRequestHandler> handlers = new List<MethodRequestHandler>();
 
@@ -223,6 +245,19 @@ namespace Nano.Web.Core
 		}
     }
 
+    /// <summary>Custom Error object returned as JSON when EnableVerboseErrors == true.</summary>
+    public class NanoError
+    {
+        /// <summary>Exception.Message</summary>
+        public string Message;
+
+        /// <summary>Full Name of Exception Type</summary>
+        public string ExceptionType;
+
+        /// <summary>Anonymous Object including Process Information, Exception.Data, Request Information, Stack Trace, and Inner Exceptions</summary>
+        public object Data;
+    }
+
     /// <summary>The context of the current web request.</summary>
     public class NanoContext : IDisposable
     {
@@ -262,6 +297,9 @@ namespace Nano.Web.Core
 
         /// <summary>The outgoing response.</summary>
         public NanoResponse Response;
+
+        /// <summary>Determines whether verbose errors are displayed for HTTP 500 errors.</summary>
+        public bool EnableVerboseErrors = false;
 
         /// <summary>The root folder path.</summary>
         /// <value>The root folder path.</value>
@@ -403,6 +441,7 @@ namespace Nano.Web.Core
         public NanoResponse()
         {
             HeaderParameters.Add( "X-Nano-Version", Constants.Version );
+            HeaderParameters.Add( "X-Frame-Options", "DENY");
         }
 
         /// <summary>
@@ -1130,6 +1169,87 @@ namespace Nano.Web.Core
         }
     }
 
+    /// <summary>Enables / disables incrementing the RequestCount per request.</summary>
+    public static class RequestCounterHelper
+    {
+        private const string RequestCounterIsEnabled = "RequestCounterIsEnabled";
+
+        /// <summary>Request Count.</summary>
+        public static int RequestCount = 0;
+
+        /// <summary>Enables incrementing the RequestCount per request.</summary>
+        /// <param name="nanoConfiguration">The nano configuration.</param>
+        public static void EnableRequestCounter(this NanoConfiguration nanoConfiguration)
+        {
+            if (nanoConfiguration.GlobalEventHandler.PreInvokeHandlers.Contains(RequestCounterPreInvokeHandler) == false)
+                nanoConfiguration.GlobalEventHandler.PreInvokeHandlers.Add(RequestCounterPreInvokeHandler);
+        }
+
+        /// <summary>Disables incrementing the RequestCount per request.</summary>
+        /// <param name="nanoConfiguration">The nano configuration.</param>
+        public static void DisableRequestCounter(this NanoConfiguration nanoConfiguration)
+        {
+            nanoConfiguration.GlobalEventHandler.PreInvokeHandlers.Remove(RequestCounterPreInvokeHandler);
+        }
+
+        /// <summary>Increments the RequestCount per request.</summary>
+        /// <param name="nanoContext">The nano context.</param>
+        public static void RequestCounterPreInvokeHandler(NanoContext nanoContext)
+        {
+            Interlocked.Increment(ref RequestCount);
+            nanoContext.Items.Add(RequestCounterIsEnabled, null);
+        }
+
+        /// <summary>Determines if the RequestCount is enabled.</summary>
+        /// <param name="nanoContext">The nano context.</param>
+        /// <returns>True if enabled.</returns>
+        public static bool IsRequestCounterEnabled(this NanoContext nanoContext)
+        {
+            return nanoContext.Items.ContainsKey(RequestCounterIsEnabled);
+        }
+    }
+
+    /// <summary>Enables / disables incrementing the ErrorCount per request.</summary>
+    public static class ErrorCounterHelper
+    {
+        private const string ErrorCounterIsEnabled = "ErrorCounterIsEnabled";
+
+        /// <summary>Error Count.</summary>
+        public static int ErrorCount = 0;
+
+        /// <summary>Enables incrementing the ErrorCount per request.</summary>
+        /// <param name="nanoConfiguration">The nano configuration.</param>
+        public static void EnableErrorCounter(this NanoConfiguration nanoConfiguration)
+        {
+            if (nanoConfiguration.GlobalEventHandler.UnhandledExceptionHandlers.Contains(ErrorCounterUnhandledExceptionHandler) == false)
+                nanoConfiguration.GlobalEventHandler.UnhandledExceptionHandlers.Add(ErrorCounterUnhandledExceptionHandler);
+        }
+
+        /// <summary>Disables incrementing the ErrorCount per request.</summary>
+        /// <param name="nanoConfiguration">The nano configuration.</param>
+        public static void DisableErrorCounter(this NanoConfiguration nanoConfiguration)
+        {
+            nanoConfiguration.GlobalEventHandler.UnhandledExceptionHandlers.Remove(ErrorCounterUnhandledExceptionHandler);
+        }
+
+        /// <summary>Increments the ErrorCount per request.</summary>
+        /// <param name="nanoContext">The nano context.</param>
+        /// <param name="exception">The exception.</param>
+        public static void ErrorCounterUnhandledExceptionHandler(Exception exception, NanoContext nanoContext)
+        {
+            Interlocked.Increment(ref ErrorCount);
+            nanoContext.Items.Add(ErrorCounterIsEnabled, null);
+        }
+
+        /// <summary>Determines if the ErrorCount is enabled.</summary>
+        /// <param name="nanoContext">The nano context.</param>
+        /// <returns>True if enabled.</returns>
+        public static bool IsErrorCounterEnabled(this NanoContext nanoContext)
+        {
+            return nanoContext.Items.ContainsKey(ErrorCounterIsEnabled);
+        }
+    }
+
     /// <summary>Global constant configuration.</summary>
     public static class Constants
     {
@@ -1508,30 +1628,75 @@ namespace Nano.Web.Core
             nanoContext.Response.ResponseStreamWriter = nanoContext.WriteErrorsToStream;
         }
 
-        private static void GenerateHtmlErrorMessage( Exception exception, StringBuilder stringBuilder, int recursionLevel = 0 )
+        private static void GenerateJsonErrorMessage( NanoContext nanoContext, Exception exception, StringBuilder stringBuilder)
         {
-            if ( recursionLevel > 25 )
-                return; // Something has most likely went very wrong so return early to avoid a stack overflow
-
-            if ( recursionLevel > 0 )
+            using ( var currentProcess = Process.GetCurrentProcess() )
             {
-                int marginLeft = recursionLevel * 4;
-                stringBuilder.AppendFormat( "<p style=\"margin-left:{0}px;\"><b>Inner Exception Error Message:</b></p>", marginLeft ).AppendLine();
-                stringBuilder.AppendFormat( "<p style=\"margin-left:{0}px;\">{1}</p>", marginLeft, exception.Message ).AppendLine();
-                stringBuilder.AppendFormat( "<p style=\"margin-left:{0}px;\"><b>Inner Exception Stack Trace:</b></p>", marginLeft ).AppendLine();
-                stringBuilder.AppendFormat( "<p style=\"margin-left:{0}px;\">{1}</p>", marginLeft, exception.StackTrace ).AppendLine();
-            }
-            else
-            {
-                stringBuilder.AppendLine( "<hr />" );
-                stringBuilder.AppendLine( "<p><b>Error Message:</b></p>" );
-                stringBuilder.AppendFormat( "<p>{0}</p>", exception.Message ).AppendLine();
-                stringBuilder.AppendLine( "<p><b>Stack Trace:</b></p>" );
-                stringBuilder.AppendFormat( "<p>{0}</p>", exception.StackTrace ).AppendLine();
-            }
+                var ipGlobalProperties = IPGlobalProperties.GetIPGlobalProperties();
+                string totalRequestsHandled = "";
+                string totalErrorsOccurred = "";
 
-            if (exception.InnerException != null)
-                GenerateHtmlErrorMessage(exception.InnerException, stringBuilder, ++recursionLevel);
+                if ( nanoContext.IsRequestCounterEnabled() )
+                    totalRequestsHandled = RequestCounterHelper.RequestCount.ToString();
+
+                if ( nanoContext.IsErrorCounterEnabled() )
+                    totalErrorsOccurred = ErrorCounterHelper.ErrorCount.ToString();
+
+                NanoError proxyError = null;
+
+                WebException webException = exception as WebException;
+
+                var stream = webException?.Response?.GetResponseStream();
+
+                if (stream != null && webException.Status == WebExceptionStatus.ProtocolError )
+                {
+                    try
+                    {                       
+                        using ( StreamReader streamReader = new StreamReader( stream ) )
+                        {
+                            proxyError = JsonConvert.DeserializeObject<NanoError>(streamReader.ReadToEnd());
+                        }
+                    }
+                    catch
+                    {
+                        proxyError = null;
+                    }
+                }
+
+                //split stack trace into array on every " at " for viewing purposes
+                string[] stackArray = Regex.Split(exception.StackTrace.Substring(3), @"(?= at )");
+
+                var error = new NanoError
+                {
+                    Message = exception.Message,
+                    ExceptionType = exception.GetType().FullName,
+                    Data = new
+                    {
+                        Stack = stackArray,
+                        ExceptionData = exception.Data,
+                        Request = new
+                        {
+                            Url = nanoContext.Request.Url.SiteBase + nanoContext.Request.Url.Path,
+                            FormBodyParameters = nanoContext.Request.FormBodyParameters
+                        },
+                        ProcessInfo = new
+                        {
+                            StartupDateTime = nanoContext.NanoConfiguration.ApplicationStartDateTime,
+                            ApplicationUptime = ( DateTime.Now - nanoContext.NanoConfiguration.ApplicationStartDateTime ).GetNanoFormattedTime(),
+                            TotalRequestsHandled = totalRequestsHandled,
+                            TotalErrorsOccurred = totalErrorsOccurred,
+                            MachineName = ipGlobalProperties.HostName + "." + ipGlobalProperties.DomainName,
+                            DomainUser = Environment.UserDomainName + "\\" + Environment.UserName,
+                            ApplicationDomainName = AppDomain.CurrentDomain.FriendlyName,
+                            ProcessName = currentProcess.ProcessName,
+                            ProcessId = currentProcess.Id.ToString()
+                        },
+                        InnerExceptions = proxyError != null ? (dynamic)proxyError : (dynamic)exception.InnerException
+                    }
+                };
+
+                stringBuilder.Append( JsonConvert.SerializeObject( error, Formatting.Indented ) );
+            }
         }
 
         /// <summary>Writes any errors to the response stream.</summary>
@@ -1539,7 +1704,8 @@ namespace Nano.Web.Core
         /// <param name="stream">The stream.</param>
         public static void WriteErrorsToStream( this NanoContext nanoContext, Stream stream )
         {
-            nanoContext.Response.ContentType = "text/html";
+            nanoContext.Response.ContentType = "application/json";
+            nanoContext.Response.HttpStatusCode = 500;
 
             if ( nanoContext.NanoConfiguration.LogErrorsToEventLog )
             {
@@ -1559,14 +1725,14 @@ namespace Nano.Web.Core
             var serverHostName = Dns.GetHostName();
             var clientHostName = GetHostName( nanoContext.Request.ClientIpAddress );
 
-            if ( serverHostName == clientHostName )
+            if ( serverHostName == clientHostName || nanoContext.EnableVerboseErrors || nanoContext.NanoConfiguration.EnableVerboseErrors )
             {
-                var htmlErrorMessageBuilder = new StringBuilder();
+                var jsonErrorMessageBuilder = new StringBuilder();
 
                 foreach ( Exception exception in nanoContext.Errors )
-                    GenerateHtmlErrorMessage( exception, htmlErrorMessageBuilder );
+                    GenerateJsonErrorMessage( nanoContext, exception, jsonErrorMessageBuilder );
 
-                var errorMessage = Constants.CustomErrorResponse.InternalServerError500.Replace( "<!--ErrorMessage-->", htmlErrorMessageBuilder.ToString() );
+                var errorMessage = jsonErrorMessageBuilder.ToString();
                 stream.Write( errorMessage );
                 return;
             }
@@ -1610,13 +1776,14 @@ namespace Nano.Web.Core
         /// <param name="nanoContext">The <see cref="NanoContext" />.</param>
         /// <param name="fileInfo">The file to return.</param>
         /// <returns>Returns true if the file exists else false.</returns>
-        public static bool TryReturnFile( this NanoContext nanoContext, FileInfo fileInfo )
+        public static bool TryReturnFile( this NanoContext nanoContext, FileInfo fileInfo)
         {
             if ( fileInfo.Exists )
             {
                 nanoContext.Handled = true;
                 nanoContext.Response.ContentType = FileExtensionToContentTypeConverter.GetContentType( fileInfo.Extension );
-                var eTag = "\"" + fileInfo.LastWriteTimeUtc.Ticks.ToString( "X" ) + "\""; // Quoted hexadecimal string
+                var fileHash = DirectoryRequestHandler.GetFileHash( fileInfo );
+                var eTag = "\"" + fileHash + "\""; // Quoted hexadecimal string
                 nanoContext.Response.HeaderParameters[ "ETag" ] = eTag;
                 nanoContext.Response.HeaderParameters[ "Last-Modified" ] = fileInfo.LastWriteTimeUtc.ToString( "R" ); // RFC-1123 - Example: Fri, 03 Jul 2015 02:44:49 GMT
 
@@ -2647,22 +2814,21 @@ namespace Nano.Web.Core
                 {
                     nanoContext.NanoConfiguration.GlobalEventHandler.InvokePreInvokeHandlers(nanoContext);
 
-                    if (EventHandler != null)
-                        EventHandler.InvokePreInvokeHandlers(nanoContext);
+                    if ( EventHandler != null )
+                        EventHandler.InvokePreInvokeHandlers( nanoContext );
 
-                    if (nanoContext.Handled)
+                    if( nanoContext.Handled )
                         return nanoContext;
 
-                    nanoContext = HandleRequest(nanoContext);
+                    nanoContext = HandleRequest( nanoContext );
                     return nanoContext;
                 }
                 catch (Exception e)
                 {
-                    if (e is TargetInvocationException && e.InnerException != null)
-                        e = e.InnerException;
-                            // Hide Nano's outer 'TargetInvocationException' and just use the inner exception which is what almost everyone is going to desire
+                    if ( e is TargetInvocationException && e.InnerException != null )
+                        e = e.InnerException; // Hide Nano's outer 'TargetInvocationException' and just use the inner exception which is what almost everyone is going to desire
 
-                    nanoContext.Errors.Add(e);
+                    nanoContext.Errors.Add( e );
                     nanoContext.ReturnHttp500InternalServerError();
 
                     nanoContext.NanoConfiguration.GlobalEventHandler.InvokeUnhandledExceptionHandlers(e, nanoContext);
@@ -2692,10 +2858,10 @@ namespace Nano.Web.Core
 			}
         }
 
-		/// <summary>
-		/// Defines a request handler that returns files from a file system.
-		/// </summary>
-		public abstract class FileSystemRequestHandler : RequestHandler
+        /// <summary>
+        /// Defines a request handler that returns files from a file system.
+        /// </summary>
+        public abstract class FileSystemRequestHandler : RequestHandler
 		{
 			private static readonly ConcurrentDictionary<string, string> Paths = new ConcurrentDictionary<string, string>();
             
@@ -2809,7 +2975,11 @@ namespace Nano.Web.Core
             /// <summary>Gets or sets the default documents.</summary>
             /// <value>The default documents.</value>
             public IList<string> DefaultDocuments { get; set; }
-            
+
+            /// <summary>Gets or sets the default documents.</summary>
+            /// <value>The default documents.</value>
+            public static ConcurrentDictionary<string, string> FileCache = new ConcurrentDictionary<string, string>();
+
             /// <summary>Handles the request.</summary>
             /// <param name="nanoContext">The <see cref="NanoContext" />.</param>
             /// <returns>Handled <see cref="NanoContext" />.</returns>
@@ -2822,7 +2992,7 @@ namespace Nano.Web.Core
 
                 if ( IsCaseSensitiveFileSystem ) fullFileSystemPath = GetPathCaseSensitive( fullFileSystemPath );
 
-                if ( !string.IsNullOrWhiteSpace( fullFileSystemPath ) && !ContainsInvalidPathCharacters( fullFileSystemPath ) )
+                if ( !String.IsNullOrWhiteSpace( fullFileSystemPath ) && !ContainsInvalidPathCharacters( fullFileSystemPath ) )
                 {
                     FileInfo fileInfo = null;
 
@@ -2899,6 +3069,27 @@ namespace Nano.Web.Core
                 if( pos < 0 )
                     return originalString;
                 return originalString.Substring( 0, pos ) + replacementString + originalString.Substring( pos + stringToReplace.Length );
+            }
+
+            /// <summary>
+            /// Returns a string of the hashed file contents
+            /// </summary>
+            /// <param name="fileInfo">The original string.</param>
+            /// <returns>Hashed file contents.</returns>
+            public static string GetFileHash(FileInfo fileInfo)
+            {
+                if ( FileCache.ContainsKey( fileInfo.Name ) )
+                    return FileCache[ fileInfo.Name ];
+
+                string fileHash;
+                using (FileStream stream = fileInfo.OpenRead())
+                {
+                    MD5 md5 = new MD5CryptoServiceProvider();
+                    byte[] hash = md5.ComputeHash(stream);
+                    fileHash = BitConverter.ToString(hash).Replace("-", String.Empty);
+                }
+                FileCache[ fileInfo.Name ] = fileHash;
+                return fileHash;
             }
 
             /// <summary>Root Directory exception.</summary>
@@ -3012,6 +3203,7 @@ namespace Nano.Web.Core
                         continue;
 
                     var metadata = new OperationMetaData { UrlPath = methodRequestHandler.CaseSensitiveUrlPath };
+
                     metadata.Name = metadataProvider.GetOperationName( nanoContext, methodRequestHandler );
                     metadata.Description = metadataProvider.GetOperationDescription( nanoContext, methodRequestHandler );
                     IList<MethodParameter> parameters = metadataProvider.GetOperationParameters( nanoContext, methodRequestHandler );
@@ -4682,6 +4874,42 @@ namespace Nano.Web.Core
                     : base( message, innerException )
                 {
                 }
+            }
+        }
+
+        /// <summary>
+        /// TimeSpan Helper.
+        /// </summary>
+        public static class TimeSpanHelper
+        {
+            /// <summary>
+            /// Returns a formatted string of the given timespan.
+            /// </summary>
+            /// <remarks>
+            /// Supports up to microsecond resolution.
+            /// </remarks>
+            /// <example>
+            /// 1 days 6 hours 52 min 34 sec 556 ms
+            /// </example>
+            /// <returns>A string with a customized output of the elapsed time.</returns>
+            public static string GetNanoFormattedTime(this TimeSpan timeSpan)
+            {
+                string elapsedTime;
+
+                if (timeSpan.Days > 0)
+                    elapsedTime = string.Format("{0:%d} d {0:%h} hrs {0:%m} min {0:%s} sec {0:%fff} ms", timeSpan);
+                else if (timeSpan.Hours > 0)
+                    elapsedTime = string.Format("{0:%h} hrs {0:%m} min {0:%s} sec {0:%fff} ms", timeSpan);
+                else if (timeSpan.Minutes > 0)
+                    elapsedTime = string.Format("{0:%m} min {0:%s} sec {0:%fff} ms", timeSpan);
+                else if (timeSpan.Seconds > 0)
+                    elapsedTime = string.Format("{0:%s} sec {0:%fff} ms", timeSpan);
+                else if (timeSpan.Milliseconds > 0)
+                    elapsedTime = string.Format("{0:%fff} ms", timeSpan);
+                else
+                    elapsedTime = string.Format("{0} µs", timeSpan.TotalMilliseconds * 1000.0);
+
+                return elapsedTime;
             }
         }
 
