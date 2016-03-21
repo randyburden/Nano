@@ -183,10 +183,10 @@ namespace Nano.Web.Core
         /// <param name="eventHandler">The event handlers to invoke on requests.</param>
         /// <param name="metadataProvider">The metadata provider.</param>
         /// <returns><see cref="FuncRequestHandler" />.</returns>
-        public FuncRequestHandler AddFunc( string urlPath, Func<NanoContext, object> func, EventHandler eventHandler = null, IApiMetaDataProvider metadataProvider = null )
+        public FuncRequestHandler<T> AddFunc<T>( string urlPath, Func<NanoContext, T> func, EventHandler eventHandler = null, IApiMetaDataProvider metadataProvider = null )
         {
             urlPath = "/" + urlPath.TrimStart( '/' ).TrimEnd( '/' );
-            var handler = new FuncRequestHandler( urlPath, eventHandler ?? DefaultEventHandler, func );
+            var handler = new FuncRequestHandler<T>( urlPath, eventHandler ?? DefaultEventHandler, func );
             RequestHandlers.Add( handler );
             return handler;
         }
@@ -1854,7 +1854,7 @@ namespace Nano.Web.Core
         /// <summary>Routes requests to the appropriate <see cref="RequestHandler" />.</summary>
         /// <param name="nanoContext">The <see cref="NanoContext" /> for the current request.</param>
         /// <returns>The <see cref="NanoContext" /> for the current request.</returns>
-        public static NanoContext RouteRequest( NanoContext nanoContext )
+        public static async Task<NanoContext> RouteRequestAsync( NanoContext nanoContext )
         {
             string path = nanoContext.Request.Url.Path.ToLower();
             var requestHandlerMatches = new List<IRequestHandler>();
@@ -1865,7 +1865,7 @@ namespace Nano.Web.Core
                 if( path.Equals( handler.UrlPath, StringComparison.InvariantCultureIgnoreCase ) )
                 {
                     nanoContext.RequestHandler = handler;
-                    return nanoContext.RequestHandler.ProcessRequest( nanoContext );
+                    return await nanoContext.RequestHandler.ProcessRequestAsync( nanoContext );
                 }
 
                 // Look for partial match
@@ -1878,7 +1878,7 @@ namespace Nano.Web.Core
             foreach( IRequestHandler handler in requestHandlerMatches )
             {
                 nanoContext.RequestHandler = handler;
-                return nanoContext.RequestHandler.ProcessRequest( nanoContext );
+                return await nanoContext.RequestHandler.ProcessRequestAsync( nanoContext );
             }
 
             if ( nanoContext.RequestHandler == null || nanoContext.Handled == false )
@@ -1886,7 +1886,7 @@ namespace Nano.Web.Core
                 if ( nanoContext.NanoConfiguration.UnhandledRequestHandler != null )
                 {
                     nanoContext.RequestHandler = nanoContext.NanoConfiguration.UnhandledRequestHandler;
-                    nanoContext.NanoConfiguration.UnhandledRequestHandler.ProcessRequest( nanoContext );
+                    await nanoContext.NanoConfiguration.UnhandledRequestHandler.ProcessRequestAsync( nanoContext );
                 }
             }
 
@@ -2259,7 +2259,7 @@ namespace Nano.Web.Core
             public static void HandleRequest( dynamic httpContext, NanoConfiguration nanoConfiguration, DateTime requestTimestamp )
             {
                 NanoContext nanoContext = MapHttpContextBaseToNanoContext( httpContext, nanoConfiguration, requestTimestamp );
-                nanoContext = RequestRouter.RouteRequest( nanoContext );
+                nanoContext = RequestRouter.RouteRequestAsync( nanoContext ).Result;
 
                 if( nanoContext.RequestHandler == null || nanoContext.Handled == false )
                     return;
@@ -2358,11 +2358,11 @@ namespace Nano.Web.Core
                     nanoConfiguration.ApplicationRootFolderPath = GetApplicationRootFolderPath();
 
                 if ( nanoConfiguration.UnhandledRequestHandler == null )
-                    nanoConfiguration.UnhandledRequestHandler = new FuncRequestHandler( "/UnhandledRequestHandler", nanoConfiguration.DefaultEventHandler, context => context.ReturnHttp404NotFound() );
+                    nanoConfiguration.UnhandledRequestHandler = new FuncRequestHandler<NanoContext>( "/UnhandledRequestHandler", nanoConfiguration.DefaultEventHandler, context => context.ReturnHttp404NotFound() );
 
                 httpListenerConfiguration.HttpListener.Start();
                 var server = new HttpListenerNanoServer( nanoConfiguration, httpListenerConfiguration );
-                httpListenerConfiguration.HttpListener.BeginGetContext( server.BeginGetContextCallback, server );
+                httpListenerConfiguration.HttpListener.BeginGetContext(server.BeginGetContextCallback, server);
 
                 httpListenerConfiguration.UnhandledExceptionHandler = exception =>
                 {
@@ -2391,24 +2391,25 @@ namespace Nano.Web.Core
 
             /// <summary>The BeginGetContext callback for the <see cref="HttpListener" />.</summary>
             /// <param name="asyncResult">The asynchronous result.</param>
-            public void BeginGetContextCallback( IAsyncResult asyncResult )
+            public void BeginGetContextCallback(IAsyncResult asyncResult)
             {
                 DateTime requestTimestamp = DateTime.UtcNow;
 
                 try
                 {
-                    if ( HttpListenerConfiguration == null || HttpListenerConfiguration.HttpListener == null || HttpListenerConfiguration.HttpListener.IsListening == false )
+                    if (HttpListenerConfiguration == null || HttpListenerConfiguration.HttpListener == null || HttpListenerConfiguration.HttpListener.IsListening == false)
                         return;
-                    HttpListenerContext httpListenerContext = HttpListenerConfiguration.HttpListener.EndGetContext( asyncResult );
-                    HttpListenerConfiguration.HttpListener.BeginGetContext( BeginGetContextCallback, this );
-                    HandleRequest( httpListenerContext, this, requestTimestamp );
+                    HttpListenerContext httpListenerContext = HttpListenerConfiguration.HttpListener.EndGetContext(asyncResult);
+                    HttpListenerConfiguration.HttpListener.BeginGetContext(BeginGetContextCallback, this);
+                    HandleRequestAsync(httpListenerContext, this, requestTimestamp)
+                        .ContinueWith(async task => await task);
                 }
-                catch( Exception e )
+                catch (Exception e)
                 {
-                    if ( HttpListenerConfiguration == null || HttpListenerConfiguration.HttpListener == null || HttpListenerConfiguration.HttpListener.IsListening == false
-                         || HttpListenerConfiguration.UnhandledExceptionHandler == null || ( e.GetType() == typeof ( HttpListenerException ) ) && HttpListenerConfiguration.IgnoreHttpListenerExceptions )
+                    if (HttpListenerConfiguration == null || HttpListenerConfiguration.HttpListener == null || HttpListenerConfiguration.HttpListener.IsListening == false
+                         || HttpListenerConfiguration.UnhandledExceptionHandler == null || (e.GetType() == typeof(HttpListenerException)) && HttpListenerConfiguration.IgnoreHttpListenerExceptions)
                         return;
-                    HttpListenerConfiguration.UnhandledExceptionHandler( e );
+                    HttpListenerConfiguration.UnhandledExceptionHandler(e);
                 }
             }
 
@@ -2416,7 +2417,7 @@ namespace Nano.Web.Core
             /// <param name="httpListenerContext">The HTTP listener context.</param>
             /// <param name="server">The server.</param>
             /// <param name="requestTimestamp">The initial timestamp of the current HTTP request.</param>
-            public static void HandleRequest( HttpListenerContext httpListenerContext, HttpListenerNanoServer server, DateTime requestTimestamp )
+            public static async Task HandleRequestAsync( HttpListenerContext httpListenerContext, HttpListenerNanoServer server, DateTime requestTimestamp )
             {
                 NanoContext nanoContext = null;
 
@@ -2424,7 +2425,7 @@ namespace Nano.Web.Core
                 {
                     nanoContext = MapHttpListenerContextToNanoContext( httpListenerContext, server, requestTimestamp );
 
-                    nanoContext = RequestRouter.RouteRequest( nanoContext );
+                    nanoContext = await RequestRouter.RouteRequestAsync( nanoContext );
 
                     if ( nanoContext.RequestHandler == null || nanoContext.Handled == false )
                         return;
@@ -2759,7 +2760,7 @@ namespace Nano.Web.Core
             /// <summary>Handles the request.</summary>
             /// <param name="nanoContext">The <see cref="NanoContext" /> to handle.</param>
             /// <returns>The handled <see cref="NanoContext" />.</returns>
-            NanoContext HandleRequest( NanoContext nanoContext );
+            Task<NanoContext> HandleRequestAsync( NanoContext nanoContext );
 
             /// <summary>
             /// Called by the framework to process the request. Encapsulates invoking the event handlers and user implemented
@@ -2767,7 +2768,7 @@ namespace Nano.Web.Core
             /// </summary>
             /// <param name="nanoContext">The <see cref="NanoContext" /> to process.</param>
             /// <returns>The processed <see cref="NanoContext" />.</returns>
-            NanoContext ProcessRequest( NanoContext nanoContext );
+            Task<NanoContext> ProcessRequestAsync( NanoContext nanoContext );
         }
 
         /// <summary>Base Nano request handler that provides common functionality for request handler implementers.</summary>
@@ -2800,7 +2801,7 @@ namespace Nano.Web.Core
             /// <summary>Handles the request.</summary>
             /// <param name="nanoContext">The <see cref="NanoContext" /> to handle.</param>
             /// <returns>The handled <see cref="NanoContext" />.</returns>
-            public abstract NanoContext HandleRequest( NanoContext nanoContext );
+            public abstract Task<NanoContext> HandleRequestAsync( NanoContext nanoContext );
 
             /// <summary>
             /// Called by the framework to process the request. Encapsulates invoking the various event handlers and user implemented
@@ -2808,7 +2809,7 @@ namespace Nano.Web.Core
             /// </summary>
             /// <param name="nanoContext">The <see cref="NanoContext" /> to process.</param>
             /// <returns>The processed <see cref="NanoContext" />.</returns>
-            public virtual NanoContext ProcessRequest( NanoContext nanoContext )
+            public virtual async Task<NanoContext> ProcessRequestAsync( NanoContext nanoContext )
             {
                 try
                 {
@@ -2820,7 +2821,7 @@ namespace Nano.Web.Core
                     if( nanoContext.Handled )
                         return nanoContext;
 
-                    nanoContext = HandleRequest( nanoContext );
+                    nanoContext = await HandleRequestAsync(nanoContext);
                     return nanoContext;
                 }
                 catch (Exception e)
@@ -2983,7 +2984,9 @@ namespace Nano.Web.Core
             /// <summary>Handles the request.</summary>
             /// <param name="nanoContext">The <see cref="NanoContext" />.</param>
             /// <returns>Handled <see cref="NanoContext" />.</returns>
-            public override NanoContext HandleRequest( NanoContext nanoContext )
+#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
+            public override async Task<NanoContext> HandleRequestAsync( NanoContext nanoContext )
+#pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
             {
                 // Turn this: ( http://localhost:50463/dashboard/sub/helpers.js ) into this: ( C:\YourApp\www\dashboard\sub\helpers.js )
                 string partialRequestPath = ReplaceFirstOccurrence( nanoContext.Request.Url.Path.ToLower(), UrlPath.ToLower(), "" );
@@ -3123,7 +3126,9 @@ namespace Nano.Web.Core
             /// <summary>Handles the request.</summary>
             /// <param name="nanoContext">The <see cref="NanoContext" />.</param>
             /// <returns>Handled <see cref="NanoContext" />.</returns>
-            public override NanoContext HandleRequest( NanoContext nanoContext )
+#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
+            public override async Task<NanoContext> HandleRequestAsync( NanoContext nanoContext )
+#pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
             {
                 string fullFilePath = Path.Combine( nanoContext.RootFolderPath, FileSystemPath );
 
@@ -3136,14 +3141,14 @@ namespace Nano.Web.Core
         }
         
         /// <summary>Handles requests to <see cref="Func" />s.</summary>
-        public class FuncRequestHandler : RequestHandler
+        public class FuncRequestHandler<T> : RequestHandler
         {
             /// <summary>Initializes a new instance of the <see cref="FuncRequestHandler" /> class.</summary>
             /// <param name="urlPath">The URL path.</param>
             /// <param name="eventHandler">The event handler.</param>
             /// <param name="func">The function.</param>
             /// <exception cref="System.ArgumentNullException">func</exception>
-            public FuncRequestHandler( string urlPath, EventHandler eventHandler, Func<NanoContext, object> func )
+            public FuncRequestHandler( string urlPath, EventHandler eventHandler, Func<NanoContext, T> func )
                 : base( urlPath, eventHandler )
             {
                 if( func == null )
@@ -3154,18 +3159,31 @@ namespace Nano.Web.Core
 
             /// <summary>Gets the function.</summary>
             /// <value>The function.</value>
-            public Func<NanoContext, object> Func { get; private set; }
+            public Func<NanoContext, T> Func { get; private set; }
             
             /// <summary>Handles the request.</summary>
             /// <param name="nanoContext">The <see cref="NanoContext" />.</param>
             /// <returns>Handled <see cref="NanoContext" />.</returns>
-            public override NanoContext HandleRequest( NanoContext nanoContext )
+            public override async Task<NanoContext> HandleRequestAsync( NanoContext nanoContext )
             {
                 nanoContext.Handled = true;
-                nanoContext.Response.ResponseObject = Func( nanoContext );
+                var method = Func.GetMethodInfo();
+
+                if ( method.ReturnType == typeof( Task ) )
+                {
+                    await (dynamic)Func( nanoContext );
+                }
+                else if ( method.ReturnType.BaseType == typeof( Task ) && method.ReturnType.IsGenericType )
+                {
+                    nanoContext.Response.ResponseObject = await (dynamic)Func( nanoContext );
+                }
+                else
+                {
+                    nanoContext.Response.ResponseObject = Func( nanoContext );
+                }
 
                 // Handle null responses and void methods
-                if( nanoContext.Response.ResponseObject == null || nanoContext.Response.ResponseObject == nanoContext )
+                if ( nanoContext.Response.ResponseObject == null || nanoContext.Response.ResponseObject == nanoContext )
                     return nanoContext;
 
                 if ( string.IsNullOrWhiteSpace( nanoContext.Response.ContentType ) )
@@ -3189,7 +3207,9 @@ namespace Nano.Web.Core
             /// <summary>Handles the request.</summary>
             /// <param name="nanoContext">The <see cref="NanoContext" />.</param>
             /// <returns>Handled <see cref="NanoContext" />.</returns>
-            public override NanoContext HandleRequest( NanoContext nanoContext )
+#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
+            public override async Task<NanoContext> HandleRequestAsync( NanoContext nanoContext )
+#pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
             {
                 nanoContext.Handled = true;
                 var apiMetadata = new ApiMetadata();
@@ -3439,11 +3459,22 @@ namespace Nano.Web.Core
             /// <summary>Handles the request.</summary>
             /// <param name="nanoContext">The <see cref="NanoContext" />.</param>
             /// <returns>Handled <see cref="NanoContext" />.</returns>
-            public override NanoContext HandleRequest( NanoContext nanoContext )
+            public override async Task<NanoContext> HandleRequestAsync( NanoContext nanoContext )
             {
                 nanoContext.Handled = true;
                 object[] parameters = Bind( nanoContext, this );
-                nanoContext.Response.ResponseObject = Method.Invoke( null, parameters );
+                if (Method.ReturnType == typeof(Task))
+                {
+                    await (dynamic)Method.Invoke(null, parameters);
+                }
+                else if (Method.ReturnType.BaseType == typeof(Task) && Method.ReturnType.IsGenericType)
+                {
+                    nanoContext.Response.ResponseObject = await (dynamic)Method.Invoke( null, parameters );
+                }
+                else
+                {
+                    nanoContext.Response.ResponseObject = Method.Invoke( null, parameters );
+                }
 
                 // Handle null responses and void methods
                 if( nanoContext.Response.ResponseObject == null || nanoContext.Response.ResponseObject == nanoContext )

@@ -4,6 +4,7 @@ using System.Net;
 using Nano.Web.Core;
 using Newtonsoft.Json;
 using NUnit.Framework;
+using System.Threading.Tasks;
 
 namespace Nano.Tests.RequestHandlers
 {
@@ -29,6 +30,22 @@ namespace Nano.Tests.RequestHandlers
 
                 // Assert
                 Assert.That( response.Contains( "{" ) && response.Contains( "}" ) );
+            }
+        }
+
+        [Test]
+        public void Await_Tasks_And_Return_The_Result()
+        {
+            using (var server = NanoTestServer.Start())
+            {
+                // Arrange
+                server.NanoConfiguration.AddFunc("/GetStringAsync", context => Task.FromResult("Async"));
+
+                // Act
+                var response = HttpHelper.GetResponseString(server.GetUrl() + "/GetStringAsync");
+
+                // Assert
+                Assert.AreEqual(string.Concat("\"Async\""), response);
             }
         }
         
