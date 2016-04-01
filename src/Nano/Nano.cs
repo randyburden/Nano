@@ -3282,21 +3282,24 @@ namespace Nano.Web.Core
 
                 var nestedUserTypes = new List<Type>();
 
-                if( type.IsGenericType )
+                if (type.IsGenericType)
                 {
+                    var types = type.GetGenericArguments();
+                    nestedUserTypes.AddRange(types.Where(t => t.FullName != null));
+
                     type = type.GetGenericTypeDefinition();
 
-                    var types = type.GetGenericArguments();
-                    foreach ( var t in types )
+                    types = type.GetGenericArguments();
+                    foreach (var t in types)
                     {
-                        if ( t.FullName == null )
+                        if (t.FullName == null || nestedUserTypes.Contains(t))
                             continue;
 
-                        nestedUserTypes.Add( t );
+                        nestedUserTypes.Add(t);
                     }
 
-                    foreach ( Type nestedUserType in nestedUserTypes )
-                        AddModels( apiMetadata, nestedUserType );
+                    foreach (Type nestedUserType in nestedUserTypes)
+                        AddModels(apiMetadata, nestedUserType);
                 }
 
                 // Adding all user types as "Models"
