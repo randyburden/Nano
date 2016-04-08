@@ -31,6 +31,41 @@ namespace Nano.Demo
         }
 
         /// <summary>
+        /// Creates the customer.
+        /// </summary>
+        /// <param name="firstName">The first name.</param>
+        /// <param name="lastName">The last name.</param>
+        /// <returns>Customer.</returns>
+        public static ApiResponse<CustomerModel> CreateGenericCustomer( string firstName, string lastName )
+        {
+            return new ApiResponse<CustomerModel>( new CustomerModel
+            {
+                CustomerId = 1,
+                FirstName = firstName,
+                LastName = lastName
+            } );
+        }
+
+        /// <summary>
+        /// Sample method returning a key value pair.
+        /// </summary>
+        /// <returns>Dictionary of data.</returns>
+        public static Dictionary<string, string> GetKeyValuePairs()
+        {
+            return new Dictionary<string, string> { { "Key1", "Value1" }, { "Key2", "Value2" } };
+        }
+
+        /// <summary>
+        /// Echos back the nullable number.
+        /// </summary>
+        /// <param name="integer">An whole number integer.</param>
+        /// <returns>Integer.</returns>
+        public static int? EchoNullableInteger( int? integer )
+        {
+            return integer;
+        }
+
+        /// <summary>
         /// Updates the customer.
         /// </summary>
         /// <param name="customerModel">The customer model.</param>
@@ -190,6 +225,21 @@ namespace Nano.Demo
         }
 
         /// <summary>
+        /// Login.
+        /// </summary>
+        /// <param name="username">Username.</param>
+        /// <param name="password">Password.</param>
+        /// <returns>Login response.</returns>
+        public static object Login( string username, string password )
+        {
+            if ( string.IsNullOrWhiteSpace( username ) == false && string.IsNullOrWhiteSpace( password ) == false
+                 && username.ToLower() == "admin" && password.ToLower() == "admin" )
+                return new { Authenticated = true, Message = "You have been successfully logged in." };
+
+            return new { Authenticated = false, Message = "Login failed. The username is 'admin' and password is 'admin'." };
+        }
+
+        /// <summary>
         /// Delays a response by a given number of seconds.
         /// </summary>
         /// <param name="delayInSeconds">Number of seconds to delay before responding.</param>
@@ -329,6 +379,56 @@ namespace Nano.Demo
             nanoContext.Response.ContentType = "application/vnd.ms-excel";
             nanoContext.Response.HeaderParameters.Add( "Content-Disposition", "attachment; filename=CustomerReport-" + customerId + ".xls" );
             return new MemoryStream( Encoding.UTF8.GetBytes( htmlTable ) );
+        }
+
+        /// <summary>
+        /// Api Response.
+        /// </summary>
+        /// <typeparam name="T">Response type.</typeparam>
+        public class ApiResponse<T>
+        {
+            /// <summary>
+            /// Create a new ApiResponse.
+            /// </summary>
+            public ApiResponse()
+            {
+                
+            }
+
+            /// <summary>
+            /// Creates a new ApiResponse with the provided value.
+            /// </summary>
+            /// <param name="value">Response value.</param>
+            public ApiResponse( T value )
+            {
+                Value = value;
+            }
+
+            /// <summary>
+            /// Response value.
+            /// </summary>
+            public T Value;
+
+            /// <summary>
+            /// List of errors.
+            /// </summary>
+            public List<Error> Errors = new List<Error>();
+        }
+
+        /// <summary>
+        /// Error.
+        /// </summary>
+        public class Error
+        {
+            /// <summary>
+            /// The error code.
+            /// </summary>
+            public string ErrorCode;
+
+            /// <summary>
+            /// The error message.
+            /// </summary>
+            public string ErrorMessage;
         }
 
         /// <summary>
