@@ -967,7 +967,7 @@ namespace Nano.Web.Core
 
             if ( _stream.CanSeek )
                 _stream.Position = 0;
-
+            
             _stream.CopyTo( targetStream, 8196 );
 
             if ( _stream.CanSeek )
@@ -3284,12 +3284,15 @@ namespace Nano.Web.Core
 
                 if( type.IsGenericType )
                 {
+                    var types = type.GetGenericArguments();
+                    nestedUserTypes.AddRange(types.Where(t => t.FullName != null));
+
                     type = type.GetGenericTypeDefinition();
 
-                    var types = type.GetGenericArguments();
+                    types = type.GetGenericArguments();
                     foreach ( var t in types )
                     {
-                        if ( t.FullName == null )
+                        if ( t.FullName == null || nestedUserTypes.Contains(t) )
                             continue;
 
                         nestedUserTypes.Add( t );
@@ -3735,6 +3738,10 @@ namespace Nano.Web.Core
             public virtual Type GetOperationReturnParameterType( NanoContext nanoContext, IRequestHandler requestHandler )
             {
                 MethodRequestHandler handler = GetMethodRequestHandler( requestHandler );
+                if (handler.Method.ReturnType == typeof (Task))
+                    return typeof (void);
+                if (handler.Method.ReturnType.BaseType == typeof (Task))
+                    return handler.Method.ReturnType.GenericTypeArguments[0];
                 return handler.Method.ReturnType;
             }
 
