@@ -117,6 +117,9 @@ namespace Nano.Web.Core
         /// <summary>The limit on the number of query string variables, form fields, or multipart sections in a request. Default is 1,000. The reason to limit the number of parameters processed by the server is detailed in the following security notice regarding a particular 'Collisions in HashTable' denial-of-service (DoS) attack vector: http://www.ocert.org/advisories/ocert-2011-003.html </summary>
         public int RequestParameterLimit = 1000;
 
+        /// <summary>List of namespaces for which all public classes will be added to metadata requests.</summary>
+        public List<string> MetadataNamespaces = new List<string>();
+
         /// <summary>Initializes a new instance of the <see cref="NanoConfiguration" /> class.</summary>
         public NanoConfiguration()
         {
@@ -3265,6 +3268,14 @@ namespace Nano.Web.Core
 
                     AddModels( apiMetadata, returnParameterType );
                     apiMetadata.Operations.Add( metadata );
+                }
+
+                //Adding types specified in configuration namespaces
+                var assembly = Assembly.GetExecutingAssembly();
+                var types = assembly.GetTypes().Where(t => nanoContext.NanoConfiguration.MetadataNamespaces.Contains(t.Namespace) && t.IsPublic);
+                foreach (var x in types)
+                {
+                    AddModels(apiMetadata, x);
                 }
 
                 nanoContext.Response.ResponseObject = apiMetadata;
