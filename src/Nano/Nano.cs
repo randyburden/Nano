@@ -1318,7 +1318,7 @@ namespace Nano.Web.Core
                 Version = fvi.FileVersion;
             }
             else
-                Version = "0.14.99.0";
+                Version = "0.15.0";
         }
 
         /// <summary>Custom error responses.</summary>
