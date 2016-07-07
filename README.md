@@ -1,8 +1,7 @@
 Nano
 ====
 
-<a href="https://www.nuget.org/packages/Nano"><img src="https://img.shields.io/nuget/v/Nano.svg" alt="NuGet Version" /></a> 
-<a href="https://www.nuget.org/packages/Nano"><img src="https://img.shields.io/nuget/dt/Nano.svg" alt="NuGet Download Count" /></a>
+<a href="https://www.nuget.org/packages/Nano"><img src="https://img.shields.io/nuget/v/Nano.svg" alt="NuGet Version" /></a>
 
 **Build Status**
 
@@ -42,8 +41,8 @@ Nano brings some very valuable features that rival many other web frameworks inc
 
  - Extension points/events/hooks for intercepting the request, response, or errors in order to implement logging, authentication, authorization, etc.
  - Auto-generated web interface which can serve as documentation, a test playground, a "free" UI that you can give to users to invoke methods on your service, code proxy generation allowing your users to bypass NuGet and instead get proxy libraries directly from the source, etc.
- - Ability for api creators to have their static methods automatically be exposed as JSON endpoints at a convention based url.. 'as fast as you can write a method is as fast as you can have an api'.
- - Ability to go low level by using the NanoContext class in the rare instance that you need to control content type, return blobs, handles headers or cookies, etc.
+ - Ability for API creators to have their static methods automatically be exposed as JSON endpoints at a convention based url.. 'as fast as you can write a method is as fast as you can have an api'.
+ - Ability to go low level by using the NanoContext class in the instance that you need to control content type, return blobs, handles headers or cookies, etc.
 
 License
 ----
