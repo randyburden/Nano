@@ -12,6 +12,8 @@
     <description>Nano is a micro web framework for building web-based HTTP services and websites for .NET.</description>
 	<summary>Nano is a micro web framework for building web-based HTTP services and websites for .NET.</summary>
     <releaseNotes>
+* 0.15.0 - Async support, Verbose Errors, new ApiExplorer;  Many bug fixes and enhancements.
+* 0.14.0 - Upgrade to .NET 4.5. Keep-Alive disabled by default. CorrelationId, RequestTimestamp, and ClientIpAddress fields added to NanoContext.
 * 0.13.0 - Multipart ( file upload ) support;  Many bug fixes and enhancements.
 * 0.12.0 - Implemented ETag and Last-Modified HTTP Header Support.
 * 0.11.0 - Linux support added; Support for case-sensitive file system.

@@ -10,3 +10,5 @@ Authors
  - Michael Rudduck - https://github.com/mrudduck
  - Rahul Rumalla - https://github.com/xizmark
  - Andrew McClellen - https://github.com/acmc
+ - Taylor Wolfe - https://github.com/wolfester
+ - Jack Farrington - https://github.com/jackfarrington

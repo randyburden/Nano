@@ -1,5 +1,5 @@
 /*
-    Nano v0.13.0
+    Nano v0.15.0
     
     Nano is a .NET cross-platform micro web framework for building web-based HTTP services and websites.
 
@@ -41,8 +41,10 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Net;
+using System.Net.NetworkInformation;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -97,23 +99,36 @@ namespace Nano.Web.Core
         /// <summary>The serialization service used to serialize/deserialize requests and responses.</summary>
         public ISerializationService SerializationService = new JsonNetSerializer();
 
-        /// <summary>Gets the default method url path. Defaulted to: '/api/' + type.Name</summary>
-        public Func<Type, string> GetDefaultMethodUrlPath = type => "/api/" + type.Name;
+        /// <summary>Gets the default method url path. Defaulted to: '/api/' + path</summary>
+        public Func<string, string> GetDefaultMethodUrlPath = path => "/api/" + path ;
 
         /// <summary>Determines whether errors are logged to the operating system event log.</summary>
         public bool LogErrorsToEventLog = true;
 
+        /// <summary>Determines whether verbose errors are displayed for 500 errors.</summary>
+        public bool EnableVerboseErrors = false;
+
         /// <summary>Application name.</summary>
         public string ApplicationName = AppDomain.CurrentDomain.FriendlyName;
 
+        /// <summary>Startup Datetime.</summary>
+        public DateTime ApplicationStartDateTime = DateTime.Now;
+
         /// <summary>The limit on the number of query string variables, form fields, or multipart sections in a request. Default is 1,000. The reason to limit the number of parameters processed by the server is detailed in the following security notice regarding a particular 'Collisions in HashTable' denial-of-service (DoS) attack vector: http://www.ocert.org/advisories/ocert-2011-003.html </summary>
         public int RequestParameterLimit = 1000;
+
+        /// <summary>List of namespaces for which all public classes will be added to metadata requests.</summary>
+        public List<string> MetadataNamespaces = new List<string>();
 
         /// <summary>Initializes a new instance of the <see cref="NanoConfiguration" /> class.</summary>
         public NanoConfiguration()
         {
             RequestHandlers.Add( new MetadataRequestHandler( "/metadata/GetNanoMetadata", DefaultEventHandler ) );
             this.EnableCorrelationId();
+            this.DisableKeepAlive();
+            this.EnableElapsedMillisecondsResponseHeader();
+            this.EnableRequestCounter();
+            this.EnableErrorCounter();
         }
 
         /// <summary>Adds all public static methods in the given type.</summary>
@@ -125,7 +140,20 @@ namespace Nano.Web.Core
         public IList<MethodRequestHandler> AddMethods( Type type, string urlPath = null, EventHandler eventHandler = null, IApiMetaDataProvider metadataProvider = null )
         {
             MethodInfo[] methods = type.GetMethods( BindingFlags.Public | BindingFlags.Static );
-            urlPath = string.IsNullOrWhiteSpace( urlPath ) == false ? urlPath.TrimStart( '/' ).TrimEnd( '/' ) : GetDefaultMethodUrlPath( type ).TrimStart( '/' ).TrimEnd( '/' );
+            
+            string path = type.Name;
+
+            //Constructing URL path and prepending parent classes (subclass support)
+            if (string.IsNullOrWhiteSpace(urlPath))
+            {
+                while (type.DeclaringType != null)
+                {
+                    path = type.DeclaringType.Name + "/" + path;
+                    type = type.DeclaringType;
+                }
+            }
+
+            urlPath = string.IsNullOrWhiteSpace( urlPath ) == false ? urlPath.TrimStart( '/' ).TrimEnd( '/' ) : GetDefaultMethodUrlPath( path).TrimStart( '/' ).TrimEnd( '/' );
 
             IList<MethodRequestHandler> handlers = new List<MethodRequestHandler>();
 
@@ -158,10 +186,10 @@ namespace Nano.Web.Core
         /// <param name="eventHandler">The event handlers to invoke on requests.</param>
         /// <param name="metadataProvider">The metadata provider.</param>
         /// <returns><see cref="FuncRequestHandler" />.</returns>
-        public FuncRequestHandler AddFunc( string urlPath, Func<NanoContext, object> func, EventHandler eventHandler = null, IApiMetaDataProvider metadataProvider = null )
+        public FuncRequestHandler<T> AddFunc<T>( string urlPath, Func<NanoContext, T> func, EventHandler eventHandler = null, IApiMetaDataProvider metadataProvider = null )
         {
             urlPath = "/" + urlPath.TrimStart( '/' ).TrimEnd( '/' );
-            var handler = new FuncRequestHandler( urlPath, eventHandler ?? DefaultEventHandler, func );
+            var handler = new FuncRequestHandler<T>( urlPath, eventHandler ?? DefaultEventHandler, func );
             RequestHandlers.Add( handler );
             return handler;
         }
@@ -220,9 +248,25 @@ namespace Nano.Web.Core
 		}
     }
 
+    /// <summary>Custom Error object returned as JSON when EnableVerboseErrors == true.</summary>
+    public class NanoError
+    {
+        /// <summary>Exception.Message</summary>
+        public string Message;
+
+        /// <summary>Full Name of Exception Type</summary>
+        public string ExceptionType;
+
+        /// <summary>Anonymous Object including Process Information, Exception.Data, Request Information, Stack Trace, and Inner Exceptions</summary>
+        public object Data;
+    }
+
     /// <summary>The context of the current web request.</summary>
     public class NanoContext : IDisposable
     {
+        /// <summary>Correlation / request identifier.</summary>
+        public string CorrelationId;
+
         /// <summary>The current user.</summary>
         public IUserIdentity CurrentUser;
 
@@ -251,8 +295,14 @@ namespace Nano.Web.Core
         /// <summary>The <see cref="IRequestHandler" /> for this context.</summary>
         public IRequestHandler RequestHandler;
 
+        /// <summary>The initial timestamp of the current HTTP request.</summary>
+        public DateTime RequestTimestamp;
+
         /// <summary>The outgoing response.</summary>
         public NanoResponse Response;
+
+        /// <summary>Determines whether verbose errors are displayed for HTTP 500 errors.</summary>
+        public bool EnableVerboseErrors = false;
 
         /// <summary>The root folder path.</summary>
         /// <value>The root folder path.</value>
@@ -262,18 +312,20 @@ namespace Nano.Web.Core
         /// Flag to indicate if a dispose has been called already
         /// </summary>
         private bool _disposed;
-        
+
         /// <summary>Initializes a new instance of the <see cref="NanoContext" /> class.</summary>
         /// <param name="nanoRequest">The nano request.</param>
         /// <param name="nanoResponse">The nano response.</param>
         /// <param name="nanoConfiguration">The nano configuration.</param>
-        public NanoContext( NanoRequest nanoRequest, NanoResponse nanoResponse, NanoConfiguration nanoConfiguration )
+        /// <param name="requestTimestamp">The initial timestamp of the current HTTP request.</param>
+        public NanoContext( NanoRequest nanoRequest, NanoResponse nanoResponse, NanoConfiguration nanoConfiguration, DateTime requestTimestamp )
         {
             nanoRequest.NanoContext = this;
             Request = nanoRequest;
             nanoResponse.NanoContext = this;
             Response = nanoResponse;
             NanoConfiguration = nanoConfiguration;
+            RequestTimestamp = requestTimestamp;
         }
 
         /// <summary>Disposes any disposable items in the <see cref="Items" /> dictionary.</summary>
@@ -309,6 +361,9 @@ namespace Nano.Web.Core
     /// <summary>Holds properties associated with the current HTTP request.</summary>
     public class NanoRequest
     {
+        /// <summary>IP address of the client.</summary>
+        public string ClientIpAddress;
+
         /// <summary>The files sent by the client in a multipart message.</summary>
         public IList<HttpFile> Files;
 
@@ -338,7 +393,8 @@ namespace Nano.Web.Core
         /// <param name="formBodyParameters">The HTTP form body parameters sent by the client.</param>
         /// <param name="headerParameters">The HTTP header parameters sent by the client.</param>
         /// <param name="files">The files sent by the client in a multipart message.</param>
-        public NanoRequest( string httpMethod, Url url, RequestStream requestStream, NameValueCollection queryStringParameters, NameValueCollection formBodyParameters, NameValueCollection headerParameters, IList<HttpFile> files )
+        /// <param name="clientIpAddress">IP address of the client.</param>
+        public NanoRequest( string httpMethod, Url url, RequestStream requestStream, NameValueCollection queryStringParameters, NameValueCollection formBodyParameters, NameValueCollection headerParameters, IList<HttpFile> files, string clientIpAddress )
         {
             HttpMethod = httpMethod;
             Url = url;
@@ -347,6 +403,7 @@ namespace Nano.Web.Core
             FormBodyParameters = formBodyParameters ?? new NameValueCollection();
             HeaderParameters = headerParameters ?? new NameValueCollection();
             Files = files ?? new List<HttpFile>();
+            ClientIpAddress = clientIpAddress;
         }
 
         /// <summary>Gets a <see cref="RequestStream"/> that can be used to read the incoming HTTP body</summary>
@@ -387,6 +444,7 @@ namespace Nano.Web.Core
         public NanoResponse()
         {
             HeaderParameters.Add( "X-Nano-Version", Constants.Version );
+            HeaderParameters.Add( "X-Frame-Options", "DENY");
         }
 
         /// <summary>
@@ -912,7 +970,7 @@ namespace Nano.Web.Core
 
             if ( _stream.CanSeek )
                 _stream.Position = 0;
-
+            
             _stream.CopyTo( targetStream, 8196 );
 
             if ( _stream.CanSeek )
@@ -967,7 +1025,7 @@ namespace Nano.Web.Core
         }
     }
 
-    /// <summary>Enables CorrelationId support which passes through or creates new CorrelationIds per request in order to support request tracking.</summary>
+    /// <summary>Enables / disables CorrelationId support which passes through or creates new CorrelationIds per request in order to support request tracking.</summary>
     public static class CorrelationIdHelper
     {
         /// <summary>Enables CorrelationId support which passes through or creates new CorrelationIds per request in order to support request tracking.</summary>
@@ -1008,9 +1066,190 @@ namespace Nano.Web.Core
             if ( string.IsNullOrWhiteSpace( correlationId ) )
                 correlationId = Guid.NewGuid().ToString();
 
+            nanoContext.CorrelationId = correlationId;
             nanoContext.Response.HeaderParameters.Add( Constants.CorrelationIdRequestParameterName, correlationId );
-            nanoContext.Items.Add( Constants.CorrelationIdRequestParameterName, correlationId );
             System.Runtime.Remoting.Messaging.CallContext.LogicalSetData( Constants.CorrelationIdRequestParameterName, correlationId );
+        }
+    }
+
+    /// <summary>Enables / disables Keep-Alive ( persistent connection ) support.</summary>
+    public static class KeepAliveHelper
+    {
+        private const string KeepAliveIsDisabled = "KeepAliveIsDisabled";
+
+        /// <summary>Enables Keep-Alive ( persistent connection ) support.</summary>
+        /// <param name="nanoConfiguration">The nano configuration.</param>
+        public static void EnableKeepAlive( this NanoConfiguration nanoConfiguration )
+        {
+            nanoConfiguration.GlobalEventHandler.EnableKeepAlive();
+        }
+
+        /// <summary>Disables Keep-Alive ( persistent connection ) support. Note that in a modern web hosting environment applications are typically hosted behind a load balancer and in order to get proper web traffic distribution "Keep Alive" should be disabled.</summary>
+        /// <param name="nanoConfiguration">The nano configuration.</param>
+        public static void DisableKeepAlive( this NanoConfiguration nanoConfiguration )
+        {
+            nanoConfiguration.GlobalEventHandler.DisableKeepAlive();
+        }
+
+        /// <summary>Enables Keep-Alive ( persistent connection ) support.</summary>
+        /// <param name="eventHandler">The event handler.</param>
+        public static void EnableKeepAlive( this EventHandler eventHandler )
+        {
+            eventHandler.PreInvokeHandlers.Remove( DisableKeepAlivePreInvokeHandler );
+        }
+
+        /// <summary>Disables Keep-Alive ( persistent connection ) support. Note that in a modern web hosting environment applications are typically hosted behind a load balancer and in order to get proper web traffic distribution "Keep Alive" should be disabled.</summary>
+        /// <param name="eventHandler">The event handler.</param>
+        public static void DisableKeepAlive( this EventHandler eventHandler )
+        {
+            if ( eventHandler.PreInvokeHandlers.Contains( DisableKeepAlivePreInvokeHandler ) == false )
+                eventHandler.PreInvokeHandlers.Add( DisableKeepAlivePreInvokeHandler );
+        }
+
+        /// <summary>Enables Keep-Alive ( persistent connection ) support.</summary>
+        /// <param name="nanoContext">The nano context.</param>
+        public static void DisableKeepAlivePreInvokeHandler( NanoContext nanoContext )
+        {
+            nanoContext.Items.Add( KeepAliveIsDisabled, null );
+        }
+
+        /// <summary>Determines if the 'ElapsedMilliseconds" response header is enabled.</summary>
+        /// <param name="nanoContext">The nano context.</param>
+        /// <returns>True if enabled.</returns>
+        public static bool IsKeepAliveDisabled( this NanoContext nanoContext )
+        {
+            return nanoContext.Items.ContainsKey( KeepAliveIsDisabled );
+        }
+    }
+
+    /// <summary>Enables / disables adding an 'ElapsedMilliseconds" response header per request.</summary>
+    public static class ElapsedMillisecondsHelper
+    {
+        private const string ElapsedMillisecondsResponseHeaderIsEnabled = "ElapsedMillisecondsResponseHeaderIsEnabled";
+
+        /// <summary>Enables adding an 'ElapsedMilliseconds" response header per request.</summary>
+        /// <param name="nanoConfiguration">The nano configuration.</param>
+        public static void EnableElapsedMillisecondsResponseHeader( this NanoConfiguration nanoConfiguration )
+        {
+            nanoConfiguration.GlobalEventHandler.EnableElapsedMillisecondsResponseHeader();
+        }
+
+        /// <summary>Disables adding an 'ElapsedMilliseconds" response header per request.</summary>
+        /// <param name="nanoConfiguration">The nano configuration.</param>
+        public static void DisableElapsedMillisecondsResponseHeader( this NanoConfiguration nanoConfiguration )
+        {
+            nanoConfiguration.GlobalEventHandler.DisableElapsedMillisecondsResponseHeader();
+        }
+
+        /// <summary>Enables adding an 'ElapsedMilliseconds" response header per request.</summary>
+        /// <param name="eventHandler">The event handler.</param>
+        public static void EnableElapsedMillisecondsResponseHeader( this EventHandler eventHandler )
+        {
+            if ( eventHandler.PreInvokeHandlers.Contains( EnableElapsedMillisecondsResponseHeaderPostInvokeHandler ) == false )
+                eventHandler.PreInvokeHandlers.Add( EnableElapsedMillisecondsResponseHeaderPostInvokeHandler );
+        }
+
+        /// <summary>Disables adding an 'ElapsedMilliseconds" response header per request.</summary>
+        /// <param name="eventHandler">The event handler.</param>
+        public static void DisableElapsedMillisecondsResponseHeader( this EventHandler eventHandler )
+        {
+            eventHandler.PreInvokeHandlers.Remove( EnableElapsedMillisecondsResponseHeaderPostInvokeHandler );
+        }
+
+        /// <summary>Enables adding an 'ElapsedMilliseconds" response header per request.</summary>
+        /// <param name="nanoContext">The nano context.</param>
+        public static void EnableElapsedMillisecondsResponseHeaderPostInvokeHandler( NanoContext nanoContext )
+        {
+            nanoContext.Items.Add( ElapsedMillisecondsResponseHeaderIsEnabled, null );
+        }
+
+        /// <summary>Determines if the 'ElapsedMilliseconds" response header is enabled.</summary>
+        /// <param name="nanoContext">The nano context.</param>
+        /// <returns>True if enabled.</returns>
+        public static bool IsElapsedMillisecondsResponseHeaderEnabled( this NanoContext nanoContext )
+        {
+            return nanoContext.Items.ContainsKey( ElapsedMillisecondsResponseHeaderIsEnabled );
+        }
+    }
+
+    /// <summary>Enables / disables incrementing the RequestCount per request.</summary>
+    public static class RequestCounterHelper
+    {
+        private const string RequestCounterIsEnabled = "RequestCounterIsEnabled";
+
+        /// <summary>Request Count.</summary>
+        public static int RequestCount = 0;
+
+        /// <summary>Enables incrementing the RequestCount per request.</summary>
+        /// <param name="nanoConfiguration">The nano configuration.</param>
+        public static void EnableRequestCounter(this NanoConfiguration nanoConfiguration)
+        {
+            if (nanoConfiguration.GlobalEventHandler.PreInvokeHandlers.Contains(RequestCounterPreInvokeHandler) == false)
+                nanoConfiguration.GlobalEventHandler.PreInvokeHandlers.Add(RequestCounterPreInvokeHandler);
+        }
+
+        /// <summary>Disables incrementing the RequestCount per request.</summary>
+        /// <param name="nanoConfiguration">The nano configuration.</param>
+        public static void DisableRequestCounter(this NanoConfiguration nanoConfiguration)
+        {
+            nanoConfiguration.GlobalEventHandler.PreInvokeHandlers.Remove(RequestCounterPreInvokeHandler);
+        }
+
+        /// <summary>Increments the RequestCount per request.</summary>
+        /// <param name="nanoContext">The nano context.</param>
+        public static void RequestCounterPreInvokeHandler(NanoContext nanoContext)
+        {
+            Interlocked.Increment(ref RequestCount);
+            nanoContext.Items.Add(RequestCounterIsEnabled, null);
+        }
+
+        /// <summary>Determines if the RequestCount is enabled.</summary>
+        /// <param name="nanoContext">The nano context.</param>
+        /// <returns>True if enabled.</returns>
+        public static bool IsRequestCounterEnabled(this NanoContext nanoContext)
+        {
+            return nanoContext.Items.ContainsKey(RequestCounterIsEnabled);
+        }
+    }
+
+    /// <summary>Enables / disables incrementing the ErrorCount per request.</summary>
+    public static class ErrorCounterHelper
+    {
+        private const string ErrorCounterIsEnabled = "ErrorCounterIsEnabled";
+
+        /// <summary>Error Count.</summary>
+        public static int ErrorCount = 0;
+
+        /// <summary>Enables incrementing the ErrorCount per request.</summary>
+        /// <param name="nanoConfiguration">The nano configuration.</param>
+        public static void EnableErrorCounter(this NanoConfiguration nanoConfiguration)
+        {
+            if (nanoConfiguration.GlobalEventHandler.UnhandledExceptionHandlers.Contains(ErrorCounterUnhandledExceptionHandler) == false)
+                nanoConfiguration.GlobalEventHandler.UnhandledExceptionHandlers.Add(ErrorCounterUnhandledExceptionHandler);
+        }
+
+        /// <summary>Disables incrementing the ErrorCount per request.</summary>
+        /// <param name="nanoConfiguration">The nano configuration.</param>
+        public static void DisableErrorCounter(this NanoConfiguration nanoConfiguration)
+        {
+            nanoConfiguration.GlobalEventHandler.UnhandledExceptionHandlers.Remove(ErrorCounterUnhandledExceptionHandler);
+        }
+
+        /// <summary>Increments the ErrorCount per request.</summary>
+        /// <param name="nanoContext">The nano context.</param>
+        /// <param name="exception">The exception.</param>
+        public static void ErrorCounterUnhandledExceptionHandler(Exception exception, NanoContext nanoContext)
+        {
+            Interlocked.Increment(ref ErrorCount);
+            nanoContext.Items.Add(ErrorCounterIsEnabled, null);
+        }
+
+        /// <summary>Determines if the ErrorCount is enabled.</summary>
+        /// <param name="nanoContext">The nano context.</param>
+        /// <returns>True if enabled.</returns>
+        public static bool IsErrorCounterEnabled(this NanoContext nanoContext)
+        {
+            return nanoContext.Items.ContainsKey(ErrorCounterIsEnabled);
         }
     }
 
@@ -1066,6 +1305,9 @@ namespace Nano.Web.Core
         /// <summary>CorrelationId request parameter name.</summary>
         public static string CorrelationIdRequestParameterName = "X-CorrelationId";
 
+        /// <summary>Elapsed milliseconds response header name.</summary>
+        public static string ElapsedMillisecondsResponseHeaderName = "X-Nano-ElapsedMilliseconds";
+
         static Constants()
         {
             Assembly assembly = Assembly.GetExecutingAssembly();
@@ -1076,7 +1318,7 @@ namespace Nano.Web.Core
                 Version = fvi.FileVersion;
             }
             else
-                Version = "0.13.0.0";
+                Version = "0.15.0";
         }
 
         /// <summary>Custom error responses.</summary>
@@ -1252,7 +1494,8 @@ namespace Nano.Web.Core
             foreach ( BackgroundTask backgroundTask in nanoConfiguration.BackgroundTasks )
             {
                 BackgroundTask task = backgroundTask;
-                Task.Factory.StartNew( () =>
+                
+                Task.Run( () =>
                 {
                     while ( true )
                     {
@@ -1261,7 +1504,7 @@ namespace Nano.Web.Core
                         try
                         {
                             if ( backgroundTaskContext.BackgroundTask.AllowOverlappingRuns )
-                                Task.Factory.StartNew( () => Run( backgroundTaskContext ) ); // Run async
+                                Task.Run( () => Run( backgroundTaskContext ) ); // Run async
                             else
                                 Run( backgroundTaskContext ); // Run sync
                         }
@@ -1310,6 +1553,25 @@ namespace Nano.Web.Core
         public static bool WriteErrorToEventLog( this NanoConfiguration nanoConfiguration, string errorMessage )
         {
             return EventLogHelper.WriteErrorToEventLog( nanoConfiguration.ApplicationName, errorMessage );
+        }
+
+        /// <summary>
+        /// Adds a permanent redirect from one URL path to another.
+        /// </summary>
+        /// <param name="nanoConfiguration">The Nano configuration.</param>
+        /// <param name="urlPath">The source URL that should be redirected.</param>
+        /// <param name="targetUrlPath">The destionation URL that should be redirected to.</param>
+        /// <param name="eventHandler">The event handlers to invoke on requests.</param>
+        /// <returns>The Nano configuration.</returns>
+        public static NanoConfiguration AddRedirect( this NanoConfiguration nanoConfiguration, string urlPath, string targetUrlPath, EventHandler eventHandler = null )
+        {
+            nanoConfiguration.AddFunc( urlPath, context =>
+            {
+                context.Response.Redirect( targetUrlPath );
+                return (object)null;
+            }, eventHandler );
+
+            return nanoConfiguration;
         }
     }
 
@@ -1388,30 +1650,75 @@ namespace Nano.Web.Core
             nanoContext.Response.ResponseStreamWriter = nanoContext.WriteErrorsToStream;
         }
 
-        private static void GenerateHtmlErrorMessage( Exception exception, StringBuilder stringBuilder, int recursionLevel )
+        private static void GenerateJsonErrorMessage( NanoContext nanoContext, Exception exception, StringBuilder stringBuilder)
         {
-            if ( recursionLevel > 25 )
-                return; // Something has most likely went very wrong so return early to avoid a stack overflow
-
-            if ( recursionLevel > 0 )
+            using ( var currentProcess = Process.GetCurrentProcess() )
             {
-                int marginLeft = recursionLevel * 4;
-                stringBuilder.AppendFormat( "<p style=\"margin-left:{0}px;\"><b>Inner Exception Error Message:</b></p>", marginLeft ).AppendLine();
-                stringBuilder.AppendFormat( "<p style=\"margin-left:{0}px;\">{1}</p>", marginLeft, exception.Message ).AppendLine();
-                stringBuilder.AppendFormat( "<p style=\"margin-left:{0}px;\"><b>Inner Exception Stack Trace:</b></p>", marginLeft ).AppendLine();
-                stringBuilder.AppendFormat( "<p style=\"margin-left:{0}px;\">{1}</p>", marginLeft, exception.StackTrace ).AppendLine();
-            }
-            else
-            {
-                stringBuilder.AppendLine( "<hr />" );
-                stringBuilder.AppendLine( "<p><b>Error Message:</b></p>" );
-                stringBuilder.AppendFormat( "<p>{0}</p>", exception.Message ).AppendLine();
-                stringBuilder.AppendLine( "<p><b>Stack Trace:</b></p>" );
-                stringBuilder.AppendFormat( "<p>{0}</p>", exception.StackTrace ).AppendLine();
-            }
+                var ipGlobalProperties = IPGlobalProperties.GetIPGlobalProperties();
+                string totalRequestsHandled = "";
+                string totalErrorsOccurred = "";
 
-            if (exception.InnerException != null)
-                GenerateHtmlErrorMessage(exception.InnerException, stringBuilder, ++recursionLevel);
+                if ( nanoContext.IsRequestCounterEnabled() )
+                    totalRequestsHandled = RequestCounterHelper.RequestCount.ToString();
+
+                if ( nanoContext.IsErrorCounterEnabled() )
+                    totalErrorsOccurred = ErrorCounterHelper.ErrorCount.ToString();
+
+                NanoError proxyError = null;
+
+                WebException webException = exception as WebException;
+
+                var stream = webException?.Response?.GetResponseStream();
+
+                if (stream != null && webException.Status == WebExceptionStatus.ProtocolError )
+                {
+                    try
+                    {                       
+                        using ( StreamReader streamReader = new StreamReader( stream ) )
+                        {
+                            proxyError = JsonConvert.DeserializeObject<NanoError>(streamReader.ReadToEnd());
+                        }
+                    }
+                    catch
+                    {
+                        proxyError = null;
+                    }
+                }
+
+                //split stack trace into array on every " at " for viewing purposes
+                string[] stackArray = Regex.Split(exception.StackTrace.Substring(3), @"(?= at )");
+
+                var error = new NanoError
+                {
+                    Message = exception.Message,
+                    ExceptionType = exception.GetType().FullName,
+                    Data = new
+                    {
+                        Stack = stackArray,
+                        ExceptionData = exception.Data,
+                        Request = new
+                        {
+                            Url = nanoContext.Request.Url.SiteBase + nanoContext.Request.Url.Path,
+                            FormBodyParameters = nanoContext.Request.FormBodyParameters
+                        },
+                        ProcessInfo = new
+                        {
+                            StartupDateTime = nanoContext.NanoConfiguration.ApplicationStartDateTime,
+                            ApplicationUptime = ( DateTime.Now - nanoContext.NanoConfiguration.ApplicationStartDateTime ).GetNanoFormattedTime(),
+                            TotalRequestsHandled = totalRequestsHandled,
+                            TotalErrorsOccurred = totalErrorsOccurred,
+                            MachineName = ipGlobalProperties.HostName + "." + ipGlobalProperties.DomainName,
+                            DomainUser = Environment.UserDomainName + "\\" + Environment.UserName,
+                            ApplicationDomainName = AppDomain.CurrentDomain.FriendlyName,
+                            ProcessName = currentProcess.ProcessName,
+                            ProcessId = currentProcess.Id.ToString()
+                        },
+                        InnerExceptions = proxyError != null ? (dynamic)proxyError : (dynamic)exception.InnerException
+                    }
+                };
+
+                stringBuilder.Append( JsonConvert.SerializeObject( error, Formatting.Indented ) );
+            }
         }
 
         /// <summary>Writes any errors to the response stream.</summary>
@@ -1419,29 +1726,35 @@ namespace Nano.Web.Core
         /// <param name="stream">The stream.</param>
         public static void WriteErrorsToStream( this NanoContext nanoContext, Stream stream )
         {
-            nanoContext.Response.ContentType = "text/html";
+            nanoContext.Response.ContentType = "application/json";
+            nanoContext.Response.HttpStatusCode = 500;
 
             if ( nanoContext.NanoConfiguration.LogErrorsToEventLog )
             {
                 var textErrorMessageBuilder = new StringBuilder();
                 textErrorMessageBuilder.AppendLine( "Nano Error:" );
                 textErrorMessageBuilder.AppendLine( "*************" ).AppendLine();
-                textErrorMessageBuilder.AppendLine( "URL: " + nanoContext.Request.Url ).AppendLine();
 
                 foreach ( Exception exception in nanoContext.Errors )
-                    EventLogHelper.GenerateTextErrorMessage( exception, textErrorMessageBuilder, 0 );
+                {
+                    nanoContext.WriteNanoContextDataToExceptionData( exception );
+                    EventLogHelper.GenerateTextErrorMessage( exception, textErrorMessageBuilder );
+                }
 
                 nanoContext.NanoConfiguration.WriteErrorToEventLog( textErrorMessageBuilder.ToString() );
             }
 
-            if ( Debugger.IsAttached )
+            var serverHostName = Dns.GetHostName();
+            var clientHostName = GetHostName( nanoContext.Request.ClientIpAddress );
+
+            if ( serverHostName == clientHostName || nanoContext.EnableVerboseErrors || nanoContext.NanoConfiguration.EnableVerboseErrors )
             {
-                var htmlErrorMessageBuilder = new StringBuilder();
+                var jsonErrorMessageBuilder = new StringBuilder();
 
                 foreach ( Exception exception in nanoContext.Errors )
-                    GenerateHtmlErrorMessage( exception, htmlErrorMessageBuilder, 0 );
+                    GenerateJsonErrorMessage( nanoContext, exception, jsonErrorMessageBuilder );
 
-                var errorMessage = Constants.CustomErrorResponse.InternalServerError500.Replace( "<!--ErrorMessage-->", htmlErrorMessageBuilder.ToString() );
+                var errorMessage = jsonErrorMessageBuilder.ToString();
                 stream.Write( errorMessage );
                 return;
             }
@@ -1449,17 +1762,50 @@ namespace Nano.Web.Core
             stream.Write( Constants.CustomErrorResponse.InternalServerError500 );
         }
 
+        /// <summary>Gets the host name for the given IP address.</summary>
+        /// <param name="ipAddressString">IP address.</param>
+        /// <returns>Host name.</returns>
+        private static string GetHostName( string ipAddressString )
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(ipAddressString))
+                    return "";
+                var ipAddress = IPAddress.Parse(ipAddressString);
+                var ipHostEntry = Dns.GetHostEntry(ipAddress);
+                var hostNames = ipHostEntry.HostName.Split('.').ToList();
+                return hostNames.FirstOrDefault();
+            }
+            catch ( Exception )
+            {
+                return "";
+            }
+        }
+
+        /// <summary>Writes NanoContext data to the exceptions key/value pair Data property.</summary>
+        /// <param name="nanoContext">The <see cref="NanoContext"/>.</param>
+        /// <param name="exception">The <see cref="Exception"/> to write data to.</param>
+        public static void WriteNanoContextDataToExceptionData( this NanoContext nanoContext, Exception exception )
+        {
+            exception.Data[ "Request URL" ] = nanoContext.Request.Url.ToString();
+            exception.Data[ "Request CorrelationId" ] = nanoContext.CorrelationId;
+            exception.Data[ "Request Timestamp" ] = nanoContext.RequestTimestamp.ToLocalTime();
+            exception.Data[ "Client IP Address" ] = nanoContext.Request.ClientIpAddress;
+            exception.Data[ "Current User" ] = nanoContext.CurrentUser == null ? "" : nanoContext.CurrentUser.UserName;
+        }
+        
         /// <summary>Returns a file if it exists.</summary>
         /// <param name="nanoContext">The <see cref="NanoContext" />.</param>
         /// <param name="fileInfo">The file to return.</param>
         /// <returns>Returns true if the file exists else false.</returns>
-        public static bool TryReturnFile( this NanoContext nanoContext, FileInfo fileInfo )
+        public static bool TryReturnFile( this NanoContext nanoContext, FileInfo fileInfo)
         {
             if ( fileInfo.Exists )
             {
                 nanoContext.Handled = true;
                 nanoContext.Response.ContentType = FileExtensionToContentTypeConverter.GetContentType( fileInfo.Extension );
-                var eTag = "\"" + fileInfo.LastWriteTimeUtc.Ticks.ToString( "X" ) + "\""; // Quoted hexadecimal string
+                var fileHash = DirectoryRequestHandler.GetFileHash( fileInfo );
+                var eTag = "\"" + fileHash + "\""; // Quoted hexadecimal string
                 nanoContext.Response.HeaderParameters[ "ETag" ] = eTag;
                 nanoContext.Response.HeaderParameters[ "Last-Modified" ] = fileInfo.LastWriteTimeUtc.ToString( "R" ); // RFC-1123 - Example: Fri, 03 Jul 2015 02:44:49 GMT
 
@@ -1530,7 +1876,7 @@ namespace Nano.Web.Core
         /// <summary>Routes requests to the appropriate <see cref="RequestHandler" />.</summary>
         /// <param name="nanoContext">The <see cref="NanoContext" /> for the current request.</param>
         /// <returns>The <see cref="NanoContext" /> for the current request.</returns>
-        public static NanoContext RouteRequest( NanoContext nanoContext )
+        public static async Task<NanoContext> RouteRequestAsync( NanoContext nanoContext )
         {
             string path = nanoContext.Request.Url.Path.ToLower();
             var requestHandlerMatches = new List<IRequestHandler>();
@@ -1541,7 +1887,7 @@ namespace Nano.Web.Core
                 if( path.Equals( handler.UrlPath, StringComparison.InvariantCultureIgnoreCase ) )
                 {
                     nanoContext.RequestHandler = handler;
-                    return nanoContext.RequestHandler.ProcessRequest( nanoContext );
+                    return await nanoContext.RequestHandler.ProcessRequestAsync( nanoContext );
                 }
 
                 // Look for partial match
@@ -1554,7 +1900,7 @@ namespace Nano.Web.Core
             foreach( IRequestHandler handler in requestHandlerMatches )
             {
                 nanoContext.RequestHandler = handler;
-                return nanoContext.RequestHandler.ProcessRequest( nanoContext );
+                return await nanoContext.RequestHandler.ProcessRequestAsync( nanoContext );
             }
 
             if ( nanoContext.RequestHandler == null || nanoContext.Handled == false )
@@ -1562,7 +1908,7 @@ namespace Nano.Web.Core
                 if ( nanoContext.NanoConfiguration.UnhandledRequestHandler != null )
                 {
                     nanoContext.RequestHandler = nanoContext.NanoConfiguration.UnhandledRequestHandler;
-                    nanoContext.NanoConfiguration.UnhandledRequestHandler.ProcessRequest( nanoContext );
+                    await nanoContext.NanoConfiguration.UnhandledRequestHandler.ProcessRequestAsync( nanoContext );
                 }
             }
 
@@ -1925,16 +2271,17 @@ namespace Nano.Web.Core
             /// <param name="eventArgs">The <see cref="EventArgs" /> instance containing the event data.</param>
             public void HttpApplicationOnBeginRequest( dynamic httpApplication, EventArgs eventArgs )
             {
-                HandleRequest( httpApplication.Context, NanoConfiguration );
+                HandleRequest( httpApplication.Context, NanoConfiguration, DateTime.UtcNow );
             }
 
             /// <summary>Handles a System.Web request.</summary>
             /// <param name="httpContext">System.Web.HttpContext.</param>
             /// <param name="nanoConfiguration">The <see cref="NanoConfiguration" />.</param>
-            public static void HandleRequest( dynamic httpContext, NanoConfiguration nanoConfiguration )
+            /// <param name="requestTimestamp">The initial timestamp of the current HTTP request.</param>
+            public static void HandleRequest( dynamic httpContext, NanoConfiguration nanoConfiguration, DateTime requestTimestamp )
             {
-                NanoContext nanoContext = MapHttpContextBaseToNanoContext( httpContext, nanoConfiguration );
-                nanoContext = RequestRouter.RouteRequest( nanoContext );
+                NanoContext nanoContext = MapHttpContextBaseToNanoContext( httpContext, nanoConfiguration, requestTimestamp );
+                nanoContext = RequestRouter.RouteRequestAsync( nanoContext ).Result;
 
                 if( nanoContext.RequestHandler == null || nanoContext.Handled == false )
                     return;
@@ -1948,10 +2295,16 @@ namespace Nano.Web.Core
 
                 foreach( string headerName in nanoContext.Response.HeaderParameters )
                     httpContext.Response.Headers.Add( headerName, nanoContext.Response.HeaderParameters[headerName] );
+                
+                if ( nanoContext.IsElapsedMillisecondsResponseHeaderEnabled() )
+                {
+                    var elapsedTime = DateTime.UtcNow - nanoContext.RequestTimestamp;
+                    httpContext.Response.Headers.Add( Constants.ElapsedMillisecondsResponseHeaderName, elapsedTime.TotalMilliseconds.ToString() );
+                }
 
-                foreach( dynamic cookie in nanoContext.Response.Cookies )
+                foreach ( dynamic cookie in nanoContext.Response.Cookies )
                     httpContext.Response.Headers.Add( "Set-Cookie", cookie.ToString() );
-
+                
                 httpContext.Response.StatusCode = nanoContext.Response.HttpStatusCode;
                 httpContext.Response.End();
             }
@@ -1959,8 +2312,9 @@ namespace Nano.Web.Core
             /// <summary>Maps a System.Web.HttpContext to a NanoContext.</summary>
             /// <param name="httpContext">System.Web.HttpContext.</param>
             /// <param name="nanoConfiguration">The <see cref="NanoConfiguration" />.</param>
+            /// <param name="requestTimestamp">The initial timestamp of the current HTTP request.</param>
             /// <returns>Mapped <see cref="NanoContext" />.</returns>
-            public static NanoContext MapHttpContextBaseToNanoContext( dynamic httpContext, NanoConfiguration nanoConfiguration )
+            public static NanoContext MapHttpContextBaseToNanoContext( dynamic httpContext, NanoConfiguration nanoConfiguration, DateTime requestTimestamp )
             {
                 dynamic httpMethod = httpContext.Request.HttpMethod;
 
@@ -1980,8 +2334,8 @@ namespace Nano.Web.Core
 
                 RequestStream requestStream = RequestStream.FromStream( httpContext.Request.InputStream, httpContext.Request.Headers[ "Content-Length" ] );
                 var results = RequestBodyParser.ParseRequestBody( httpContext.Request.Headers[ "Content-Type" ], httpContext.Request.ContentEncoding, requestStream, nanoConfiguration.RequestParameterLimit );
-                var nanoRequest = new NanoRequest( httpMethod, url, requestStream, httpContext.Request.QueryString, httpContext.Request.Form, httpContext.Request.Headers, results.Files );
-                var nanoContext = new NanoContext( nanoRequest, new NanoResponse(), nanoConfiguration ) { HostContext = httpContext, RootFolderPath = nanoConfiguration.ApplicationRootFolderPath };
+                var nanoRequest = new NanoRequest( httpMethod, url, requestStream, httpContext.Request.QueryString, httpContext.Request.Form, httpContext.Request.Headers, results.Files, httpContext.Request.UserHostAddress );
+                var nanoContext = new NanoContext( nanoRequest, new NanoResponse(), nanoConfiguration, requestTimestamp ) { HostContext = httpContext, RootFolderPath = nanoConfiguration.ApplicationRootFolderPath };
                 return nanoContext;
             }
         }
@@ -2026,11 +2380,11 @@ namespace Nano.Web.Core
                     nanoConfiguration.ApplicationRootFolderPath = GetApplicationRootFolderPath();
 
                 if ( nanoConfiguration.UnhandledRequestHandler == null )
-                    nanoConfiguration.UnhandledRequestHandler = new FuncRequestHandler( "/UnhandledRequestHandler", nanoConfiguration.DefaultEventHandler, context => context.ReturnHttp404NotFound() );
+                    nanoConfiguration.UnhandledRequestHandler = new FuncRequestHandler<NanoContext>( "/UnhandledRequestHandler", nanoConfiguration.DefaultEventHandler, context => context.ReturnHttp404NotFound() );
 
                 httpListenerConfiguration.HttpListener.Start();
                 var server = new HttpListenerNanoServer( nanoConfiguration, httpListenerConfiguration );
-                httpListenerConfiguration.HttpListener.BeginGetContext( server.BeginGetContextCallback, server );
+                httpListenerConfiguration.HttpListener.BeginGetContext(server.BeginGetContextCallback, server);
 
                 httpListenerConfiguration.UnhandledExceptionHandler = exception =>
                 {
@@ -2038,7 +2392,7 @@ namespace Nano.Web.Core
                         .AppendLine( "Nano Error:" )
                         .AppendLine( "*************" ).AppendLine();
 
-                    EventLogHelper.GenerateTextErrorMessage(exception, errorMessage, 0);
+                    EventLogHelper.GenerateTextErrorMessage( exception, errorMessage );
                     nanoConfiguration.WriteErrorToEventLog( errorMessage.ToString() );
                 };
 
@@ -2059,34 +2413,41 @@ namespace Nano.Web.Core
 
             /// <summary>The BeginGetContext callback for the <see cref="HttpListener" />.</summary>
             /// <param name="asyncResult">The asynchronous result.</param>
-            public void BeginGetContextCallback( IAsyncResult asyncResult )
+            public void BeginGetContextCallback(IAsyncResult asyncResult)
             {
+                DateTime requestTimestamp = DateTime.UtcNow;
+
                 try
                 {
-                    if ( HttpListenerConfiguration == null || HttpListenerConfiguration.HttpListener == null || HttpListenerConfiguration.HttpListener.IsListening == false )
+                    if (HttpListenerConfiguration == null || HttpListenerConfiguration.HttpListener == null || HttpListenerConfiguration.HttpListener.IsListening == false)
                         return;
-                    HttpListenerContext httpListenerContext = HttpListenerConfiguration.HttpListener.EndGetContext( asyncResult );
-                    HttpListenerConfiguration.HttpListener.BeginGetContext( BeginGetContextCallback, this );
-                    HandleRequest( httpListenerContext, this );
+                    HttpListenerContext httpListenerContext = HttpListenerConfiguration.HttpListener.EndGetContext(asyncResult);
+                    HttpListenerConfiguration.HttpListener.BeginGetContext(BeginGetContextCallback, this);
+                    HandleRequestAsync(httpListenerContext, this, requestTimestamp)
+                        .ContinueWith(async task => await task);
                 }
-                catch( Exception e )
+                catch (Exception e)
                 {
-                    if ( HttpListenerConfiguration == null || HttpListenerConfiguration.UnhandledExceptionHandler == null )
+                    if (HttpListenerConfiguration == null || HttpListenerConfiguration.HttpListener == null || HttpListenerConfiguration.HttpListener.IsListening == false
+                         || HttpListenerConfiguration.UnhandledExceptionHandler == null || (e.GetType() == typeof(HttpListenerException)) && HttpListenerConfiguration.IgnoreHttpListenerExceptions)
                         return;
-                    HttpListenerConfiguration.UnhandledExceptionHandler( e );
+                    HttpListenerConfiguration.UnhandledExceptionHandler(e);
                 }
             }
 
             /// <summary>Handles the request.</summary>
             /// <param name="httpListenerContext">The HTTP listener context.</param>
             /// <param name="server">The server.</param>
-            public static void HandleRequest( HttpListenerContext httpListenerContext, HttpListenerNanoServer server )
+            /// <param name="requestTimestamp">The initial timestamp of the current HTTP request.</param>
+            public static async Task HandleRequestAsync( HttpListenerContext httpListenerContext, HttpListenerNanoServer server, DateTime requestTimestamp )
             {
+                NanoContext nanoContext = null;
+
                 try
                 {
-                    NanoContext nanoContext = MapHttpListenerContextToNanoContext( httpListenerContext, server );
+                    nanoContext = MapHttpListenerContextToNanoContext( httpListenerContext, server, requestTimestamp );
 
-                    nanoContext = RequestRouter.RouteRequest( nanoContext );
+                    nanoContext = await RequestRouter.RouteRequestAsync( nanoContext );
 
                     if ( nanoContext.RequestHandler == null || nanoContext.Handled == false )
                         return;
@@ -2094,10 +2455,21 @@ namespace Nano.Web.Core
                     httpListenerContext.Response.ContentEncoding = nanoContext.Response.ContentEncoding;
                     httpListenerContext.Response.ContentType = nanoContext.Response.ContentType;
 
+                    if ( nanoContext.IsKeepAliveDisabled() )
+                    {
+                        httpListenerContext.Response.KeepAlive = false;
+                    }
+
                     foreach ( string headerName in nanoContext.Response.HeaderParameters )
                     {
                         if ( !IgnoredHeaders.IsIgnored( headerName ) )
                             httpListenerContext.Response.Headers.Add( headerName, nanoContext.Response.HeaderParameters[ headerName ] );
+                    }
+                    
+                    if ( nanoContext.IsElapsedMillisecondsResponseHeaderEnabled() )
+                    {
+                        var elapsedTime = DateTime.UtcNow - nanoContext.RequestTimestamp;
+                        httpListenerContext.Response.Headers.Add( Constants.ElapsedMillisecondsResponseHeaderName, elapsedTime.TotalMilliseconds.ToString() );
                     }
 
                     foreach ( NanoCookie cookie in nanoContext.Response.Cookies )
@@ -2118,13 +2490,26 @@ namespace Nano.Web.Core
                             nanoContext.Response.ResponseStreamWriter( httpListenerContext.Response.OutputStream );
                     }
                 }
-                catch ( Exception )
+                catch ( Exception exception )
                 {
                     try
                     {
-                        httpListenerContext.Response.OutputStream.Write(Constants.CustomErrorResponse.InternalServerError500); // Attempt to write an error message
+                        httpListenerContext.Response.OutputStream.Write( Constants.CustomErrorResponse.InternalServerError500 ); // Attempt to write an error message
                     }
-                    catch (Exception) { /* Gulp */ }
+                    catch ( Exception )
+                    {
+                         /* Gulp */
+                    }
+
+                    if ( exception.GetType() == typeof ( HttpListenerException ) && server.HttpListenerConfiguration.IgnoreHttpListenerExceptions )
+                    {
+                        return;
+                    }
+
+                    if ( nanoContext != null )
+                    {
+                        nanoContext.WriteNanoContextDataToExceptionData( exception );
+                    }
 
                     throw;
                 }
@@ -2150,8 +2535,9 @@ namespace Nano.Web.Core
             /// <summary>Maps a <see cref="System.Net.HttpListenerContext" /> to <see cref="NanoContext" />.</summary>
             /// <param name="httpListenerContext">The HTTP listener context.</param>
             /// <param name="server">The server.</param>
+            /// <param name="requestTimestamp">The initial timestamp of the current HTTP request.</param>
             /// <returns>Mapped <see cref="NanoContext" />.</returns>
-            public static NanoContext MapHttpListenerContextToNanoContext( HttpListenerContext httpListenerContext, HttpListenerNanoServer server )
+            public static NanoContext MapHttpListenerContextToNanoContext( HttpListenerContext httpListenerContext, HttpListenerNanoServer server, DateTime requestTimestamp )
             {
                 string httpMethod = httpListenerContext.Request.HttpMethod;
                 string basePath = String.Empty;
@@ -2177,8 +2563,8 @@ namespace Nano.Web.Core
                 
                 RequestStream requestStream = RequestStream.FromStream( httpListenerContext.Request.InputStream, httpListenerContext.Request.Headers["Content-Length"] );
                 var results = RequestBodyParser.ParseRequestBody( httpListenerContext.Request.Headers[ "Content-Type" ], httpListenerContext.Request.ContentEncoding, requestStream, server.NanoConfiguration.RequestParameterLimit );
-                var nanoRequest = new NanoRequest( httpMethod, url, requestStream, httpListenerContext.Request.QueryString, results.FormBodyParameters, httpListenerContext.Request.Headers, results.Files );
-                var nanoContext = new NanoContext( nanoRequest, new NanoResponse(), server.NanoConfiguration ) { HostContext = httpListenerContext, RootFolderPath = server.NanoConfiguration.ApplicationRootFolderPath };
+                var nanoRequest = new NanoRequest( httpMethod, url, requestStream, httpListenerContext.Request.QueryString, results.FormBodyParameters, httpListenerContext.Request.Headers, results.Files, httpListenerContext.Request.RemoteEndPoint == null ? null : httpListenerContext.Request.RemoteEndPoint.Address.ToString() );
+                var nanoContext = new NanoContext( nanoRequest, new NanoResponse(), server.NanoConfiguration, requestTimestamp ) { HostContext = httpListenerContext, RootFolderPath = server.NanoConfiguration.ApplicationRootFolderPath };
                 return nanoContext;
             }
 
@@ -2276,6 +2662,10 @@ namespace Nano.Web.Core
             /// </summary>
             public Action<Exception> UnhandledExceptionHandler;
 
+            /// <summary>Ignore all <see cref="HttpListenerException"/>s that occur. Defaults to <see langword="true"/>.</summary>
+            /// <remarks>The most common scenario is when the underlying client connection closes but the server is still trying to send a response. In this case there is nothing that can be done except ignore the exception which is the intent of this configuration setting.</remarks>
+            public bool IgnoreHttpListenerExceptions = true;
+
             /// <summary>
             /// Gets or sets a property that determines if localhost uris are rewritten to htp://+:port/ style uris to allow for
             /// listening on all ports, but requiring either a url reservation, or admin access Defaults to false.
@@ -2299,6 +2689,7 @@ namespace Nano.Web.Core
             public HttpListenerConfiguration( IList<Uri> uris, bool rewriteLocalhost = false )
             {
                 HttpListener = new System.Net.HttpListener();
+                HttpListener.IgnoreWriteExceptions = true;
                 RewriteLocalhost = rewriteLocalhost;
                 AddPrefixes( uris );
             }
@@ -2391,7 +2782,7 @@ namespace Nano.Web.Core
             /// <summary>Handles the request.</summary>
             /// <param name="nanoContext">The <see cref="NanoContext" /> to handle.</param>
             /// <returns>The handled <see cref="NanoContext" />.</returns>
-            NanoContext HandleRequest( NanoContext nanoContext );
+            Task<NanoContext> HandleRequestAsync( NanoContext nanoContext );
 
             /// <summary>
             /// Called by the framework to process the request. Encapsulates invoking the event handlers and user implemented
@@ -2399,7 +2790,7 @@ namespace Nano.Web.Core
             /// </summary>
             /// <param name="nanoContext">The <see cref="NanoContext" /> to process.</param>
             /// <returns>The processed <see cref="NanoContext" />.</returns>
-            NanoContext ProcessRequest( NanoContext nanoContext );
+            Task<NanoContext> ProcessRequestAsync( NanoContext nanoContext );
         }
 
         /// <summary>Base Nano request handler that provides common functionality for request handler implementers.</summary>
@@ -2432,7 +2823,7 @@ namespace Nano.Web.Core
             /// <summary>Handles the request.</summary>
             /// <param name="nanoContext">The <see cref="NanoContext" /> to handle.</param>
             /// <returns>The handled <see cref="NanoContext" />.</returns>
-            public abstract NanoContext HandleRequest( NanoContext nanoContext );
+            public abstract Task<NanoContext> HandleRequestAsync( NanoContext nanoContext );
 
             /// <summary>
             /// Called by the framework to process the request. Encapsulates invoking the various event handlers and user implemented
@@ -2440,22 +2831,22 @@ namespace Nano.Web.Core
             /// </summary>
             /// <param name="nanoContext">The <see cref="NanoContext" /> to process.</param>
             /// <returns>The processed <see cref="NanoContext" />.</returns>
-            public virtual NanoContext ProcessRequest( NanoContext nanoContext )
+            public virtual async Task<NanoContext> ProcessRequestAsync( NanoContext nanoContext )
             {
                 try
                 {
-                    if( EventHandler != null )
-                        EventHandler.InvokePreInvokeHandlers( nanoContext );
+                    nanoContext.NanoConfiguration.GlobalEventHandler.InvokePreInvokeHandlers(nanoContext);
 
-                    nanoContext.NanoConfiguration.GlobalEventHandler.InvokePreInvokeHandlers( nanoContext );
+                    if ( EventHandler != null )
+                        EventHandler.InvokePreInvokeHandlers( nanoContext );
 
                     if( nanoContext.Handled )
                         return nanoContext;
 
-                    nanoContext = HandleRequest( nanoContext );
+                    nanoContext = await HandleRequestAsync(nanoContext);
                     return nanoContext;
                 }
-                catch( Exception e )
+                catch (Exception e)
                 {
                     if ( e is TargetInvocationException && e.InnerException != null )
                         e = e.InnerException; // Hide Nano's outer 'TargetInvocationException' and just use the inner exception which is what almost everyone is going to desire
@@ -2463,17 +2854,20 @@ namespace Nano.Web.Core
                     nanoContext.Errors.Add( e );
                     nanoContext.ReturnHttp500InternalServerError();
 
-                    if( EventHandler != null )
-                        EventHandler.InvokeUnhandledExceptionHandlers( e, nanoContext );
+                    nanoContext.NanoConfiguration.GlobalEventHandler.InvokeUnhandledExceptionHandlers(e, nanoContext);
 
-                    nanoContext.NanoConfiguration.GlobalEventHandler.InvokeUnhandledExceptionHandlers( e, nanoContext );
+                    if (EventHandler != null)
+                        EventHandler.InvokeUnhandledExceptionHandlers(e, nanoContext);
                 }
                 finally
                 {
-                    if( EventHandler != null )
-                        EventHandler.InvokePostInvokeHandlers( nanoContext );
+                    nanoContext.NanoConfiguration.GlobalEventHandler.InvokePostInvokeHandlers(nanoContext);
 
-                    nanoContext.NanoConfiguration.GlobalEventHandler.InvokePostInvokeHandlers( nanoContext );
+                    if (EventHandler != null)
+                        EventHandler.InvokePostInvokeHandlers(nanoContext);
+
+                    if ( nanoContext.Response.ResponseStreamWriter == null )
+                        nanoContext.WriteResponseObjectToResponseStream();
                 }
 
                 return nanoContext;
@@ -2487,10 +2881,10 @@ namespace Nano.Web.Core
 			}
         }
 
-		/// <summary>
-		/// Defines a request handler that returns files from a file system.
-		/// </summary>
-		public abstract class FileSystemRequestHandler : RequestHandler
+        /// <summary>
+        /// Defines a request handler that returns files from a file system.
+        /// </summary>
+        public abstract class FileSystemRequestHandler : RequestHandler
 		{
 			private static readonly ConcurrentDictionary<string, string> Paths = new ConcurrentDictionary<string, string>();
             
@@ -2605,51 +2999,85 @@ namespace Nano.Web.Core
             /// <value>The default documents.</value>
             public IList<string> DefaultDocuments { get; set; }
 
+            /// <summary>Gets or sets the default documents.</summary>
+            /// <value>The default documents.</value>
+            public static ConcurrentDictionary<string, string> FileCache = new ConcurrentDictionary<string, string>();
+
             /// <summary>Handles the request.</summary>
             /// <param name="nanoContext">The <see cref="NanoContext" />.</param>
             /// <returns>Handled <see cref="NanoContext" />.</returns>
-            public override NanoContext HandleRequest( NanoContext nanoContext )
+#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
+            public override async Task<NanoContext> HandleRequestAsync( NanoContext nanoContext )
+#pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
             {
                 // Turn this: ( http://localhost:50463/dashboard/sub/helpers.js ) into this: ( C:\YourApp\www\dashboard\sub\helpers.js )
                 string partialRequestPath = ReplaceFirstOccurrence( nanoContext.Request.Url.Path.ToLower(), UrlPath.ToLower(), "" );
                 string encodedPartialRequestPath = partialRequestPath.Replace( "/", Constants.DirectorySeparatorString ).TrimStart( Constants.DirectorySeparatorChar );
                 string fullFileSystemPath = Path.Combine( nanoContext.RootFolderPath, FileSystemPath, encodedPartialRequestPath );
 
-				if ( IsCaseSensitiveFileSystem ) fullFileSystemPath = GetPathCaseSensitive( fullFileSystemPath );
+                if ( IsCaseSensitiveFileSystem ) fullFileSystemPath = GetPathCaseSensitive( fullFileSystemPath );
 
-				if ( !String.IsNullOrWhiteSpace( fullFileSystemPath ) )
-				{					
-					if ( nanoContext.TryReturnFile( new FileInfo( fullFileSystemPath ) ) ) return nanoContext;
-                
-					var directoryInfo = new DirectoryInfo( fullFileSystemPath );			
+                if ( !String.IsNullOrWhiteSpace( fullFileSystemPath ) && !ContainsInvalidPathCharacters( fullFileSystemPath ) )
+                {
+                    FileInfo fileInfo = null;
 
-					if ( directoryInfo.Exists )
-					{
-						// If the URL does not end with a forward slash then redirect to the same URL with a forward slash
-						// so that relative URLs will work correctly
-						if ( nanoContext.Request.Url.Path.EndsWith( "/", StringComparison.Ordinal ) == false )
-						{
-							string url = nanoContext.Request.Url.BasePath + nanoContext.Request.Url.Path + "/" + nanoContext.Request.Url.Query;
-							nanoContext.Response.Redirect( url );
-							return nanoContext;
-						}
+                    try
+                    {
+                        fileInfo = new FileInfo(fullFileSystemPath);
+                    }
+                    catch ( ArgumentException )
+                    {
+                        return nanoContext.ReturnHttp404NotFound();
+                    }
 
-						foreach ( string defaultDocument in DefaultDocuments )
-						{
-							string path = Path.Combine( fullFileSystemPath, defaultDocument );
+                    if ( nanoContext.TryReturnFile( fileInfo ) ) return nanoContext;
 
-							if ( IsCaseSensitiveFileSystem )
-								path = GetPathCaseSensitive( path );
+                    var directoryInfo = new DirectoryInfo( fullFileSystemPath );
 
-							if ( nanoContext.TryReturnFile( new FileInfo( path ) ) )
-								return nanoContext;
-						}
-					}
-				}
+                    if ( directoryInfo.Exists )
+                    {
+                        // If the URL does not end with a forward slash then redirect to the same URL with a forward slash
+                        // so that relative URLs will work correctly
+                        if ( nanoContext.Request.Url.Path.EndsWith( "/", StringComparison.Ordinal ) == false )
+                        {
+                            string url = nanoContext.Request.Url.BasePath + nanoContext.Request.Url.Path + "/" + nanoContext.Request.Url.Query;
+                            nanoContext.Response.Redirect( url );
+                            return nanoContext;
+                        }
 
-                if( ReturnHttp404WhenFileWasNoFound ) return nanoContext.ReturnHttp404NotFound();
+                        foreach ( string defaultDocument in DefaultDocuments )
+                        {
+                            string path = Path.Combine( fullFileSystemPath, defaultDocument );
+
+                            if ( IsCaseSensitiveFileSystem )
+                                path = GetPathCaseSensitive( path );
+
+                            if ( nanoContext.TryReturnFile( new FileInfo( path ) ) )
+                                return nanoContext;
+                        }
+                    }
+                }
+
+                if ( ReturnHttp404WhenFileWasNoFound ) return nanoContext.ReturnHttp404NotFound();
 
                 return nanoContext;
+            }
+
+            /// <summary>Determines if the path contains invalid characters.</summary>
+            /// <remarks>This method is intended to prevent ArgumentException's from being thrown when creating a new FileInfo on a file path with invalid characters.</remarks>
+            /// <param name="filePath">File path.</param>
+            /// <returns>True if file path contains invalid characters.</returns>
+            private static bool ContainsInvalidPathCharacters(string filePath)
+            {
+                for (var i = 0; i < filePath.Length; i++)
+                {
+                    int c = filePath[i];
+                    
+                    if (c == '\"' || c == '<' || c == '>' || c == '|' || c == '*' || c == '?' || c < 32)
+                        return true;
+                }
+
+                return false;
             }
 
             /// <summary>
@@ -2666,6 +3094,27 @@ namespace Nano.Web.Core
                 if( pos < 0 )
                     return originalString;
                 return originalString.Substring( 0, pos ) + replacementString + originalString.Substring( pos + stringToReplace.Length );
+            }
+
+            /// <summary>
+            /// Returns a string of the hashed file contents
+            /// </summary>
+            /// <param name="fileInfo">The original string.</param>
+            /// <returns>Hashed file contents.</returns>
+            public static string GetFileHash(FileInfo fileInfo)
+            {
+                if ( FileCache.ContainsKey( fileInfo.Name ) )
+                    return FileCache[ fileInfo.Name ];
+
+                string fileHash;
+                using (FileStream stream = fileInfo.OpenRead())
+                {
+                    MD5 md5 = new MD5CryptoServiceProvider();
+                    byte[] hash = md5.ComputeHash(stream);
+                    fileHash = BitConverter.ToString(hash).Replace("-", String.Empty);
+                }
+                FileCache[ fileInfo.Name ] = fileHash;
+                return fileHash;
             }
 
             /// <summary>Root Directory exception.</summary>
@@ -2699,7 +3148,9 @@ namespace Nano.Web.Core
             /// <summary>Handles the request.</summary>
             /// <param name="nanoContext">The <see cref="NanoContext" />.</param>
             /// <returns>Handled <see cref="NanoContext" />.</returns>
-            public override NanoContext HandleRequest( NanoContext nanoContext )
+#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
+            public override async Task<NanoContext> HandleRequestAsync( NanoContext nanoContext )
+#pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
             {
                 string fullFilePath = Path.Combine( nanoContext.RootFolderPath, FileSystemPath );
 
@@ -2712,14 +3163,14 @@ namespace Nano.Web.Core
         }
         
         /// <summary>Handles requests to <see cref="Func" />s.</summary>
-        public class FuncRequestHandler : RequestHandler
+        public class FuncRequestHandler<T> : RequestHandler
         {
             /// <summary>Initializes a new instance of the <see cref="FuncRequestHandler" /> class.</summary>
             /// <param name="urlPath">The URL path.</param>
             /// <param name="eventHandler">The event handler.</param>
             /// <param name="func">The function.</param>
             /// <exception cref="System.ArgumentNullException">func</exception>
-            public FuncRequestHandler( string urlPath, EventHandler eventHandler, Func<NanoContext, object> func )
+            public FuncRequestHandler( string urlPath, EventHandler eventHandler, Func<NanoContext, T> func )
                 : base( urlPath, eventHandler )
             {
                 if( func == null )
@@ -2730,24 +3181,36 @@ namespace Nano.Web.Core
 
             /// <summary>Gets the function.</summary>
             /// <value>The function.</value>
-            public Func<NanoContext, object> Func { get; private set; }
+            public Func<NanoContext, T> Func { get; private set; }
             
             /// <summary>Handles the request.</summary>
             /// <param name="nanoContext">The <see cref="NanoContext" />.</param>
             /// <returns>Handled <see cref="NanoContext" />.</returns>
-            public override NanoContext HandleRequest( NanoContext nanoContext )
+            public override async Task<NanoContext> HandleRequestAsync( NanoContext nanoContext )
             {
                 nanoContext.Handled = true;
-                nanoContext.Response.ResponseObject = Func( nanoContext );
+                var method = Func.GetMethodInfo();
+
+                if ( method.ReturnType == typeof( Task ) )
+                {
+                    await (dynamic)Func( nanoContext );
+                }
+                else if ( method.ReturnType.BaseType == typeof( Task ) && method.ReturnType.IsGenericType )
+                {
+                    nanoContext.Response.ResponseObject = await (dynamic)Func( nanoContext );
+                }
+                else
+                {
+                    nanoContext.Response.ResponseObject = Func( nanoContext );
+                }
 
                 // Handle null responses and void methods
-                if( nanoContext.Response.ResponseObject == null || nanoContext.Response.ResponseObject == nanoContext )
+                if ( nanoContext.Response.ResponseObject == null || nanoContext.Response.ResponseObject == nanoContext )
                     return nanoContext;
 
                 if ( string.IsNullOrWhiteSpace( nanoContext.Response.ContentType ) )
                     nanoContext.Response.ContentType =  "application/json";
-
-                nanoContext.WriteResponseObjectToResponseStream();
+                
                 return nanoContext;
             }
         }
@@ -2766,10 +3229,13 @@ namespace Nano.Web.Core
             /// <summary>Handles the request.</summary>
             /// <param name="nanoContext">The <see cref="NanoContext" />.</param>
             /// <returns>Handled <see cref="NanoContext" />.</returns>
-            public override NanoContext HandleRequest( NanoContext nanoContext )
+#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
+            public override async Task<NanoContext> HandleRequestAsync( NanoContext nanoContext )
+#pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
             {
                 nanoContext.Handled = true;
                 var apiMetadata = new ApiMetadata();
+                apiMetadata.ApplicationName = nanoContext.NanoConfiguration.ApplicationName;
 
                 foreach( MethodRequestHandler methodRequestHandler in nanoContext.NanoConfiguration.RequestHandlers.OfType<MethodRequestHandler>() )
                 {
@@ -2779,6 +3245,7 @@ namespace Nano.Web.Core
                         continue;
 
                     var metadata = new OperationMetaData { UrlPath = methodRequestHandler.CaseSensitiveUrlPath };
+
                     metadata.Name = metadataProvider.GetOperationName( nanoContext, methodRequestHandler );
                     metadata.Description = metadataProvider.GetOperationDescription( nanoContext, methodRequestHandler );
                     IList<MethodParameter> parameters = metadataProvider.GetOperationParameters( nanoContext, methodRequestHandler );
@@ -2798,13 +3265,21 @@ namespace Nano.Web.Core
 
                     var returnParameterType = metadataProvider.GetOperationReturnParameterType( nanoContext, methodRequestHandler );
                     metadata.ReturnParameterType = GetTypeName( returnParameterType );
+
                     AddModels( apiMetadata, returnParameterType );
                     apiMetadata.Operations.Add( metadata );
                 }
 
+                //Adding types specified in configuration namespaces
+                var assembly = Assembly.GetExecutingAssembly();
+                var types = assembly.GetTypes().Where(t => nanoContext.NanoConfiguration.MetadataNamespaces.Contains(t.Namespace) && t.IsPublic);
+                foreach (var x in types)
+                {
+                    AddModels(apiMetadata, x);
+                }
+
                 nanoContext.Response.ResponseObject = apiMetadata;
                 nanoContext.Response.ContentType = "application/json";
-                nanoContext.WriteResponseObjectToResponseStream();
                 return nanoContext;
             }
 
@@ -2813,17 +3288,35 @@ namespace Nano.Web.Core
             /// <param name="type">Type to crawl.</param>
             public static void AddModels( ApiMetadata apiMetadata, Type type )
             {
+                if ( type == null || type.FullName == null )
+                    return;
+
                 var nestedUserTypes = new List<Type>();
 
                 if( type.IsGenericType )
                 {
-                    type = type.GetGenericArguments().FirstOrDefault();
+                    var types = type.GetGenericArguments();
+                    nestedUserTypes.AddRange(types.Where(t => t.FullName != null));
+
+                    type = type.GetGenericTypeDefinition();
+
+                    types = type.GetGenericArguments();
+                    foreach ( var t in types )
+                    {
+                        if ( t.FullName == null || nestedUserTypes.Contains(t) )
+                            continue;
+
+                        nestedUserTypes.Add( t );
+                    }
+
+                    foreach ( Type nestedUserType in nestedUserTypes )
+                        AddModels( apiMetadata, nestedUserType );
                 }
 
                 // Adding all user types as "Models"
                 if ( type != null && IsUserType( type ) && apiMetadata.Models.Any( x => x.Type == type.Name ) == false )
                 {
-                    var modelMetadata = new ModelMetadata { Type = type.Name, Description = GetDescription( type ) };
+                    var modelMetadata = new ModelMetadata { Type = GetTypeName( type ), Description = GetDescription( type ) };
                     FieldInfo[] fields = type.GetFields();
 
                     foreach( FieldInfo field in fields )
@@ -2915,45 +3408,45 @@ namespace Nano.Web.Core
                                          type.Namespace.StartsWith( "System" ) == false &&
                                          type.Namespace.StartsWith( "Microsoft" ) == false );
             }
-
-            /// <summary>Determines if a type is a nested User Type meaning it is not a standard .NET type.</summary>
-            /// <param name="type">Type.</param>
-            /// <returns>Boolean value.</returns>
-            public static bool IsNestedUserType( Type type )
-            {
-                if( type.IsGenericType )
-                {
-                    type = type.GetGenericArguments().FirstOrDefault();
-                }
-
-                return IsUserType( type );
-            }
-
-            /// <summary>Gets the type name.</summary>
+            
+            /// <summary>
+            /// Gets the type name.
+            /// </summary>
             /// <param name="type">Type.</param>
             /// <returns>Type name.</returns>
             public static string GetTypeName( Type type )
             {
+                if ( type == null )
+                    return "";
+
+                if ( type.FullName == null )
+                    return type.Name;
+
+                string name = type.Name.Replace( '+', '.' );
+
                 if ( type.IsGenericType )
                 {
-                    var genericArgument = type.GetGenericArguments().FirstOrDefault();
+                    int backtickIndex = name.IndexOf( '`' );
 
-                    var genericIndex = type.FullName.IndexOf( "`1", StringComparison.Ordinal );
-
-                    if ( genericArgument != null && genericIndex > 1 )
+                    if ( backtickIndex > 0 )
                     {
-                        var typeName = type.FullName.Substring( 0, genericIndex );
-
-                        return typeName + "<" + genericArgument.Name + ">";
+                        name = name.Remove( backtickIndex ); // Get string before backtick. ie. "Nullable`1" becomes "Nullable"
                     }
+
+                    name += "<";
+
+                    var typeParameters = type.GetGenericArguments();
+
+                    for ( var i = 0; i < typeParameters.Length; ++i )
+                    {
+                        string typeParameterName = GetTypeName( typeParameters[ i ] );
+                        name += ( i == 0 ? typeParameterName : "," + typeParameterName );
+                    }
+
+                    name += ">";
                 }
 
-                Type underlyingType = Nullable.GetUnderlyingType( type );
-
-                if( underlyingType != null )
-                    return "Nullable<" + underlyingType.Name + ">";
-
-                return type.Name;
+                return name;
             }
         }
 
@@ -2999,11 +3492,22 @@ namespace Nano.Web.Core
             /// <summary>Handles the request.</summary>
             /// <param name="nanoContext">The <see cref="NanoContext" />.</param>
             /// <returns>Handled <see cref="NanoContext" />.</returns>
-            public override NanoContext HandleRequest( NanoContext nanoContext )
+            public override async Task<NanoContext> HandleRequestAsync( NanoContext nanoContext )
             {
                 nanoContext.Handled = true;
                 object[] parameters = Bind( nanoContext, this );
-                nanoContext.Response.ResponseObject = Method.Invoke( null, parameters );
+                if (Method.ReturnType == typeof(Task))
+                {
+                    await (dynamic)Method.Invoke(null, parameters);
+                }
+                else if (Method.ReturnType.BaseType == typeof(Task) && Method.ReturnType.IsGenericType)
+                {
+                    nanoContext.Response.ResponseObject = await (dynamic)Method.Invoke( null, parameters );
+                }
+                else
+                {
+                    nanoContext.Response.ResponseObject = Method.Invoke( null, parameters );
+                }
 
                 // Handle null responses and void methods
                 if( nanoContext.Response.ResponseObject == null || nanoContext.Response.ResponseObject == nanoContext )
@@ -3011,8 +3515,7 @@ namespace Nano.Web.Core
 
                 if ( string.IsNullOrWhiteSpace( nanoContext.Response.ContentType ) )
                     nanoContext.Response.ContentType = "application/json";
-
-                nanoContext.WriteResponseObjectToResponseStream();
+                
                 return nanoContext;
             }
 
@@ -3246,6 +3749,10 @@ namespace Nano.Web.Core
             public virtual Type GetOperationReturnParameterType( NanoContext nanoContext, IRequestHandler requestHandler )
             {
                 MethodRequestHandler handler = GetMethodRequestHandler( requestHandler );
+                if (handler.Method.ReturnType == typeof (Task))
+                    return typeof (void);
+                if (handler.Method.ReturnType.BaseType == typeof (Task))
+                    return handler.Method.ReturnType.GenericTypeArguments[0];
                 return handler.Method.ReturnType;
             }
 
@@ -3271,7 +3778,10 @@ namespace Nano.Web.Core
         public class ApiMetadata
         {
             /// <summary>Api metadata version.</summary>
-            public string Version = "0.2.0";
+            public string Version = "0.3.0";
+
+            /// <summary>Application name..</summary>
+            public string ApplicationName = AppDomain.CurrentDomain.FriendlyName;
 
             /// <summary>The API models.</summary>
             public IList<ModelMetadata> Models = new List<ModelMetadata>();
@@ -4435,6 +4945,42 @@ namespace Nano.Web.Core
             }
         }
 
+        /// <summary>
+        /// TimeSpan Helper.
+        /// </summary>
+        public static class TimeSpanHelper
+        {
+            /// <summary>
+            /// Returns a formatted string of the given timespan.
+            /// </summary>
+            /// <remarks>
+            /// Supports up to microsecond resolution.
+            /// </remarks>
+            /// <example>
+            /// 1 days 6 hours 52 min 34 sec 556 ms
+            /// </example>
+            /// <returns>A string with a customized output of the elapsed time.</returns>
+            public static string GetNanoFormattedTime(this TimeSpan timeSpan)
+            {
+                string elapsedTime;
+
+                if (timeSpan.Days > 0)
+                    elapsedTime = string.Format("{0:%d} d {0:%h} hrs {0:%m} min {0:%s} sec {0:%fff} ms", timeSpan);
+                else if (timeSpan.Hours > 0)
+                    elapsedTime = string.Format("{0:%h} hrs {0:%m} min {0:%s} sec {0:%fff} ms", timeSpan);
+                else if (timeSpan.Minutes > 0)
+                    elapsedTime = string.Format("{0:%m} min {0:%s} sec {0:%fff} ms", timeSpan);
+                else if (timeSpan.Seconds > 0)
+                    elapsedTime = string.Format("{0:%s} sec {0:%fff} ms", timeSpan);
+                else if (timeSpan.Milliseconds > 0)
+                    elapsedTime = string.Format("{0:%fff} ms", timeSpan);
+                else
+                    elapsedTime = string.Format("{0} µs", timeSpan.TotalMilliseconds * 1000.0);
+
+                return elapsedTime;
+            }
+        }
+
         /// <summary>Provides helper methods for writing to the operating system event log.</summary>
         public static class EventLogHelper
         {
@@ -4469,35 +5015,64 @@ namespace Nano.Web.Core
 
             /// <summary>Generates a text-based error message.</summary>
             /// <param name="exception">The exception to generate the error message from.</param>
-            /// <param name="stringBuilder">StringBuilder instance to append the error message to.</param>
+            /// <param name="sb">StringBuilder instance to append the error message to.</param>
             /// <param name="recursionLevel">The number of iterations this method has been called recursively.</param>
-            public static void GenerateTextErrorMessage(Exception exception, StringBuilder stringBuilder, int recursionLevel)
+            public static void GenerateTextErrorMessage( Exception exception, StringBuilder sb, int recursionLevel = 0 )
             {
                 if ( recursionLevel > 25 )
                     return; // Something has most likely went very wrong so return early to avoid a stack overflow
 
-                if (recursionLevel > 0)
-                {
-                    string prefix = "";
+                string prefix = "";
 
-                    for (int i = 0; i < recursionLevel; i++)
+                if ( recursionLevel > 0 )
+                {
+                    for ( int i = 0; i < recursionLevel; i++ )
                         prefix += "  ";
 
-                    stringBuilder.AppendLine(prefix + "Inner Exception Error Message:");
-                    stringBuilder.AppendLine(prefix + exception.Message).AppendLine();
-                    stringBuilder.AppendLine(prefix + "Inner Exception Stack Trace:");
-                    stringBuilder.AppendLine(prefix + exception.StackTrace).AppendLine();
-                }
-                else
-                {
-                    stringBuilder.AppendLine("Exception Error Message:");
-                    stringBuilder.AppendLine(exception.Message).AppendLine();
-                    stringBuilder.AppendLine("Exception Stack Trace:");
-                    stringBuilder.AppendLine(exception.StackTrace).AppendLine();
+                    prefix += "Inner ";
                 }
 
-                if (exception.InnerException != null)
-                    GenerateTextErrorMessage(exception.InnerException, stringBuilder, ++recursionLevel);
+                sb.AppendSection( prefix, "Exception Information" );
+                sb.AppendDetails( prefix, "Exception Type", exception.GetType().ToString() );
+                sb.AppendDetails( prefix, "Exception Message", exception.Message );
+                sb.AppendLine( exception.StackTrace ).AppendLine();
+
+                using ( var currentProcess = Process.GetCurrentProcess() )
+                {
+                    var ipGlobalProperties = IPGlobalProperties.GetIPGlobalProperties();
+
+                    sb.AppendSection( prefix, "Application Information" );
+                    sb.AppendDetails( prefix, "Machine Name", ipGlobalProperties.HostName + "." + ipGlobalProperties.DomainName );
+                    sb.AppendDetails( prefix, "Domain User", Environment.UserDomainName + "\\" + Environment.UserName );
+                    sb.AppendDetails( prefix, "Application Domain Name", AppDomain.CurrentDomain.FriendlyName );
+                    sb.AppendDetails( prefix, "Process Name", currentProcess.ProcessName );
+                    sb.AppendDetails( prefix, "Process Id", currentProcess.Id.ToString() );
+                }
+
+                if ( exception.Data.Keys.Count > 0 )
+                {
+                    sb.AppendLine().AppendSection( prefix, "Additional Information" );
+
+                    foreach ( DictionaryEntry dictionaryEntry in exception.Data )
+                    {
+                        sb.AppendDetails( prefix, dictionaryEntry.Key.ToString(), dictionaryEntry.Value == null ? "" : dictionaryEntry.Value.ToString() );
+                    }
+
+                    sb.AppendLine();
+                }
+
+                if ( exception.InnerException != null )
+                    GenerateTextErrorMessage( exception.InnerException, sb, ++recursionLevel );
+            }
+
+            private static StringBuilder AppendSection(this StringBuilder sb, string prefix, string sectionName )
+            {
+                return sb.AppendFormat( "{0}{1}:", prefix, sectionName ).AppendLine();
+            }
+
+            private static StringBuilder AppendDetails( this StringBuilder sb, string prefix, string detailName, string detailValue )
+            {
+                return sb.AppendFormat("{0}  {1}: {2}", prefix, detailName, detailValue ).AppendLine();
             }
         }
 

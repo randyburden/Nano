@@ -6,11 +6,11 @@ using System.Runtime.InteropServices;
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
 [assembly: AssemblyTitle("Nano")]
-[assembly: AssemblyDescription( "Nano is a .NET cross-platform micro web framework for building web-based HTTP services and websites." )]
+[assembly: AssemblyDescription("Nano is a .NET cross-platform micro web framework for building web-based HTTP services and websites.")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany( "Ambit Energy" )]
+[assembly: AssemblyCompany("Ambit Energy")]
 [assembly: AssemblyProduct("Nano")]
-[assembly: AssemblyCopyright( "Copyright © 2015 Ambit Energy. All rights reserved." )]
+[assembly: AssemblyCopyright("Copyright © 2015 Ambit Energy. All rights reserved.")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
@@ -20,7 +20,7 @@ using System.Runtime.InteropServices;
 [assembly: ComVisible(false)]
 
 // The following GUID is for the ID of the typelib if this project is exposed to COM
-[assembly: Guid("c33bfc7d-1acf-4669-a622-8161a11de680")]
+[assembly: Guid("88df38e2-9d22-4177-b8b5-b05f2de5dca4")]
 
 // Version information for an assembly consists of the following four values:
 //
@@ -32,5 +32,5 @@ using System.Runtime.InteropServices;
 // You can specify all the values or you can default the Build and Revision Numbers 
 // by using the '*' as shown below:
 // [assembly: AssemblyVersion("1.0.*")]
-[assembly: AssemblyVersion("0.13.0.0")]
-[assembly: AssemblyFileVersion("0.13.0.0")]
+[assembly: AssemblyVersion("0.15.0.0")]
+[assembly: AssemblyFileVersion("0.15.0.0")]
