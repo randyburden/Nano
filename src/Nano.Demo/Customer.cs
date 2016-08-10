@@ -382,6 +382,90 @@ namespace Nano.Demo
         }
 
         /// <summary>
+        /// Takes in a list
+        /// </summary>
+        /// <param name="listOfInts">some really good description of a list</param>
+        /// <returns>true</returns>
+        public static bool TakeGenericListParameter( List<int> listOfInts )
+        {
+            return true;
+        }
+
+        /// <summary>
+        /// Takes a dictionary
+        /// </summary>
+        /// <param name="dictionary">some really good description of a dictionary</param>
+        /// <returns>true</returns>
+        public static bool TakeDictionaryParameter(Dictionary<int, string> dictionary)
+        {
+            return true;
+        }
+
+        /// <summary>
+        /// Takes a list of lists
+        /// </summary>
+        /// <param name="listOfListParm">A good desription of a list of lists</param>
+        public static bool TakeListOfListParameter(List<List<int>> listOfListParm)
+        {
+            return true;
+        }
+
+        /// <summary>
+        /// Takes a list of Dictonary
+        /// </summary>
+        /// <param name="listOfDictionaryParm">A good descrption of a List of Dictionary</param>
+        public static bool TakeListOfDictionarysParameter(List<Dictionary<int, object>> listOfDictionaryParm)
+        {
+            return true;
+        }
+
+        /// <summary>
+        /// Takes a Dictionary of Dictionary
+        /// </summary>
+        /// <param name="dictionaryOfDictionaryParm">A good description of a dictionary of dictionary</param>
+        public static bool TakeDictionaryOfDictionarysParameter(Dictionary<int, Dictionary<int, object>> dictionaryOfDictionaryParm)
+        {
+            return true;
+        }
+
+        /// <summary>
+        /// Takes an IEnumerable
+        /// </summary>
+        /// <param name="iEnumerable">A good description of an IEnumerable</param>
+        public static bool TakeIEnumerableParameter(IEnumerable<int> iEnumerable)
+        {
+            return true;
+        }
+
+        /// <summary>
+        /// Takes a Tuple
+        /// </summary>
+        /// <param name="tuple">A good description of a Tuple</param>
+        public static bool TakeTupleParameter(Tuple<int, string, object> tuple)
+        {
+            return true;
+        }
+
+        /// <summary>
+        /// Takes a Func
+        /// </summary>
+        /// <param name="funcParam">A good description of a Func</param>
+        /// <returns></returns>
+        public static bool TakeFuncParameter(Func<int, int, int, int, int> funcParam)
+        {
+            return true;
+        }
+
+        /// <summary>
+        /// Takes a very nested Func
+        /// </summary>
+        /// <param name="veryNestedfuncParam">A good description of a very nested Func</param>
+        public static bool TakeVeryNestedFuncParameter(Func<Func<Func<Func<int>>>> veryNestedfuncParam)
+        {
+            return true;
+        }
+
+        /// <summary>
         /// Api Response.
         /// </summary>
         /// <typeparam name="T">Response type.</typeparam>

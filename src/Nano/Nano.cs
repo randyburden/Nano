@@ -4708,26 +4708,35 @@ namespace Nano.Web.Core
             {
                 // Handle nullable types
                 Type underlyingType = Nullable.GetUnderlyingType( parameterInfo.ParameterType );
-
                 if( underlyingType != null )
                     return string.Format( "System.Nullable{{{0}}}", GetFullTypeName( underlyingType ) );
 
+                // Handle generic types
+                if (parameterInfo.ParameterType.IsGenericType)
+                    return GetGenericTypeName(parameterInfo.ParameterType);
+
                 string parameterTypeFullName = GetFullTypeName( parameterInfo.ParameterType );
 
-                // Handle generic types
-                if( string.IsNullOrWhiteSpace( parameterTypeFullName ) )
-                {
-                    string typeName = parameterInfo.ParameterType.Name;
-                    Type genericParameter = methodInfo.GetGenericArguments().FirstOrDefault( x => x.Name == typeName );
+                return parameterTypeFullName;
+            }
 
-                    if( genericParameter != null )
-                    {
-                        int genericParameterPosition = genericParameter.GenericParameterPosition;
-                        return "``" + genericParameterPosition;
-                    }
+            public static string GetGenericTypeName( Type type )
+            {
+                var genericArgumentsArray = type.GetGenericArguments();
+                string genericTypeFullName = type.GetGenericTypeDefinition().FullName.Split('`')[0]; // disregard the stuff after the back-tick
+
+                string genericArguments = "";
+                for ( var i = 0; i < genericArgumentsArray.Length; i++ )
+                {
+                    if ( i > 0 )
+                        genericArguments += ",";
+                    string genericArgumentName = genericArgumentsArray[i].ToString();
+                    if ( genericArgumentsArray[ i ].IsGenericType )
+                        genericArgumentName = GetGenericTypeName(genericArgumentsArray[i]); // if generic argument is generic, recurse
+                    genericArguments += genericArgumentName;
                 }
 
-                return parameterTypeFullName;
+                return $"{genericTypeFullName}{{{genericArguments}}}";
             }
 
             /// <summary>Gets the full type name.</summary>

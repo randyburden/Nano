@@ -244,7 +244,7 @@ body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line
                 tbody += '<td><textarea id="' + formId + 'Form_' + param.Name + '" name="' + param.Name + '" class="inputParameter" style="height:20px;" rows="1"></textarea></td>';
             }
 
-            tbody += '<td>' + param.Type + '</td>';
+            tbody += '<td>' + escapeHTML(param.Type) + '</td>';
             tbody += '<td>' + (param.Description || '') + '</td>';
             tbody += '</tr>';
         }
@@ -1028,7 +1028,8 @@ body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line
                         method = replaceAllOccurrences(method, "{{AsyncSummary}}", "Asynchronously " + operationDescription.lowerCaseFirstLetter());
                     }else {
                         method = replaceAllOccurrences(method, "{{AsyncSummary}}", operationDescription);
-                    }
+                    }
+
 
                     if (operation.ReturnParameterType === "Void") {
                         method = replaceAllOccurrences(method, "return ", ""); // Remove return statement
@@ -1124,6 +1125,13 @@ body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line
     function doesStringContainHtml(string) {
         return /<[a-z][\s\S]*>/i.test(string);
     };
+
+    function escapeHTML(s) { 
+        return s.replace(/&/g, '&amp;')
+                .replace(/"/g, '&quot;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+    }
 
     function getJavascriptApiClassTemplate() {
 
