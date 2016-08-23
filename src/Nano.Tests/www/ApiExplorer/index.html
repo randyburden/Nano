@@ -1102,7 +1102,10 @@ body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line
 
             classTemplate = replaceAllOccurrences(classTemplate, "{{ClassName}}", model.Type);
             classTemplate = replaceAllOccurrences(classTemplate, "{{PropertyList}}", properties);
-            nestedClassList += classTemplate + "\n";
+            
+            if (nestedClassList.indexOf(classTemplate) <= 0) {
+                nestedClassList += classTemplate + "\n";
+            }
         }
 
         nestedClassList = nestedClassList === "" ? nestedClassList : nestedClassList.slice(0, -2); // Remove trailing line break
