@@ -999,18 +999,28 @@ namespace Nano.Web.Core
         /// <summary>Enables CORS ( Cross-origin resource sharing ) requests.</summary>
         /// <param name="nanoConfiguration">The nano configuration.</param>
         /// <param name="allowedOrigin">The allowed origin.</param>
-        public static void EnableCors( this NanoConfiguration nanoConfiguration, string allowedOrigin = "*" )
+        /// <param name="allowCredentials">Indicates whether the resource supports user credentials in the request such as cookies, authorization headers, or TLS client certificates. Important note: when responding to a credentialed request, the server must specify a domain and cannot use the wild carding string "*". By default, this method will populate Access-Control-Allow-Origin with the inbound domain origin if allowOrigin is set to wildcard string "*".</param>
+        public static void EnableCors( this NanoConfiguration nanoConfiguration, string allowedOrigin = "*", bool allowCredentials = true )
         {
-            nanoConfiguration.GlobalEventHandler.EnableCors( allowedOrigin );
+            nanoConfiguration.GlobalEventHandler.EnableCors( allowedOrigin, allowCredentials );
         }
-        
+
         /// <summary>Enables CORS ( Cross-origin resource sharing ) requests.</summary>
         /// <param name="eventHandler">The event handler.</param>
         /// <param name="allowedOrigin">The allowed origin.</param>
-        public static void EnableCors( this EventHandler eventHandler, string allowedOrigin = "*" )
+        /// <param name="allowCredentials">Indicates whether the resource supports user credentials in the request such as cookies, authorization headers, or TLS client certificates. Important note: when responding to a credentialed request, the server must specify a domain and cannot use the wild carding string "*". By default, this method will populate Access-Control-Allow-Origin with the inbound domain origin if allowOrigin is set to wildcard string "*".</param>
+        public static void EnableCors( this EventHandler eventHandler, string allowedOrigin = "*", bool allowCredentials = true )
         {
             eventHandler.PreInvokeHandlers.Add( context =>
             {
+                if ( allowCredentials )
+                {
+                    context.Response.HeaderParameters.Add( "Access-Control-Allow-Credentials", "true" );
+
+                    if ( allowedOrigin == "*")
+                        allowedOrigin = context.Request.Url.SiteBase;
+                }
+
                 context.Response.HeaderParameters.Add( "Access-Control-Allow-Origin", allowedOrigin );
 
                 if ( context.Request.HttpMethod == "OPTIONS" )
