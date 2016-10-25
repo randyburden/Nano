@@ -889,7 +889,7 @@ body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line
             '        /// <summary>Serializes the given object to a string.</summary>',
             '        public static Func<object, string> Serialize = obj =>',
             '        {',
-            '           if ( obj is string ) return obj.ToString();',
+            '           if ((obj is string) || (obj is Guid)) return obj.ToString();',
             '           if ( obj == null ) return null;',
             '           if (obj is DateTime) return Newtonsoft.Json.JsonConvert.SerializeObject(obj).Replace("\\"", "");',
             '           return Newtonsoft.Json.JsonConvert.SerializeObject( obj );',

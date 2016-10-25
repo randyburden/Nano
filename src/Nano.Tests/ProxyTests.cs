@@ -81,7 +81,14 @@ namespace Nano.Tests
 				Trace.WriteLine( createDynamicCustomerResponseJson );
 				Assert.That( createDynamicCustomerResponse.FirstName == "Clark" && createDynamicCustomerResponse.LastName == "Kent" );
 				Trace.WriteLine( "" );
-			}
+
+                Trace.WriteLine("CreateCustomerUsingGuid");
+                dynamic createCustomerWithGuidResponse = ApiProxy.Customer.CreateCustomerUsingGuid(new Guid());
+                string createCustomerWithGuidResponseJson = JsonConvert.SerializeObject(createDynamicCustomerResponse);
+                Trace.WriteLine(createCustomerWithGuidResponseJson);
+                Assert.That(createCustomerWithGuidResponse.FirstName == "Bob" && createCustomerWithGuidResponse.LastName == "Dole" && createCustomerWithGuidResponse.CustomerId == Guid.Empty);
+                Trace.WriteLine("");
+            }
 		}
 	}
 
@@ -104,7 +111,7 @@ namespace Nano.Tests
             /// <summary>Serializes the given object to a string.</summary>
             public static Func<object, string> Serialize = obj =>
             {
-                if (obj is string) return obj.ToString();
+                if ((obj is string) || (obj is Guid)) return obj.ToString();
                 if (obj == null) return null;
                 if (obj is DateTime) return Newtonsoft.Json.JsonConvert.SerializeObject(obj).Replace("\"", "");
                 return Newtonsoft.Json.JsonConvert.SerializeObject(obj);
@@ -217,6 +224,14 @@ namespace Nano.Tests
             {
                 var parameters = new System.Collections.Specialized.NameValueCollection { { "customer", Configuration.Serialize(customer) } };
                 return PostJson<Object>(Configuration.BaseApiUrl + "/api/Customer/CreateDynamicCustomer", parameters, correlationId);
+            }
+
+            /// <summary>Creates a customer using a Guid.</summary>
+            /// <param name="customerId">a guid.</param>
+            public static Object CreateCustomerUsingGuid(Guid customerId, object correlationId = null)
+            {
+                var parameters = new System.Collections.Specialized.NameValueCollection { { "customerId", Configuration.Serialize(customerId) } };
+                return PostJson<Object>(Configuration.BaseApiUrl + "/api/Customer/CreateCustomerUsingGuid", parameters, correlationId);
             }
 
             /// <summary>Returns the details of the files uploaded.</summary>

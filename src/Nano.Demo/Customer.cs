@@ -303,6 +303,23 @@ namespace Nano.Demo
         }
 
         /// <summary>
+        /// Creates a customer using a Guid.
+        /// </summary>
+        /// <param name="customerId">a guid.</param>
+        public static dynamic CreateCustomerUsingGuid(Guid customerId)
+        {
+            if (customerId == null)
+                throw new ArgumentNullException("customer");
+
+            return new
+            {
+                CustomerId = customerId,
+                FirstName = "Bob",
+                LastName = "Dole"
+            };
+        }
+
+        /// <summary>
         /// Returns the details of the files uploaded.
         /// </summary>
         /// <param name="nanoContext">The Nano context.</param>
