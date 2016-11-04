@@ -26,6 +26,7 @@ table.dataTable {width: 100%;margin: 0 auto;clear: both;border-collapse: separat
 body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line-height:1.428571429;color:#333;background-color:lightgray;}.inputParameter{white-space:pre;word-wrap:normal;overflow-x:auto;padding:5px;color:#444;font-size:13px;font-family:courier,"courier new",monospace;min-height: 20px;min-width: 200px;}.btn-primary{color:#fff;background-color:#428bca;border-color:#428bca}.btn-default{color:#fff;background-color:#474949;border-color:#474949}.btn{display:inline-block;padding:8px 12px;margin-bottom:0;font-size:14px;font-weight:500;line-height:1.428571429;text-align:center;white-space:nowrap;vertical-align:middle;cursor:pointer;border:1px solid transparent;border-radius:4px} .btn-submit{background-color:#4CAF50;color:#fff;} .btn-clear{background-color:#607D8B;color:#fff;} .btn-disabled{ background-color: #DDDDDD;} label{display:inline-block;margin-bottom:5px;font-weight:700}.operationItem{ margin: 5px;cursor: pointer;}.childRow{background-color:#fff}#operationTable>tfoot,#operationTable>thead{text-align:left}div.slider{display:none}table.dataTable tbody td.no-padding{padding:0}#NanoLogoSvg{float:left;}.header-text {float:left; margin-left:25px;}#DropdownFeatures {margin-right:15px;}.dataTables_filter {text-align: right; margin-right:15px;margin-top:15px;}.dataTables_filter input{ margin-left:4px;}
 /* Loader animation styles */
 .loader-walk{width:100px;height:40px;position:relative}.loader-walk>div{content:"";width:20px;height:20px;background:#4CAF50;border-radius:100%;position:absolute;-webkit-animation:animate 2s linear infinite;animation:animate 2s linear infinite}.loader-walk>div:nth-of-type(1){-webkit-animation-delay:-.4s;animation-delay:-.4s}.loader-walk>div:nth-of-type(2){-webkit-animation-delay:-.8s;animation-delay:-.8s}.loader-walk>div:nth-of-type(3){-webkit-animation-delay:-1.2s;animation-delay:-1.2s}.loader-walk>div:nth-of-type(4){-webkit-animation-delay:-1.6s;animation-delay:-1.6s}@-webkit-keyframes animate{0%,100%{left:100px;top:0}80%{left:0;top:0}85%{left:0;top:-20px;width:20px;height:20px}90%{width:40px;height:15px}95%{left:100px;top:-20px;width:20px;height:20px}}@keyframes animate{0%,100%{left:100px;top:0}80%{left:0;top:0}85%{left:0;top:-20px;width:20px;height:20px}90%{width:40px;height:15px}95%{left:100px;top:-20px;width:20px;height:20px}}
+.modelSignatureContainer{font-size:13px}.propType{color:#55a}.propertyContainer{margin-left:10px}.txtArea{height:20px}.textAreaModelLink{color:navy;text-decoration:underline;cursor:pointer}.textAreaModelClass{margin:0;font-size:13px;font-weight:700;min-width:270px;min-height:132px;overflow-y:scroll}.tableContainer{float:left}.modelContainer{float:left;position:relative;top:35px;left:20px}.tabContainer{line-height:1.6;border:1px solid #ccc;width:auto;margin:0 auto}ul.tabs{margin:0;padding:0;list-style:none}ul.tabs li{background:none;color:#222;font-weight:700;text-decoration:underline;display:inline-block;padding:10px 15px;cursor:pointer}ul.tabs li.current{background:#ededed;color:#222}.tab-content{display:none;background:#ededed;padding:15px}.tab-content.current{display:inherit}
     </style>
 </head>
 <body>
@@ -221,8 +222,238 @@ body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line
         return html;
     }
 
-    function getChildRowHtml(data) {
+    var cSharpNumerictType = ['Int32', 'Int16', 'Int64', 'Decimal', 'Double', 'Single', 'Nullable<Int32>', 'Nullable<Int16>', 'Nullable<Int64>', 'Nullable<Decimal>', 'Nullable<Double>', 'Nullable<Single>'];
 
+    function renderModelType(paramType, models) {
+        //find model
+        var findModel = function (objectName) {
+            return models.filter(function (element) {
+                return element.Type == objectName;
+            });
+        };
+
+        var modelTypeArray = [];
+        var seenObjectTypes = [];
+        var objectsVisited = [];
+
+        renderModelSignature = function () {
+
+            while (objectsVisited.length !== 0) {
+                var propObject = objectsVisited.pop();
+                modelTypeArray.push(`<div style="strong">${propObject.Type}{</div>`);
+                modelTypeArray.push(`<div class="propertyContainer">`);
+
+                for (var prop of propObject.Properties) {
+                    var isArrayType = false;
+                    var propertyType = prop.Type;
+                    var arrayType = "",
+                      enclose = "";
+
+                    var arraySubstitute = '${arrayType}${propertyType}${enclose}';
+                    modelTypeArray.push(`<div>`);
+                    modelTypeArray.push(`<span class="propName">${prop.Name}</span>&nbsp;(`);
+
+                    if (propertyType.includes("List") || propertyType.includes("[]")) {
+                        arrayType = "Array[";
+                        enclose = "]";
+                        if (propertyType.includes("[]")) {
+                            propertyType = propertyType.replace("[]", "");
+                        }
+                        else if (propertyType.includes("List")) {
+                            propertyType = propertyType.replace("List<", "").replace(">", "");
+                        }
+                        else if (propertyType.includes("IList")) {
+                            propertyType = propertyType.replace("IList<", "").replace(">", "");
+                        }
+                    }
+
+                    if (cSharpNumerictType.indexOf(propertyType) != -1) {
+                        modelTypeArray.push(`<span class="propType">${arrayType}Number${enclose}</span>`);
+                    }
+                    else if (propertyType == "String" || propertyType == "Char") {
+                        modelTypeArray.push(`<span class="propType">${arrayType}String${enclose}</span>`);
+                    }
+                    else if (propertyType.includes("Boolean")) {
+                        modelTypeArray.push(`<span class="propType">${arrayType}Boolean${enclose}</span>`);
+                    }
+                    else if (propertyType.includes("DateTime")) {
+                        modelTypeArray.push(`<span class="propType">${arrayType}Date${enclose}</span>`);
+                    }
+                    else {
+                        if (seenObjectTypes.indexOf(propertyType) == -1) {
+                            seenObjectTypes.push(propertyType);
+                            var typeObject = findModel(propertyType);
+
+                            if (typeof typeObject !== undefined && typeObject.length !== 0) {
+                                objectsVisited.push(typeObject[0]);
+                            }
+                        }
+                        modelTypeArray.push(`<span class="propType">${arrayType}${propertyType}${enclose}</span>`);
+                    }
+
+                    if (propertyType.includes("Nullable")) {
+                        modelTypeArray.push(`, <span class="propOptKey">optional</span>`);
+                    }
+
+                    modelTypeArray.push(`)`);
+                    modelTypeArray.push(`</div>`);
+                }
+
+                modelTypeArray.push(`</div>`);
+                modelTypeArray.push(`<span style="strong">}</span>`);
+            }
+        }
+
+        var typeObject = findModel(paramType);
+
+        if (typeof typeObject !== undefined && typeObject.length !== 0) {
+            seenObjectTypes.push(typeObject[0].Type);
+            objectsVisited.push(typeObject[0]);
+            modelTypeArray.push(`<div class="modelSignatureContainer">`);
+            renderModelSignature();
+            modelTypeArray.push(`</div>`);
+            return modelTypeArray.join('');
+        }
+    };
+
+    function renderModel(paramType, models) {
+        //find model
+        var findModel = function (objectName) {
+            return models.filter(function (element) {
+                return element.Type == objectName;
+            });
+        };
+
+        //detect recursion
+        var cycleDetected = function (objectGraph, objectTypeName) {
+            if (!objectGraph.hasOwnProperty(objectTypeName)) return false;
+            var obj = objectGraph[objectTypeName]
+            var seenObjects = [];
+
+            function detect(obj) {
+                if (obj && typeof obj === 'object') {
+                    if (seenObjects.indexOf(obj) !== -1) {
+                        return true;
+                    }
+                    seenObjects.push(obj);
+                    for (var key of obj) {
+                        if (objectGraph.hasOwnProperty(key) && detect(objectGraph[key])) {
+                            console.log(obj, 'cycle at ' + key);
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            }
+
+            return detect(obj);
+        };
+
+
+        var generateModel = function (typeObject, objectTypeName) {
+            jsonModelArray.push("{");
+
+            $.each(typeObject.Properties, function (index, property) {
+                jsonModelArray.push(`"${property.Name}":`);
+
+                if (cSharpNumerictType.indexOf(property.Type) != -1) {
+                    jsonModelArray.push('0');
+                } else if (property.Type == "String") {
+                    jsonModelArray.push('"string"');
+                } else if ( property.Type == "Char") {
+                    jsonModelArray.push('"c"');
+                } else if (property.Type.includes("Boolean") && !property.Type.includes('[]')) {
+                    jsonModelArray.push('false');
+                } else if (property.Type.includes("DateTime") && !property.Type.includes('[]')) {
+                    jsonModelArray.push('"0001-01-01T00:00:00"');
+                } else if (property.Type.includes('[]')) { //handling array property
+                    jsonModelArray.push(`[]`);
+                } else {
+                    var childObject = findModel(property.Type);
+
+                    if (childObject !== undefined && childObject.length !== 0) {
+
+                        if (!objectGraph.hasOwnProperty(objectTypeName)) {
+                            objectGraph[objectTypeName] = [];
+                        }
+
+                        objectGraph[objectTypeName].push(property.Type);
+                        if (!cycleDetected(objectGraph, property.Type)) {
+                            generateModel(childObject[0], property.Type);
+                        } else {
+                            objectGraph[objectTypeName].pop(property.Type); //cleanup cycle in object graph
+                            jsonModelArray.push(`{}`);
+                        }
+                    } else if (property.Type.includes("IList") || property.Type.includes("List")) {
+
+                        var childObjectName = property.Type.substring(property.Type.indexOf("<") + 1, property.Type.lastIndexOf(">"));
+
+                        var arrayChildObject = findModel(childObjectName);
+                        jsonModelArray.push(`[`);
+                        if (arrayChildObject !== undefined && arrayChildObject.length !== 0) {
+
+                            if (!objectGraph.hasOwnProperty(objectTypeName)) {
+                                objectGraph[objectTypeName] = [];
+                            }
+
+                            objectGraph[objectTypeName].push(childObjectName);
+
+                            if (!cycleDetected(objectGraph, childObjectName)) {
+                                generateModel(arrayChildObject[0], childObjectName);
+                            } else {
+                                objectGraph[objectTypeName].pop(childObjectName); //cleanup cycle in object graph
+                            }
+
+                        }
+
+                        jsonModelArray.push(`]`);
+                    } else {
+                        jsonModelArray.push(`{}`);
+                    }
+                }
+
+                if (index != typeObject.Properties.length - 1) {
+                    jsonModelArray.push(",");
+                }
+            });
+
+            jsonModelArray.push("}")
+        };
+
+        var jsonModelArray = [];
+        var typeObject = findModel(paramType);
+        var objectGraph = {};
+        generateModel(typeObject[0], paramType);
+        return jsonModelArray.join("");
+    };
+
+    function attachModelTabContainerEvent(txtAreaId, modelJsonString) {
+        $(document).on('click', 'ul.tabs li', function () {
+            var tab_id = $(this).attr('data-tab');
+            $(this).addClass('current').siblings().removeClass('current');
+            $("#" + tab_id).addClass('current').siblings().removeClass('current');
+
+            var $modelTxtAreaId = $("#" + txtAreaId);
+            $modelTxtAreaId.data("model", true);
+
+            if (tab_id == txtAreaId+"tab-example") {
+                $("#" + txtAreaId+ "tab-id-example").height($("#" + txtAreaId+"tab-id-example")[0].scrollHeight);
+
+                if (!$modelTxtAreaId.val()) {
+                    $modelTxtAreaId.val(JSON.stringify(JSON.parse(modelJsonString), undefined, 4))
+                           .removeClass('textAreaModelClass')
+                           .addClass('textAreaModelClass');
+                    $modelTxtAreaId.trigger("keyup");
+                }
+
+                $modelTxtAreaId.height($modelTxtAreaId[0].scrollHeight)
+            }
+
+        });
+    };
+
+    function getChildRowHtml(data, models) {
+        var modelTypeSignature,modelJsonString;
         var html = getOperationInputParametersTableTemplate();
         var urlPath = getBaseUrl() + data.Path;
         var formId = getFormId(data);
@@ -238,17 +469,38 @@ body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line
             tbody += '<tr>';
             tbody += '<td><label for="' + formId + 'Form_' + param.Name + '">' + param.Name + '</label></td>';
 
+            var txtAreaId=formId + 'Form_' + param.Name;
+
             if (param.Name.toLowerCase() === "password") {
                 tbody += '<td><input type="password"' + ' id="' + formId + 'Form_' + param.Name + '" name="' + param.Name + '" class="inputParameter" style="height:20px;" /></td>';
             } else {
-                tbody += '<td><textarea id="' + formId + 'Form_' + param.Name + '" name="' + param.Name + '" class="inputParameter" style="height:20px;" rows="1"></textarea></td>';
+                tbody += '<td><textarea id="' + txtAreaId + '" name="' + param.Name + '" class="inputParameter txtArea" rows="1"></textarea></td>';
             }
 
             tbody += '<td>' + escapeHTML(param.Type) + '</td>';
             tbody += '<td>' + (param.Description || '') + '</td>';
             tbody += '</tr>';
-        }
 
+            var customModel = models.filter(function (element) { return element.Type === param.Type; })
+            var isCustomModel=(typeof customModel !==undefined && customModel.length !==0);
+
+            if (isCustomModel) {
+                modelJsonString = renderModel(param.Type, models);
+                html = replaceAllOccurrences(html, '{{ModelTabContainer}}', getModelTemplate(txtAreaId));
+                html = replaceAllOccurrences(html, '{{TypeName}}',param.Type);
+                html = replaceAllOccurrences(html, '{{TypeModel}}',renderModelType(param.Type,models));
+                html = replaceAllOccurrences(html, '{{JsonModel}}',JSON.stringify(JSON.parse(modelJsonString), undefined, 4));
+                attachModelTabContainerEvent(txtAreaId, modelJsonString);
+                break;
+            } else {
+                html = replaceAllOccurrences(html, '{{ModelTabContainer}}', "");
+            }
+        }
+        
+        if (data.InputParameters.length == 0) {
+            html = replaceAllOccurrences(html, '{{ModelTabContainer}}', "");
+        }
+      
         html = html.replace('<tbody>', '<tbody>' + tbody);
         html = replaceAllOccurrences(html, '{{Name}}', data.Name);
         html = replaceAllOccurrences(html, '{{Path}}', urlPath);
@@ -388,10 +640,10 @@ body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line
             }
         });
 
-        createCategoryTables(operationGroups);
+        createCategoryTables(operationGroups, metadata);
     };
 
-    function createCategoryTables(categories) {
+    function createCategoryTables(categories, metadata) {
         $.each(categories, function (key, value) {
 
             var rowData = value;
@@ -465,7 +717,7 @@ body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line
                     if (existingRows.hasOwnProperty(getFormId(rowData))) {
                         row.child.show();
                     } else {
-                        row.child(getChildRowHtml(rowData), 'no-padding childRow').show();
+                        row.child(getChildRowHtml(rowData,metadata.Models||[]), 'no-padding childRow').show();
                         tr.addClass('shown');
                         if (rowData.InputParameters.length === 0) {
                             var parametersTableId = getParametersTableId(rowData);
@@ -664,6 +916,7 @@ body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line
         // Enable textArea's to auto-resize
         $('textarea.inputParameter').keyup(function (e) {
             var value = $(this).val();
+            var is_txtArea_contain_model = $(this).data("model"); //whether text area has custom model
 
             // If textarea is empty reset the height and width
             if (value.length === 0) {
@@ -674,7 +927,7 @@ body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line
             var rows = value.split("\n");
 
             // Remove height restriction if there is more than 1 row
-            if (rows.length > 1)
+            if (rows.length > 1 && !is_txtArea_contain_model)
                 $(this).css("height", "");
 
             // Adjust the textarea width to the size of the longest line of text up to a maximum of 70 characters
@@ -687,7 +940,7 @@ body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line
                         maxColumnLength = rowLength;
                 }
 
-                if (maxColumnLength > 20) {
+                if (maxColumnLength > 20 ) {
                     if (maxColumnLength >= 70)
                         maxColumnLength = 70;
                     $(this).prop('cols', maxColumnLength);
@@ -737,7 +990,7 @@ body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line
                 q += this.name + "=" + $(this).val();
                 i += 1;
             });
-
+            
             $("#" + sampleLinkId).text(originalPath + q).attr("href", originalPath + q);
         });
 
@@ -832,19 +1085,22 @@ body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line
         return [
             '<div class="slider">',
             '   <form id="{{FormId}}" method="POST" action="{{Path}}" style="margin: 20px;">',
-            '       <table id="{{ParametersTableId}}" cellpadding="5" cellspacing="0" border="0" style="padding-left:50px;">',
-            '           <thead>',
-            '               <tr>',
-            '                   <th>Parameter</th>',
-            '                   <th>Value</th>',
-            '                   <th>Type</th>',
-            '                   <th>Description</th>',
-            '                   <th>Sample Link</th>',
-            '               </tr>',
-            '           </thead>',
-            '           <tbody></tbody>',
-            '       </table>',
-            '       <div style="padding-left:50px; margin-top:10px;">',
+            '       <div class="tableContainer">',
+            '         <table id="{{ParametersTableId}}" cellpadding="5" cellspacing="0" border="0" style="padding-left:50px;">',
+            '             <thead>',
+            '                 <tr>',
+            '                     <th>Parameter</th>',
+            '                     <th>Value</th>',
+            '                     <th>Type</th>',
+            '                     <th>Description</th>',
+            '                     <th>Sample Link</th>',
+            '                 </tr>',
+            '             </thead>',
+            '             <tbody></tbody>',
+            '         </table>',
+            '       </div>',
+            '       <div class="modelContainer">{{ModelTabContainer}}</div>',
+            '       <div style="clear:left;padding-left:50px; margin-top:10px;">',
             '           <button type="submit" id="{{SubmitButtonId}}" class="btn btn-submit">Submit</button>',
             '           &nbsp;&nbsp;',
             '           <button type="button" id="{{ClearButtonId}}" class="btn btn-clear">Clear</button>',
@@ -856,7 +1112,6 @@ body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line
             '           </div>',
             '       </div>',
             '       <div id="{{ResultsId}}" style="padding-left:50px; display:none; overflow-y: scroll; background-color: #ECEFF1">',
-            '           <p style="display:inline-block;padding-left: 5px;padding-right:5px;"> Status Code ( <span id="{{StatusCode}}"></span> ): </p>',
             '           <p>Results ( <span id="{{ElapsedMilliseconds}}"></span> ms ):</p>',
             '           <pre id="{{SuccessResultsId}}">',
             '           </pre>',
@@ -865,6 +1120,20 @@ body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line
             '       </div>',
             '   </form>',
             '</div>'].join("\n");
+    };
+
+    function getModelTemplate(txtAreaId) {
+        return [
+          '<div class="tabContainer">',
+             '<ul class="tabs">',
+                '<li class="tab-link current" data-tab="'+ txtAreaId +'tab-model"> {{TypeName}}</li>',
+                '<li class="tab-link" data-tab="' + txtAreaId + 'tab-example">Example Value</li>',
+             '</ul>',
+             '<div id="' + txtAreaId + 'tab-model" class="tab-content current">{{TypeModel}}</div>',
+             '<div id="' + txtAreaId + 'tab-example" class="tab-content">',
+             '<textarea id="' + txtAreaId + 'tab-id-example" rows="10" cols="50" readonly>{{JsonModel}}</textarea>',
+             '</div>',
+          '</div>'].join("\n");
     };
 
     function getCSharpApiClassTemplate() {
@@ -1373,11 +1642,18 @@ body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line
     //sets "Show Generated URL" buttons to show/hide URLs, changes text
     function clickGenerateLinkButton(btn) {
         $(btn).next().toggle();
+        var $modelContainer = $(btn).closest(".tableContainer").next(".modelContainer");
+      
         if ($(btn).val() == "Show Generated Link") {
+            $modelContainer.hide();
             $(btn).val("Hide Generated Link");
+            if ($modelContainer.html().length) { //if custom model then limit the width of show generated link
+                $(btn).next().css("max-width", "400px");
+            }
         }
         else {
             $(btn).val("Show Generated Link");
+            $modelContainer.show();
         }
     }
 
