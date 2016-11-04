@@ -483,6 +483,45 @@ namespace Nano.Demo
         }
 
         /// <summary>
+        /// Takes an int that defaults to 16
+        /// </summary>
+        /// <param name="sixteen">defaults to 16</param>
+        public static int TakeAParameterThatHasADefaultValue(int sixteen = 16)
+        {
+            return sixteen;
+        }
+
+        /// <summary>
+        /// Takes a param with a string default
+        /// </summary>
+        /// <param name="sixteen">defaults to "sixteen"</param>
+        /// <returns></returns>
+        public static string TakeAStringThatHasADefaultValue(string sixteen = "sixteen")
+        {
+            return sixteen;
+        }
+
+        /// <summary>
+        /// Takes a param with a bool default
+        /// </summary>
+        /// <param name="notFalse">defualts to true</param>
+        /// <returns></returns>
+        public static bool TakeABoolThatHasADefaultValue(bool notFalse = true)
+        {
+            return notFalse;
+        }
+
+        /// <summary>
+        /// takes a string that defaults to null
+        /// </summary>
+        /// <param name="defaultToNull">defaults to null</param>
+        /// <returns></returns>
+        public static string TakeAStringThatHasADefaultValueOfNull(string defaultToNull = null)
+        {
+            return defaultToNull;
+        }
+
+        /// <summary>
         /// Api Response.
         /// </summary>
         /// <typeparam name="T">Response type.</typeparam>

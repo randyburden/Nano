@@ -76,5 +76,90 @@ namespace Nano.Tests.ModelBinder
                 Assert.AreEqual("Tuple<Int32,String,Object>", inputParam?.Type);
             }
         }
+
+        [Test]
+        public void Return_A_Correct_Default_Int_Value()
+        {
+            using (var server = NanoTestServer.Start())
+            {
+                // Arrange
+                server.NanoConfiguration.AddMethods<Customer>();
+
+                // Act
+                var response = HttpHelper.GetResponseString(server.GetUrl() + "/metadata/GetNanoMetadata");
+                var deserializedResponse = server.NanoConfiguration.SerializationService.Deserialize<ApiMetadata>(response);
+
+                var inputParam = deserializedResponse.Operations.FirstOrDefault(x => x.Name == "TakeAParameterThatHasADefaultValue")?.InputParameters.FirstOrDefault();
+
+                Trace.WriteLine(inputParam);
+
+                // Assert
+                Assert.AreEqual(16, inputParam?.DefaultValue);
+            }
+        }
+
+        [Test]
+        public void Return_A_Correct_Default_String_Value()
+        {
+            using (var server = NanoTestServer.Start())
+            {
+                // Arrange
+                server.NanoConfiguration.AddMethods<Customer>();
+
+                // Act
+                var response = HttpHelper.GetResponseString(server.GetUrl() + "/metadata/GetNanoMetadata");
+                var deserializedResponse = server.NanoConfiguration.SerializationService.Deserialize<ApiMetadata>(response);
+
+                var inputParam = deserializedResponse.Operations.FirstOrDefault(x => x.Name == "TakeAStringThatHasADefaultValue")?.InputParameters.FirstOrDefault();
+
+                Trace.WriteLine(inputParam);
+
+                // Assert
+                Assert.AreEqual("sixteen", inputParam?.DefaultValue);
+            }
+        }
+
+        [Test]
+        public void Return_A_Correct_Default_Boolean_Value()
+        {
+            using (var server = NanoTestServer.Start())
+            {
+                // Arrange
+                server.NanoConfiguration.AddMethods<Customer>();
+
+                // Act
+                var response = HttpHelper.GetResponseString(server.GetUrl() + "/metadata/GetNanoMetadata");
+                var deserializedResponse = server.NanoConfiguration.SerializationService.Deserialize<ApiMetadata>(response);
+
+                var inputParam = deserializedResponse.Operations.FirstOrDefault(x => x.Name == "TakeABoolThatHasADefaultValue")?.InputParameters.FirstOrDefault();
+
+                Trace.WriteLine(inputParam);
+
+                // Assert
+                Assert.AreEqual(true, inputParam?.DefaultValue);
+            }
+        }
+
+        [Test]
+        public void Return_A_Correct_Default_Null_Value()
+        {
+            using (var server = NanoTestServer.Start())
+            {
+                // Arrange
+                server.NanoConfiguration.AddMethods<Customer>();
+
+                // Act
+                var response = HttpHelper.GetResponseString(server.GetUrl() + "/metadata/GetNanoMetadata");
+                var deserializedResponse = server.NanoConfiguration.SerializationService.Deserialize<ApiMetadata>(response);
+
+                var inputParam = deserializedResponse.Operations.FirstOrDefault(x => x.Name == "TakeAStringThatHasADefaultValueOfNull")?.InputParameters.FirstOrDefault();
+
+                Trace.WriteLine(inputParam);
+
+                // Assert
+                Assert.AreEqual(null, inputParam?.DefaultValue);
+                Assert.AreEqual(true, inputParam?.HasDefaultValue);
+            }
+        }
     }
 }

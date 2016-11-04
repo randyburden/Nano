@@ -1052,7 +1052,12 @@ body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line
 
                     for (var j = 0; j < operation.InputParameters.length; j++) {
                         var inputParameter = operation.InputParameters[j];
-                        inputParameterList += inputParameter.Type + " " + inputParameter.Name + ", ";
+                        inputParameterList += inputParameter.Type + " " + inputParameter.Name;
+                        if (inputParameter.HasDefaultValue) {
+                            var defaultValue = ((inputParameter.Type === "String") && (inputParameter.DefaultValue !== null)) ? ('"' + inputParameter.DefaultValue + '"') : inputParameter.DefaultValue;
+                            inputParameterList += (" = " + defaultValue);
+                        }
+                        inputParameterList += ", ";
                         parameterNameList += inputParameter.Name + ", ";
                         nameValueCollectionParameterList += '{"' + inputParameter.Name + '", Configuration.Serialize(' + inputParameter.Name + ')}, ';
 
