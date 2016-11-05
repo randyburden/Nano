@@ -143,6 +143,7 @@ Thank you to all of the contributors who have helped shaped Nano in big and smal
  - Jack Farrington - https://github.com/jackfarrington
  - Brennon Meiners - https://github.com/BrennonEH
  - Chris Cha - https://github.com/christophercha
+ - Rolando Rojas - https://github.com/rorojas
  - Vishal Tahiliani - https://github.com/vishtahil
 
 Thank You
