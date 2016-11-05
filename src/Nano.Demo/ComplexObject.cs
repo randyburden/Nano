@@ -1,11 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Runtime.Remoting.Messaging;
-using System.Text;
-using System.Threading;
-using Nano.Web.Core;
+#pragma warning disable 1591
 
 namespace Nano.Demo
 {
@@ -56,7 +51,7 @@ namespace Nano.Demo
             public IList<ChildModel> IListOfChild;
             public ChildModel[] ChildArray;
             public SiblingModel SiblingType;
-            public Dictionary<string, string> DictionarOfString { get; set; }
+            public Dictionary<string, string> DictionaryOfStringString { get; set; }
             List<List<int>> ListOfListOfInt { get; set; }
             List<Dictionary<int, object>> listOfDictionaryParm { get; set; }
             Dictionary<int, Dictionary<int, object>> dictionaryOfDictionaryParm { get; set; }
@@ -80,6 +75,5 @@ namespace Nano.Demo
             public ChildModel[] childModelType;
             public ComplexModel complexModelType;
         }
-
     }
 }

@@ -522,6 +522,17 @@ namespace Nano.Demo
         }
 
         /// <summary>
+        /// Takes a required parameter and optional parameter 
+        /// </summary>
+        /// <param name="requiredParameter">(Required)</param>
+        /// <param name="optionalParameter">(Optional)</param>
+        /// <returns></returns>
+        public static string TakeARequiredAndOptionalParameter(string requiredParameter, string optionalParameter = null)
+        {
+            return requiredParameter;
+        }
+
+        /// <summary>
         /// Api Response.
         /// </summary>
         /// <typeparam name="T">Response type.</typeparam>

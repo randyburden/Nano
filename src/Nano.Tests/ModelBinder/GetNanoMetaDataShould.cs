@@ -1,12 +1,7 @@
-﻿using System;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Linq;
-using System.Reflection;
 using Nano.Demo;
-using Nano.Web.Core;
-using Nano.Web.Core.Internal;
 using Nano.Web.Core.Metadata;
-using Newtonsoft.Json;
 using NUnit.Framework;
 
 namespace Nano.Tests.ModelBinder
@@ -159,6 +154,26 @@ namespace Nano.Tests.ModelBinder
                 // Assert
                 Assert.AreEqual(null, inputParam?.DefaultValue);
                 Assert.AreEqual(true, inputParam?.HasDefaultValue);
+            }
+        }
+
+        [Test]
+        public void Return_Optional_Parameters_After_Required()
+        {
+            using (var server = NanoTestServer.Start())
+            {
+                // Arrange
+                server.NanoConfiguration.AddMethods<Customer>();
+
+                // Act
+                var response = HttpHelper.GetResponseString(server.GetUrl() + "/metadata/GetNanoMetadata");
+                var deserializedResponse = server.NanoConfiguration.SerializationService.Deserialize<ApiMetadata>(response);
+
+                var parameters = deserializedResponse.Operations.FirstOrDefault(x => x.Name == "TakeARequiredAndOptionalParameter")?.InputParameters;
+
+                Trace.WriteLine(parameters);
+
+                // Assert
             }
         }
     }

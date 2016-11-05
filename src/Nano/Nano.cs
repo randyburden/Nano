@@ -1,5 +1,5 @@
 /*
-    Nano v0.15.0
+    Nano v1.0.0
     
     Nano is a .NET cross-platform micro web framework for building web-based HTTP services and websites.
 
@@ -185,7 +185,7 @@ namespace Nano.Web.Core
         /// <param name="func">The function to invoke.</param>
         /// <param name="eventHandler">The event handlers to invoke on requests.</param>
         /// <param name="metadataProvider">The metadata provider.</param>
-        /// <returns><see cref="FuncRequestHandler" />.</returns>
+        /// <returns><see cref="FuncRequestHandler{T}"/>.</returns>
         public FuncRequestHandler<T> AddFunc<T>( string urlPath, Func<NanoContext, T> func, EventHandler eventHandler = null, IApiMetaDataProvider metadataProvider = null )
         {
             urlPath = "/" + urlPath.TrimStart( '/' ).TrimEnd( '/' );
@@ -1328,7 +1328,7 @@ namespace Nano.Web.Core
                 Version = fvi.FileVersion;
             }
             else
-                Version = "0.15.0";
+                Version = "1.0.0";
         }
 
         /// <summary>Custom error responses.</summary>
@@ -3181,7 +3181,7 @@ namespace Nano.Web.Core
         /// <summary>Handles requests to <see cref="Func" />s.</summary>
         public class FuncRequestHandler<T> : RequestHandler
         {
-            /// <summary>Initializes a new instance of the <see cref="FuncRequestHandler" /> class.</summary>
+            /// <summary>Initializes a new instance of the <see cref="FuncRequestHandler{T}" /> class.</summary>
             /// <param name="urlPath">The URL path.</param>
             /// <param name="eventHandler">The event handler.</param>
             /// <param name="func">The function.</param>
@@ -4745,6 +4745,9 @@ namespace Nano.Web.Core
                 return parameterTypeFullName;
             }
 
+            /// <summary>Gets the generic type name used in XML documentation.</summary>
+            /// <param name="type">Type.</param>
+            /// <returns>Type name.</returns>
             public static string GetGenericTypeName( Type type )
             {
                 var genericArgumentsArray = type.GetGenericArguments();
