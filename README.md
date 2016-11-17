@@ -85,7 +85,7 @@ Or you can optionally add the following directly to the projects .csproj file wh
   </PropertyGroup>
 ```
 
-**Step Five** - Create a new class in the root of your project named "HelloWorldApi". Then just copypasta the code below:
+**Step Five** - Create a new class in the Api folder of your project named "HelloWorldApi". Then just copypasta the code below:
 
 ```csharp
 namespace NanoIsAwesome.Api
