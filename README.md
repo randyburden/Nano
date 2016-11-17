@@ -23,7 +23,7 @@ Features
    - Can serve as a "free" auto-generated UI that can be given to internal users
    - Includes a built-in C# and JavaScript proxy generator which enables clients to generate a proxy to call your API
  - Easy to use extension points for intercepting requests, responses, or errors in order to implement logging, authentication, authorization, etc.
- - Allows developers to simply write static method and have them automatically be exposed as JSON endpoints at a convention based URL. As fast as you can write a method is as fast as you can have an API.
+ - Allows developers to simply write static methods and have them automatically be exposed as JSON endpoints at a convention based URL. As fast as you can write a method is as fast as you can have an API.
  - Ability to go low level by using the NanoContext class in the instance that you need to control content type, return blobs, handles headers or cookies, etc.
 
 Demo
@@ -40,28 +40,55 @@ Follow this five minute introduction to create your first self-hosted Nano appli
 
 **Step One** - Create a new solution and a C# console application project called "NanoIsAwesome"
 
-**Step Two** - Install Newtonsoft.Json from Nuget
+**Step Two** - Install Newtonsoft.Json from Nuget (This is the only dependency Nano has)
 
-**Step Three** - Download the single-file drop-ins for both Nano [nano.cs][9] and the Api Explorer [index.html][10] and add them to your project structure which should look like this:
+**Step Three** - Download the single-file drop-ins for both Nano ([nano.cs][9]) and the Api Explorer ([index.html][10]) and add them to your project structure which we recommend look like this:
 
 ```
 > NanoIsAwesome
   > Properties
   > References
+  > Api
+      HelloWorldApi.cs 
   > www
     > ApiExplorer
         index.html
     App.config
-    HelloWorldApi.cs
     Nano.cs
     packages.config
     Program.cs
 ```
 
-**Step Four** - Create a new class in the root of your project named "HelloWorldApi". Then just copypasta the code below:
+**Step Four** - Add the following Post-build event command line command which will copy the 'www' folder to the projects bin directory every time the project is built. In Visual Studio this can be found by right-clicking on the NanoIsAwesome project | Properties | Build Events | And pasting the command below into the "Post-build event command line" text box.
+
+For Windows:
+```
+xcopy "$(ProjectDir)www\*.*" "$(TargetDir)www" /Y /I /E
+```
+
+For Linux:
+```
+mkdir -p $(TargetDir)www;
+cp -rf $(ProjectDir)www\* $(TargetDir)www
+```
+
+Or you can optionally add the following directly to the projects .csproj file which will work for both Windows or Linux based environments:
+```
+  <PropertyGroup>
+    <PostBuildEvent Condition=" '$(OS)' == 'Windows_NT' ">
+      xcopy "$(ProjectDir)www\*.*" "$(TargetDir)www" /Y /I /E
+	</PostBuildEvent>
+    <PostBuildEvent Condition=" '$(OS)' != 'Windows_NT' ">
+      mkdir -p $(TargetDir)www;
+      cp -rf $(ProjectDir)www\* $(TargetDir)www
+	</PostBuildEvent>
+  </PropertyGroup>
+```
+
+**Step Five** - Create a new class in the root of your project named "HelloWorldApi". Then just copypasta the code below:
 
 ```csharp
-namespace NanoIsAwesome
+namespace NanoIsAwesome.Api
 {
     class HelloWorldApi
     {
@@ -73,7 +100,7 @@ namespace NanoIsAwesome
 }
 ```
 
-**Step Five** - Update your Program.cs Main method to configure and start Nano. Just copy the code below. Feel free to read the comments if you’re curious about what each piece does:
+**Step Six** - Update your Program.cs Main method to configure and start Nano. Just copy the code below. Feel free to read the comments if you’re curious about what each piece does:
 
 ```csharp
 static void Main(string[] args)
@@ -106,9 +133,9 @@ static void Main(string[] args)
 }
 ```
 
-**Step Six** - Start the debugger and navigate to http://localhost:4545/ApiExplorer/ to use the built-in testing endpoint or http://localhost:4545/Api/HelloWorldApi/HelloWorld to hit the endpoint directly.
+**Step Seven** - Start the debugger and navigate to http://localhost:4545/ApiExplorer/ to use the built-in testing endpoint or http://localhost:4545/Api/HelloWorldApi/HelloWorld to hit the endpoint directly.
 
-And that’s it. You're successfully using Nano to serve a website and an API endpoint. Visit the [Getting Started Guide][11], the [Nano Wiki][12], or browse the source code, unit tests, and demo projects to learn more.
+And that's it. You're successfully using Nano to serve a website and a JSON API endpoint. Visit the [Getting Started Guide][11], the [Nano Wiki][12], or browse the source code, unit tests, and demo projects to learn more.
 
 Api Explorer
 ---
@@ -149,7 +176,7 @@ Thank you to all of the contributors who have helped shaped Nano in big and smal
 Thank You
 ---
 
-Thanks to the following companies for providing free resources to help this maintain this project:
+Thanks to the following companies for providing free resources to help us run this project:
  - [AppVeyor][2] - Continuous integration build server for running our Windows tests
  - [Travis CI][4] - Continuous integration build server for running our Linux (Mono) tests
  - [Microsoft Azure][8] - Web hosting
