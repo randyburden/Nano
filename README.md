@@ -45,18 +45,18 @@ Follow this five minute introduction to create your first self-hosted Nano appli
 **Step Three** - Download the single-file drop-ins for both Nano ([nano.cs][9]) and the Api Explorer ([index.html][10]) and add them to your project structure which we recommend look like this:
 
 ```
-> NanoIsAwesome
-  > Properties
-  > References
-  > Api
-      HelloWorldApi.cs 
-  > www
-    > ApiExplorer
-        index.html
-    App.config
-    Nano.cs
-    packages.config
-    Program.cs
+├── NanoIsAwesome
+    ├── Properties
+    ├── References
+    ├── Api
+        ├── HelloWorldApi.cs 
+    ├── www
+        ├── ApiExplorer
+            ├── index.html
+    ├── App.config
+    ├── Nano.cs
+    ├── packages.config
+    ├── Program.cs
 ```
 
 **Step Four** - Add the following Post-build event command line command which will copy the 'www' folder to the projects bin directory every time the project is built. In Visual Studio this can be found by right-clicking on the NanoIsAwesome project | Properties | Build Events | And pasting the command below into the "Post-build event command line" text box.
