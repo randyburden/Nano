@@ -3119,17 +3119,20 @@ namespace Nano.Web.Core
             /// <returns>Hashed file contents.</returns>
             public static string GetFileHash(FileInfo fileInfo)
             {
-                if ( FileCache.ContainsKey( fileInfo.Name ) )
-                    return FileCache[ fileInfo.Name ];
+                var key = $"{fileInfo.FullName}_{fileInfo.LastWriteTime}";
 
                 string fileHash;
+
+                if (FileCache.TryGetValue(key, out fileHash))
+                    return fileHash;
+                
                 using (FileStream stream = fileInfo.OpenRead())
                 {
                     MD5 md5 = new MD5CryptoServiceProvider();
                     byte[] hash = md5.ComputeHash(stream);
                     fileHash = BitConverter.ToString(hash).Replace("-", String.Empty);
                 }
-                FileCache[ fileInfo.Name ] = fileHash;
+                FileCache[key] = fileHash;
                 return fileHash;
             }
 
