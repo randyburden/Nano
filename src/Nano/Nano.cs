@@ -1278,8 +1278,8 @@ namespace Nano.Web.Core
             /// <summary>301 MovedPermanently</summary>
             MovedPermanently = 301,
 
-            /// <summary>301 Found/MovedPermanently</summary>
-            FoundOrMovedTemporarily = 301,
+            /// <summary>301 Found/MovedTemporarily</summary>
+            FoundOrMovedTemporarily = 302,
 
             /// <summary>304 NotModified</summary>
             NotModified = 304,
