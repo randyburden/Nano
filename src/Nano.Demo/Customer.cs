@@ -303,6 +303,23 @@ namespace Nano.Demo
         }
 
         /// <summary>
+        /// Creates a customer using a Guid.
+        /// </summary>
+        /// <param name="customerId">a guid.</param>
+        public static dynamic CreateCustomerUsingGuid(Guid customerId)
+        {
+            if (customerId == null)
+                throw new ArgumentNullException("customer");
+
+            return new
+            {
+                CustomerId = customerId,
+                FirstName = "Bob",
+                LastName = "Dole"
+            };
+        }
+
+        /// <summary>
         /// Returns the details of the files uploaded.
         /// </summary>
         /// <param name="nanoContext">The Nano context.</param>
@@ -379,6 +396,140 @@ namespace Nano.Demo
             nanoContext.Response.ContentType = "application/vnd.ms-excel";
             nanoContext.Response.HeaderParameters.Add( "Content-Disposition", "attachment; filename=CustomerReport-" + customerId + ".xls" );
             return new MemoryStream( Encoding.UTF8.GetBytes( htmlTable ) );
+        }
+
+        /// <summary>
+        /// Takes in a list
+        /// </summary>
+        /// <param name="listOfInts">some really good description of a list</param>
+        /// <returns>true</returns>
+        public static bool TakeGenericListParameter( List<int> listOfInts )
+        {
+            return true;
+        }
+
+        /// <summary>
+        /// Takes a dictionary
+        /// </summary>
+        /// <param name="dictionary">some really good description of a dictionary</param>
+        /// <returns>true</returns>
+        public static bool TakeDictionaryParameter(Dictionary<int, string> dictionary)
+        {
+            return true;
+        }
+
+        /// <summary>
+        /// Takes a list of lists
+        /// </summary>
+        /// <param name="listOfListParm">A good desription of a list of lists</param>
+        public static bool TakeListOfListParameter(List<List<int>> listOfListParm)
+        {
+            return true;
+        }
+
+        /// <summary>
+        /// Takes a list of Dictonary
+        /// </summary>
+        /// <param name="listOfDictionaryParm">A good descrption of a List of Dictionary</param>
+        public static bool TakeListOfDictionarysParameter(List<Dictionary<int, object>> listOfDictionaryParm)
+        {
+            return true;
+        }
+
+        /// <summary>
+        /// Takes a Dictionary of Dictionary
+        /// </summary>
+        /// <param name="dictionaryOfDictionaryParm">A good description of a dictionary of dictionary</param>
+        public static bool TakeDictionaryOfDictionarysParameter(Dictionary<int, Dictionary<int, object>> dictionaryOfDictionaryParm)
+        {
+            return true;
+        }
+
+        /// <summary>
+        /// Takes an IEnumerable
+        /// </summary>
+        /// <param name="iEnumerable">A good description of an IEnumerable</param>
+        public static bool TakeIEnumerableParameter(IEnumerable<int> iEnumerable)
+        {
+            return true;
+        }
+
+        /// <summary>
+        /// Takes a Tuple
+        /// </summary>
+        /// <param name="tuple">A good description of a Tuple</param>
+        public static bool TakeTupleParameter(Tuple<int, string, object> tuple)
+        {
+            return true;
+        }
+
+        /// <summary>
+        /// Takes a Func
+        /// </summary>
+        /// <param name="funcParam">A good description of a Func</param>
+        /// <returns></returns>
+        public static bool TakeFuncParameter(Func<int, int, int, int, int> funcParam)
+        {
+            return true;
+        }
+
+        /// <summary>
+        /// Takes a very nested Func
+        /// </summary>
+        /// <param name="veryNestedfuncParam">A good description of a very nested Func</param>
+        public static bool TakeVeryNestedFuncParameter(Func<Func<Func<Func<int>>>> veryNestedfuncParam)
+        {
+            return true;
+        }
+
+        /// <summary>
+        /// Takes an int that defaults to 16
+        /// </summary>
+        /// <param name="sixteen">defaults to 16</param>
+        public static int TakeAParameterThatHasADefaultValue(int sixteen = 16)
+        {
+            return sixteen;
+        }
+
+        /// <summary>
+        /// Takes a param with a string default
+        /// </summary>
+        /// <param name="sixteen">defaults to "sixteen"</param>
+        /// <returns></returns>
+        public static string TakeAStringThatHasADefaultValue(string sixteen = "sixteen")
+        {
+            return sixteen;
+        }
+
+        /// <summary>
+        /// Takes a param with a bool default
+        /// </summary>
+        /// <param name="notFalse">defualts to true</param>
+        /// <returns></returns>
+        public static bool TakeABoolThatHasADefaultValue(bool notFalse = true)
+        {
+            return notFalse;
+        }
+
+        /// <summary>
+        /// takes a string that defaults to null
+        /// </summary>
+        /// <param name="defaultToNull">defaults to null</param>
+        /// <returns></returns>
+        public static string TakeAStringThatHasADefaultValueOfNull(string defaultToNull = null)
+        {
+            return defaultToNull;
+        }
+
+        /// <summary>
+        /// Takes a required parameter and optional parameter 
+        /// </summary>
+        /// <param name="requiredParameter">(Required)</param>
+        /// <param name="optionalParameter">(Optional)</param>
+        /// <returns></returns>
+        public static string TakeARequiredAndOptionalParameter(string requiredParameter, string optionalParameter = null)
+        {
+            return requiredParameter;
         }
 
         /// <summary>

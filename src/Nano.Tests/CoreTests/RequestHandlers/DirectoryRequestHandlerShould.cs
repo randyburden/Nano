@@ -87,6 +87,54 @@ namespace Nano.Tests.RequestHandlers
             }
         }
 
+        [TestCase("/Return302")]
+        public void Return_An_Http_302_When_Temporary_Redirect_Is_Requested(string path)
+        {
+            using (var server = NanoTestServer.Start())
+            {
+                // Arrange
+                server.NanoConfiguration.AddFunc("/Return302", context =>
+                {
+                    context.Response.TemporaryRedirect("https://www.google.com/");
+                    return 1;
+                });
+
+                // Act
+                using (var response = HttpHelper.GetHttpWebResponse(server.GetUrl() + path, allowAutoRedirect: false))
+                {
+                    // Visual Assertion
+                    Trace.WriteLine(response.GetResponseString());
+
+                    // Assert
+                    Assert.That(response.StatusCode == HttpStatusCode.Redirect);
+                }
+            }
+        }
+
+        [TestCase("/Return301")]
+        public void Return_An_Http_301_When_Permanent_Redirect_Is_Requested(string path)
+        {
+            using (var server = NanoTestServer.Start())
+            {
+                // Arrange
+                server.NanoConfiguration.AddFunc("/Return301", context =>
+                {
+                    context.Response.Redirect("https://www.google.com/");
+                    return 1;
+                });
+
+                // Act
+                using (var response = HttpHelper.GetHttpWebResponse(server.GetUrl() + path, allowAutoRedirect: false))
+                {
+                    // Visual Assertion
+                    Trace.WriteLine(response.GetResponseString());
+
+                    // Assert
+                    Assert.That(response.StatusCode == HttpStatusCode.MovedPermanently);
+                }
+            }
+        }
+
         [Test]
         public void Return_An_Http_200_When_The_Requested_Path_Does_Not_Exist_And_The_returnHttp404WhenFileWasNotFound_Parameter_Was_Set_To_False()
         {

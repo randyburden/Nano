@@ -9,6 +9,7 @@
     <Import_RootNamespace>Nano.Demo</Import_RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)ComplexObject.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Customer.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)NanoConfigurationHelper.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Time.cs" />

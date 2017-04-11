@@ -49,6 +49,8 @@ namespace Nano.Demo
             // Serves up all methods in the Customer class under the URL: /api/customer/methodName
             config.AddMethods<Customer>();
 
+            config.AddMethods<ComplexObject>();
+
             // We can also create event handlers that are not global.
             // This can be useful when certain APIs do or do not need logging, authentication, etc.
             var eventHandler = new Nano.Web.Core.EventHandler();

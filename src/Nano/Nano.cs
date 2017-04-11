@@ -1,5 +1,5 @@
 /*
-    Nano v0.15.0
+    Nano v1.0.0
     
     Nano is a .NET cross-platform micro web framework for building web-based HTTP services and websites.
 
@@ -117,6 +117,9 @@ namespace Nano.Web.Core
         /// <summary>The limit on the number of query string variables, form fields, or multipart sections in a request. Default is 1,000. The reason to limit the number of parameters processed by the server is detailed in the following security notice regarding a particular 'Collisions in HashTable' denial-of-service (DoS) attack vector: http://www.ocert.org/advisories/ocert-2011-003.html </summary>
         public int RequestParameterLimit = 1000;
 
+        /// <summary>List of namespaces for which all public classes will be added to metadata requests.</summary>
+        public List<string> MetadataNamespaces = new List<string>();
+
         /// <summary>Initializes a new instance of the <see cref="NanoConfiguration" /> class.</summary>
         public NanoConfiguration()
         {
@@ -182,7 +185,7 @@ namespace Nano.Web.Core
         /// <param name="func">The function to invoke.</param>
         /// <param name="eventHandler">The event handlers to invoke on requests.</param>
         /// <param name="metadataProvider">The metadata provider.</param>
-        /// <returns><see cref="FuncRequestHandler" />.</returns>
+        /// <returns><see cref="FuncRequestHandler{T}"/>.</returns>
         public FuncRequestHandler<T> AddFunc<T>( string urlPath, Func<NanoContext, T> func, EventHandler eventHandler = null, IApiMetaDataProvider metadataProvider = null )
         {
             urlPath = "/" + urlPath.TrimStart( '/' ).TrimEnd( '/' );
@@ -967,7 +970,7 @@ namespace Nano.Web.Core
 
             if ( _stream.CanSeek )
                 _stream.Position = 0;
-
+            
             _stream.CopyTo( targetStream, 8196 );
 
             if ( _stream.CanSeek )
@@ -996,18 +999,28 @@ namespace Nano.Web.Core
         /// <summary>Enables CORS ( Cross-origin resource sharing ) requests.</summary>
         /// <param name="nanoConfiguration">The nano configuration.</param>
         /// <param name="allowedOrigin">The allowed origin.</param>
-        public static void EnableCors( this NanoConfiguration nanoConfiguration, string allowedOrigin = "*" )
+        /// <param name="allowCredentials">Indicates whether the resource supports user credentials in the request such as cookies, authorization headers, or TLS client certificates. Important note: when responding to a credentialed request, the server must specify a domain and cannot use the wild carding string "*". By default, this method will populate Access-Control-Allow-Origin with the inbound domain origin if allowOrigin is set to wildcard string "*".</param>
+        public static void EnableCors( this NanoConfiguration nanoConfiguration, string allowedOrigin = "*", bool allowCredentials = true )
         {
-            nanoConfiguration.GlobalEventHandler.EnableCors( allowedOrigin );
+            nanoConfiguration.GlobalEventHandler.EnableCors( allowedOrigin, allowCredentials );
         }
-        
+
         /// <summary>Enables CORS ( Cross-origin resource sharing ) requests.</summary>
         /// <param name="eventHandler">The event handler.</param>
         /// <param name="allowedOrigin">The allowed origin.</param>
-        public static void EnableCors( this EventHandler eventHandler, string allowedOrigin = "*" )
+        /// <param name="allowCredentials">Indicates whether the resource supports user credentials in the request such as cookies, authorization headers, or TLS client certificates. Important note: when responding to a credentialed request, the server must specify a domain and cannot use the wild carding string "*". By default, this method will populate Access-Control-Allow-Origin with the inbound domain origin if allowOrigin is set to wildcard string "*".</param>
+        public static void EnableCors( this EventHandler eventHandler, string allowedOrigin = "*", bool allowCredentials = true )
         {
             eventHandler.PreInvokeHandlers.Add( context =>
             {
+                if ( allowCredentials )
+                {
+                    context.Response.HeaderParameters.Add( "Access-Control-Allow-Credentials", "true" );
+
+                    if ( allowedOrigin == "*")
+                        allowedOrigin = context.Request.Url.SiteBase;
+                }
+
                 context.Response.HeaderParameters.Add( "Access-Control-Allow-Origin", allowedOrigin );
 
                 if ( context.Request.HttpMethod == "OPTIONS" )
@@ -1265,8 +1278,8 @@ namespace Nano.Web.Core
             /// <summary>301 MovedPermanently</summary>
             MovedPermanently = 301,
 
-            /// <summary>301 Found/MovedPermanently</summary>
-            FoundOrMovedTemporarily = 301,
+            /// <summary>301 Found/MovedTemporarily</summary>
+            FoundOrMovedTemporarily = 302,
 
             /// <summary>304 NotModified</summary>
             NotModified = 304,
@@ -1315,7 +1328,7 @@ namespace Nano.Web.Core
                 Version = fvi.FileVersion;
             }
             else
-                Version = "0.14.99.0";
+                Version = "1.0.0";
         }
 
         /// <summary>Custom error responses.</summary>
@@ -1865,6 +1878,12 @@ namespace Nano.Web.Core
 
         /// <summary>Parameter type.</summary>
         public Type Type;
+
+        /// <summary>Indicates whether the parameter has a default value.</summary>
+        public bool HasDefaultValue;
+
+        /// <summary>Default value.</summary>
+        public object DefaultValue;
     }
 
     /// <summary>Routes requests.</summary>
@@ -3100,17 +3119,20 @@ namespace Nano.Web.Core
             /// <returns>Hashed file contents.</returns>
             public static string GetFileHash(FileInfo fileInfo)
             {
-                if ( FileCache.ContainsKey( fileInfo.Name ) )
-                    return FileCache[ fileInfo.Name ];
+                var key = $"{fileInfo.FullName}_{fileInfo.LastWriteTime}";
 
                 string fileHash;
+
+                if (FileCache.TryGetValue(key, out fileHash))
+                    return fileHash;
+                
                 using (FileStream stream = fileInfo.OpenRead())
                 {
                     MD5 md5 = new MD5CryptoServiceProvider();
                     byte[] hash = md5.ComputeHash(stream);
                     fileHash = BitConverter.ToString(hash).Replace("-", String.Empty);
                 }
-                FileCache[ fileInfo.Name ] = fileHash;
+                FileCache[key] = fileHash;
                 return fileHash;
             }
 
@@ -3162,7 +3184,7 @@ namespace Nano.Web.Core
         /// <summary>Handles requests to <see cref="Func" />s.</summary>
         public class FuncRequestHandler<T> : RequestHandler
         {
-            /// <summary>Initializes a new instance of the <see cref="FuncRequestHandler" /> class.</summary>
+            /// <summary>Initializes a new instance of the <see cref="FuncRequestHandler{T}" /> class.</summary>
             /// <param name="urlPath">The URL path.</param>
             /// <param name="eventHandler">The event handler.</param>
             /// <param name="func">The function.</param>
@@ -3252,7 +3274,7 @@ namespace Nano.Web.Core
                         if( methodParameter.Name.ToLower() == "nanocontext" || methodParameter.Type == typeof( NanoContext ) )
                             continue;
 
-                        var inputParameter = new OperationParameter { Name = methodParameter.Name, Description = methodParameter.Description, Type = GetTypeName( methodParameter.Type ), IsOptional = methodParameter.IsOptional };
+                        var inputParameter = new OperationParameter { Name = methodParameter.Name, Description = methodParameter.Description, Type = GetTypeName( methodParameter.Type ), IsOptional = methodParameter.IsOptional, HasDefaultValue = methodParameter.HasDefaultValue, DefaultValue = methodParameter.DefaultValue };
 
                         metadata.InputParameters.Add( inputParameter );
 
@@ -3265,6 +3287,14 @@ namespace Nano.Web.Core
 
                     AddModels( apiMetadata, returnParameterType );
                     apiMetadata.Operations.Add( metadata );
+                }
+
+                //Adding types specified in configuration namespaces
+                var assembly = Assembly.GetExecutingAssembly();
+                var types = assembly.GetTypes().Where(t => nanoContext.NanoConfiguration.MetadataNamespaces.Contains(t.Namespace) && t.IsPublic);
+                foreach (var x in types)
+                {
+                    AddModels(apiMetadata, x);
                 }
 
                 nanoContext.Response.ResponseObject = apiMetadata;
@@ -3284,12 +3314,15 @@ namespace Nano.Web.Core
 
                 if( type.IsGenericType )
                 {
+                    var types = type.GetGenericArguments();
+                    nestedUserTypes.AddRange(types.Where(t => t.FullName != null));
+
                     type = type.GetGenericTypeDefinition();
 
-                    var types = type.GetGenericArguments();
+                    types = type.GetGenericArguments();
                     foreach ( var t in types )
                     {
-                        if ( t.FullName == null )
+                        if ( t.FullName == null || nestedUserTypes.Contains(t) )
                             continue;
 
                         nestedUserTypes.Add( t );
@@ -3532,7 +3565,7 @@ namespace Nano.Web.Core
 
                 foreach( ParameterInfo parameterInfo in methodInfo.GetParameters().OrderBy( x => x.Position ) )
                 {
-                    var methodParameter = new MethodParameter { Position = parameterInfo.Position, Name = parameterInfo.Name, Type = parameterInfo.ParameterType, IsOptional = parameterInfo.IsOptional, IsDynamic = IsDynamic( parameterInfo ), Description = xmlMethodDocumentation.GetParameterDescription( parameterInfo.Name ) };
+                    var methodParameter = new MethodParameter { Position = parameterInfo.Position, Name = parameterInfo.Name, Type = parameterInfo.ParameterType, IsOptional = parameterInfo.IsOptional, IsDynamic = IsDynamic( parameterInfo ), Description = xmlMethodDocumentation.GetParameterDescription( parameterInfo.Name ), HasDefaultValue = parameterInfo.HasDefaultValue, DefaultValue = parameterInfo.DefaultValue };
                     methodParameters.Add( methodParameter );
                 }
 
@@ -3735,6 +3768,10 @@ namespace Nano.Web.Core
             public virtual Type GetOperationReturnParameterType( NanoContext nanoContext, IRequestHandler requestHandler )
             {
                 MethodRequestHandler handler = GetMethodRequestHandler( requestHandler );
+                if (handler.Method.ReturnType == typeof (Task))
+                    return typeof (void);
+                if (handler.Method.ReturnType.BaseType == typeof (Task))
+                    return handler.Method.ReturnType.GenericTypeArguments[0];
                 return handler.Method.ReturnType;
             }
 
@@ -3815,6 +3852,9 @@ namespace Nano.Web.Core
 
             /// <summary>The operation url path.</summary>
             public string UrlPath;
+
+            /// <summary>Optional metadata collection to allow custom data for the operation.</summary>
+            public Dictionary<string, object> CustomMetaData = new Dictionary<string, object>();
         }
 
         /// <summary>Operation parameter.</summary>
@@ -3831,6 +3871,12 @@ namespace Nano.Web.Core
 
             /// <summary>Parameter type.</summary>
             public string Type;
+
+            /// <summary>Indicates whether the parameter has a default value.</summary>
+            public bool HasDefaultValue;
+
+            /// <summary>Default value.</summary>
+            public object DefaultValue;
         }
     }
 
@@ -4690,26 +4736,38 @@ namespace Nano.Web.Core
             {
                 // Handle nullable types
                 Type underlyingType = Nullable.GetUnderlyingType( parameterInfo.ParameterType );
-
                 if( underlyingType != null )
                     return string.Format( "System.Nullable{{{0}}}", GetFullTypeName( underlyingType ) );
 
+                // Handle generic types
+                if (parameterInfo.ParameterType.IsGenericType)
+                    return GetGenericTypeName(parameterInfo.ParameterType);
+
                 string parameterTypeFullName = GetFullTypeName( parameterInfo.ParameterType );
 
-                // Handle generic types
-                if( string.IsNullOrWhiteSpace( parameterTypeFullName ) )
-                {
-                    string typeName = parameterInfo.ParameterType.Name;
-                    Type genericParameter = methodInfo.GetGenericArguments().FirstOrDefault( x => x.Name == typeName );
+                return parameterTypeFullName;
+            }
 
-                    if( genericParameter != null )
-                    {
-                        int genericParameterPosition = genericParameter.GenericParameterPosition;
-                        return "``" + genericParameterPosition;
-                    }
+            /// <summary>Gets the generic type name used in XML documentation.</summary>
+            /// <param name="type">Type.</param>
+            /// <returns>Type name.</returns>
+            public static string GetGenericTypeName( Type type )
+            {
+                var genericArgumentsArray = type.GetGenericArguments();
+                string genericTypeFullName = type.GetGenericTypeDefinition().FullName.Split('`')[0]; // disregard the stuff after the back-tick
+
+                string genericArguments = "";
+                for ( var i = 0; i < genericArgumentsArray.Length; i++ )
+                {
+                    if ( i > 0 )
+                        genericArguments += ",";
+                    string genericArgumentName = genericArgumentsArray[i].ToString();
+                    if ( genericArgumentsArray[ i ].IsGenericType )
+                        genericArgumentName = GetGenericTypeName(genericArgumentsArray[i]); // if generic argument is generic, recurse
+                    genericArguments += genericArgumentName;
                 }
 
-                return parameterTypeFullName;
+                return $"{genericTypeFullName}{{{genericArguments}}}";
             }
 
             /// <summary>Gets the full type name.</summary>
